@@ -1,9 +1,9 @@
 import string
 
 from classifier import Classifier
-# https://github.com/ztane/python-Levenshtein
-from Levenshtein import ratio
+from Levenshtein import ratio  # https://github.com/ztane/python-Levenshtein
 from nltk import SnowballStemmer
+from nltk.corpus import stopwords
 import re
 
 from typing import Tuple
@@ -13,6 +13,7 @@ class RuleClassifier(Classifier):
     def __init__(self, dataset_db_name: str):
         super().__init__(dataset_db_name)
         self.stemmer = SnowballStemmer('german')
+        self.stop_words = stopwords.words('german')
         # self.punctuation_regex = re.compile("(\W|_)", flags=re.U | re.I)
 
     def classify_datasplit(self, split, threshold=0.5):
@@ -39,6 +40,10 @@ class RuleClassifier(Classifier):
         print("\nTP: %s" % (true_positive_count))
         print("Total: %s" % (len(data)))
         print("%.2f%% entities were classified correctly." % (100/len(data)*true_positive_count))
+
+    def _remove_stopwords(self, s: str) -> str:
+        words = s.split(" ")
+        return ' '.join([word for word in words if word not in self.stop_words])
 
     def _heuristic_punctuation(self, s1: str, s2: str) -> Tuple[str, str]:
         def remove_punctuation(s):
@@ -79,6 +84,9 @@ class RuleClassifier(Classifier):
 
         return ' '.join(s1_words), ' '.join(s2_words)
 
+    def _heuristic_remove_stopwords(self, s1: str, s2: str) -> Tuple[str, str]:
+        return self._remove_stopwords(s1), self._remove_stopwords(s2)
+
     def _check_similarity(self, s1, s2, highest_sim):
         sim = ratio(s1, s2)
         if sim >= highest_sim[0]:
@@ -97,7 +105,7 @@ class RuleClassifier(Classifier):
         :param reference_entity:
         :return:
         """
-        # FIXME: we do not have any negative samples --> nachfragen wie ich das messen soll?
+        # FIXME: we do not have any negative samples --> nachfragen?
 
         # Initialize the highest_sim value
         highest_sim = (ratio(mention, reference_entity), mention, reference_entity)
@@ -110,6 +118,10 @@ class RuleClassifier(Classifier):
         tmp1, tmp2 = self._heuristic_stemming(highest_sim[1], highest_sim[2])
         highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
 
+        # Heuristic: remove stopwords
+        tmp1, tmp2 = self._heuristic_remove_stopwords(highest_sim[1], highest_sim[2])
+        highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
+
         # Heuristic: switch words (example: kenyon dorothy vs dorothy kenyon)
         tmp1, tmp2 = self._heuristic_sort_words(highest_sim[1], highest_sim[2])
         highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
@@ -117,6 +129,7 @@ class RuleClassifier(Classifier):
         # Heuristic: word Splitter u. 1 Buchstaben jeweils behalten
         tmp1, tmp2 = self._heuristic_abbreviations(highest_sim[1], highest_sim[2])
         highest_sim_tmp = self._check_similarity(tmp1, tmp2, highest_sim)
+        # highest_sim = (highest_sim_tmp[0], highest_sim[1] + " | " + highest_sim_tmp[1], highest_sim[2] + " | " + highest_sim_tmp[2])
         highest_sim = (highest_sim_tmp[0], highest_sim[1], highest_sim[2])
 
         # FIXME: Heuristic: Compound Splitter u. 1 Buchstaben jeweils behalten
