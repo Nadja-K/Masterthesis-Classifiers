@@ -23,12 +23,6 @@ class Classifier(metaclass=ABCMeta):
         print("Found %s sentences for %s entities for the test split." % (len(self.test_data), len(test_entities)))
         print("Found %s sentences for %s entities for the val split." % (len(self.val_data), len(val_entities)))
 
-        # for data in self.train_data:
-        #     print(tuple(data))
-        #     print(data.keys())
-        #     print(data['entity_title'])
-        #     break
-
         self._close_db(connection)
 
     def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', load_context: bool = False) -> List[sqlite3.Row]:
@@ -46,7 +40,8 @@ class Classifier(metaclass=ABCMeta):
             curs.execute("SELECT sentences.mention, sentences.sentence, "
                          "       entity_articles.title as entity_title, "
                          "       backlink_articles.title as backlink_title, "
-                         "       backlink_articles.text as backlink_text "
+                         "       backlink_articles.text as backlink_text, "
+                         "       sentences.positive as positive "
                          "FROM sentences "
                          "INNER JOIN (articles) entity_articles "
                          "  ON entity_articles.id = sentences.entity_id "
@@ -58,7 +53,8 @@ class Classifier(metaclass=ABCMeta):
         else:
             curs.execute("SELECT sentences.mention, sentences.sentence, "
                          "       entity_articles.title as entity_title, "
-                         "       backlink_articles.title as backlink_title "
+                         "       backlink_articles.title as backlink_title, "
+                         "       sentences.positive as positive "
                          "FROM sentences "
                          "INNER JOIN (articles) entity_articles "
                          "  ON entity_articles.id = sentences.entity_id "

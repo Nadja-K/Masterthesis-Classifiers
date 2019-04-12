@@ -27,6 +27,10 @@ class RuleClassifier(Classifier):
             data = self.val_data
 
         true_positive_count = 0
+        true_negative_count = 0
+        false_positive_count = 0
+        false_negative_count = 0
+        total_samples_counted = 0
         print("{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format("Similarity", "Refactored mention",
                                                                       "Refactored entity", "Original mention",
                                                                       "Original entity"))
@@ -34,17 +38,43 @@ class RuleClassifier(Classifier):
         for sample in data:
             mention = str(sample['mention'])
             reference_entity = str(sample['entity_title'])
+            positive = bool(sample['positive'])
+
+            # FIXME: make this optional - idea: skip all samples where the mention is identical to the reference_entity
+            # FIXME: put a flag in the config file to enable this?
+            if mention == reference_entity:
+                continue
+            else:
+                total_samples_counted += 1
+
             ratio, s1, s2 = self.classify(mention, reference_entity)
 
             if ratio >= threshold:
-                true_positive_count += 1
+                if positive:
+                    true_positive_count += 1
+                else:
+                    print("FP\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
+                    false_positive_count += 1
             else:
-                continue
-                print("{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
+                if positive:
+                    print("FN\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
+                    false_negative_count += 1
+                else:
+                    true_negative_count += 1
 
-        print("\nTP: %s" % (true_positive_count))
-        print("Total: %s" % (len(data)))
-        print("%.2f%% entities were classified correctly." % (100/len(data)*true_positive_count))
+            # if ratio >= threshold:
+            #     true_positive_count += 1
+            # else:
+            #     continue
+            #     print("{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
+
+        precision = true_positive_count / (true_positive_count + false_positive_count + 0.000001) * 100
+        recall = true_positive_count / (true_positive_count + false_negative_count + 0.000001) * 100
+        accuracy = (true_positive_count + true_negative_count) / total_samples_counted * 100
+        f_measure = 2 * (precision * recall) / (precision + recall + 0.000001)
+        print("\nTP: %s, TN: %s, FP: %s, FN: %s" % (true_positive_count, true_negative_count, false_positive_count, false_negative_count))
+        print("Precision: %.2f%%, Recall: %.2f%%, Accuracy: %.2f%%, F_1-Measure: %.2f%%" % (precision, recall, accuracy, f_measure))
+        # print("For %.2f%% of all sentences, the entities were classified correctly." % (100/len(data)*(true_positive_count+true_negative_count)))
 
     def _remove_stopwords(self, s: str) -> str:
         words = s.split(" ")
