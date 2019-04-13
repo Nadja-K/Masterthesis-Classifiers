@@ -4,15 +4,31 @@ import sqlite3
 
 
 class Classifier(metaclass=ABCMeta):
-    def __init__(self, dataset_db_name: str, load_context: bool = False):
-        self._load_dataset(dataset_db_name, load_context)
+    def __init__(self, dataset_db_name: str, load_negative_samples: bool = False, skip_trivial_samples: bool = False,
+                 load_context: bool = False):
+        self._load_dataset(dataset_db_name, load_negative_samples, skip_trivial_samples, load_context)
 
-    def _load_dataset(self, dataset_db_name: str, load_context: bool = False):
+    def _load_dataset(self, dataset_db_name: str, load_negative_samples: bool = False,
+                      skip_trivial_samples: bool = False, load_context: bool = False):
         curs, connection = self._connect_db(dataset_db_name)
 
-        self.train_data = self._load_split(curs, split='train', load_context=load_context)
-        self.test_data = self._load_split(curs, split='test', load_context=load_context)
-        self.val_data = self._load_split(curs, split='val', load_context=load_context)
+        if load_negative_samples:
+            print("Negative samples will be loaded.")
+        else:
+            print("Only positive samples will be loaded.")
+
+        if skip_trivial_samples:
+            print("Trivial samples will be skipped.")
+
+        if load_context:
+            print("Context sentences will be loaded. This can take a while.")
+
+        self.train_data = self._load_split(curs, split='train', load_negative_samples=load_negative_samples,
+                                           skip_trivial_samples=skip_trivial_samples, load_context=load_context)
+        self.test_data = self._load_split(curs, split='test', load_negative_samples=load_negative_samples,
+                                          skip_trivial_samples=skip_trivial_samples, load_context=load_context)
+        self.val_data = self._load_split(curs, split='val', load_negative_samples=load_negative_samples,
+                                         skip_trivial_samples=skip_trivial_samples, load_context=load_context)
 
         # Some statistical information about the splits
         train_entities = set([x['entity_title'] for x in self.train_data])
@@ -25,7 +41,8 @@ class Classifier(metaclass=ABCMeta):
 
         self._close_db(connection)
 
-    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', load_context: bool = False) -> List[sqlite3.Row]:
+    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', load_negative_samples: bool = False,
+                    skip_trivial_samples: bool = False, load_context: bool = False) -> List[sqlite3.Row]:
         """
         Load a split from the dataset database.
 
@@ -36,33 +53,44 @@ class Classifier(metaclass=ABCMeta):
 
         :return: Contains all (sentence, mention, entity_title, backlink_title(, backlink_text)) tuples
         """
+        command_head = """
+            SELECT  sentences.mention, 
+                    sentences.sentence, 
+                    entity_articles.title as entity_title, 
+                    backlink_articles.title as backlink_title, 
+                    sentences.positive as positive
+        """
+        command_context = """
+            , backlink_articles.text as backlink_text
+        """
+        command_body = """
+            FROM sentences 
+            INNER JOIN (articles) entity_articles 
+              ON entity_articles.id = sentences.entity_id
+            INNER JOIN (articles) backlink_articles 
+              ON backlink_articles.id = sentences.backlink_id 
+            INNER JOIN splits 
+              ON splits.id = entity_articles.id 
+            WHERE splits.split = ? 
+        """
+        command_positive_samples_only = """
+            AND sentences.positive = 1 
+        """
+        command_skip_trivial_samples = """
+            AND sentences.mention != entity_title
+        """
+
+        # FIXME: shuffle data
         if load_context:
-            curs.execute("SELECT sentences.mention, sentences.sentence, "
-                         "       entity_articles.title as entity_title, "
-                         "       backlink_articles.title as backlink_title, "
-                         "       backlink_articles.text as backlink_text, "
-                         "       sentences.positive as positive "
-                         "FROM sentences "
-                         "INNER JOIN (articles) entity_articles "
-                         "  ON entity_articles.id = sentences.entity_id "
-                         "INNER JOIN (articles) backlink_articles "
-                         "  ON backlink_articles.id = sentences.backlink_id "
-                         "INNER JOIN splits "
-                         "  ON splits.id = entity_articles.id "
-                         "WHERE splits.split = ?", (split,))
+            command = command_head + command_context + command_body
         else:
-            curs.execute("SELECT sentences.mention, sentences.sentence, "
-                         "       entity_articles.title as entity_title, "
-                         "       backlink_articles.title as backlink_title, "
-                         "       sentences.positive as positive "
-                         "FROM sentences "
-                         "INNER JOIN (articles) entity_articles "
-                         "  ON entity_articles.id = sentences.entity_id "
-                         "INNER JOIN (articles) backlink_articles "
-                         "  ON backlink_articles.id = sentences.backlink_id "
-                         "INNER JOIN splits "
-                         "  ON splits.id = entity_articles.id "
-                         "WHERE splits.split = ?", (split,))
+            command = command_head + command_body
+        if not load_negative_samples:
+            command = command + command_positive_samples_only
+        if skip_trivial_samples:
+            command = command + command_skip_trivial_samples
+
+        curs.execute(command, (split,))
         return curs.fetchall()
 
     def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
