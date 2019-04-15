@@ -46,6 +46,7 @@ class RuleClassifier(Classifier):
             ratio, s1, s2 = self.classify(mention, reference_entity)
             if ratio >= threshold:
                 if positive:
+                    print("TP\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
                     true_positive_count += 1
                 else:
                     # print("FP\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
@@ -55,6 +56,7 @@ class RuleClassifier(Classifier):
                     # print("FN\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
                     false_negative_count += 1
                 else:
+                    print("TN\t{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(ratio, s1, s2, mention, reference_entity))
                     true_negative_count += 1
 
         precision = true_positive_count / (true_positive_count + false_positive_count + epsilon) * 100
@@ -135,33 +137,29 @@ class RuleClassifier(Classifier):
         tmp_sim = highest_sim[0]
 
         # Heuristic: remove punctuation in general
-        # tmp1, tmp2 = self._heuristic_punctuation(highest_sim[1], highest_sim[2])
-        # highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-        #
-        # # Heuristic: stemming + lowercasing
-        # tmp1, tmp2 = self._heuristic_stemming(highest_sim[1], highest_sim[2])
-        # highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-        #
-        # # Heuristic: remove stopwords
-        # tmp1, tmp2 = self._heuristic_remove_stopwords(highest_sim[1], highest_sim[2])
-        # highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-        #
-        # # Heuristic: switch words (example: kenyon dorothy vs dorothy kenyon)
-        # tmp1, tmp2 = self._heuristic_sort_words(highest_sim[1], highest_sim[2])
-        # highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-        #
-        # # Heuristic: word Splitter + keep the first letter of each word
-        # tmp1, tmp2 = self._heuristic_abbreviations(highest_sim[1], highest_sim[2])
-        # highest_sim_tmp = self._check_similarity(tmp1, tmp2, highest_sim)
-        # highest_sim = (highest_sim_tmp[0], highest_sim[1], highest_sim[2])
+        tmp1, tmp2 = self._heuristic_punctuation(highest_sim[1], highest_sim[2])
+        highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
+
+        # Heuristic: stemming + lowercasing
+        tmp1, tmp2 = self._heuristic_stemming(highest_sim[1], highest_sim[2])
+        highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
+
+        # Heuristic: remove stopwords
+        tmp1, tmp2 = self._heuristic_remove_stopwords(highest_sim[1], highest_sim[2])
+        highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
+
+        # Heuristic: switch words (example: kenyon dorothy vs dorothy kenyon)
+        tmp1, tmp2 = self._heuristic_sort_words(highest_sim[1], highest_sim[2])
+        highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
+
+        # Heuristic: word Splitter + keep the first letter of each word
+        tmp1, tmp2 = self._heuristic_abbreviations(highest_sim[1], highest_sim[2])
+        highest_sim_tmp = self._check_similarity(tmp1, tmp2, highest_sim)
+        highest_sim = (highest_sim_tmp[0], highest_sim[1], highest_sim[2])
 
         # FIXME: Heuristic: Compound Splitter u. 1 Buchstaben jeweils behalten
         # Note: incorporate into the above heuristic somehow?
         # Note2: definitely don't use the returned string from the above heuristic as input for this one
-
-        # Printing for science
-        # if tmp_sim < highest_sim[0] and (highest_sim[1] != mention or highest_sim[2] != reference_entity):
-        #     print("{0: <30} {1: <30} {2: <30} {3: <30} {4: <30}".format(highest_sim[0], highest_sim[1], highest_sim[2], mention, reference_entity))
 
         # Return a 'similarity' value (percentage) of the two strings/entities based on real minimal edit distance
         return highest_sim

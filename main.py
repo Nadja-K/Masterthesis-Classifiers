@@ -5,7 +5,8 @@ from rule_classifier import RuleClassifier
 
 def main():
     config = configparser.ConfigParser()
-    config.read("config.ini")
+    # config.read("config.ini")
+    config.read("remote_config.ini")
 
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
     use_negative_samples = config['DATASET'].getboolean('USE_NEGATIVE_SAMPLES', False)

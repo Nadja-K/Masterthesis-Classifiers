@@ -1,7 +1,78 @@
-## Statistiken
-* TP: 3483
-* Total: 5050
-* 68.97% entities were classified correctly.
+## False negatives (für threshold 0.5)
+```
+Similarity                     Refactored mention             Refactored entity              Original mention               Original entity               
+------------------------------------------------------------------------------------------------------------------------------------------------------ 
+0.0                            bodense                        120 lz                         Bodensee                       LZ_120  
+0.08333333333333333            Onychophoren                   Stummelfüßer                   Onychophoren                   Stummelfüßer 
+0.18181818181818182            stammsitz                      burg habsburg                  Stammsitz                      Habsburg_(Burg) 
+0.2222222222222222             octavian                       augustus                       Octavian                       Augustus  
+0.25                           US Armee                       Streitkräfte Vereinigten Staaten US-Armee                       Streitkräfte_der_Vereinigten_Staaten
+0.27586206896551724            zweitstimm                     bundestagswahlrecht            Zweitstimmen                   Bundestagswahlrecht    
+0.3076923076923077             repulsion                      ekel                           Repulsion                      Ekel  
+0.3333333333333333             klimawandel                    global erwarm                  Klimawandel                    Globale_Erwärmung
+0.375                          135 kc tankflugzeug            135 boeing kc                  KC-135-Tankflugzeug            Boeing_KC-135   
+0.4444444444444444             Erderwärmungsgeschwindigkeit   Erwärmung Globale              Erderwärmungsgeschwindigkeit   Globale_Erwärmung     
+0.4444444444444444             175 paragraph                  175 §                          Paragraph 175                  §_175
+0.4666666666666667             135 kc stratotank              135 boeing kc                  KC-135 Stratotanker            Boeing_KC-135 
+0.47058823529411764            tulpenzwiebelspekulation       tulpenmani                     Tulpenzwiebelspekulation       Tulpenmanie     
+0.48                           Norden                         Norden Ostfriesland            Norden                         Norden_(Ostfriesland)    
+```
+
+## False positives  (für threshold 0.5)
+```
+Similarity                     Refactored mention             Refactored entity              Original mention               Original entity               
+------------------------------------------------------------------------------------------------------------------------------------------------------ 
+0.5                            theophyllin                    edessa theophilos              Theophyllin                    Theophilos_von_Edessa 
+0.5                            malaria                        moalv                          Malaria                        Moälven 
+0.5365853658536586             kronach rosenberg              burggrafschaft friedberg       Rosenberg in Kronach           Burggrafschaft_Friedberg  
+0.5384615384615384             klost muri                     klost oelinghaus               Klöster Muri                   Kloster_Oelinghausen  
+0.5925925925925926             Neandertaler                   Wandermenagerie                Neandertaler                   Wandermenagerie 
+0.64                           philosoph lehr                 phyllosphar                    philosophische Lehre           Phyllosphäre 
+0.6666666666666666             segl                           sl                             Seglern                        Schloss_Ludwigslust 
+0.72                           schonhaus                      schopenhauerhaus               Schönhauser Allee              Schopenhauerhaus 
+...
+1.0                            blut                           blut                           Blüten                         Blut        
+1.0                            go                             go                             Go                             Oecusse_(Gemeinde)   
+```
+
+## True positives (für threshold 0.5)
+```
+Similarity                     Refactored mention             Refactored entity              Original mention               Original entity               
+------------------------------------------------------------------------------------------------------------------------------------------------------ 
+0.56                           Senatoren                      Senat Frankreich               Senatoren                      Senat_(Frankreich) 
+0.6153846153846154             Hochofenemissionen             Hochofen                       Hochofenemissionen             Hochofen  
+0.75                           Brauer                         Brauer Max                     Brauer                         Max_Brauer
+0.7647058823529411             harbig rudolf stadion          harbig rudolf                  Rudolf-Harbig-Stadion          Rudolf_Harbig
+0.7647058823529411             Französische Senat             Frankreich Senat               Französische Senat             Senat_(Frankreich)      
+0.7878787878787878             harbig rudolf strass           harbig rudolf                  Rudolf-Harbig-Straße           Rudolf_Harbig
+0.8                            arm heinrich thema             arm heinrich                   Armer-Heinrich-Thema           Der_arme_Heinrich  
+0.8                            god of seri war                god of war                     God-of-War-Serie               God_of_War
+0.8484848484848485             selt wasserschlauch            wasserschlauch                 Seltene Wasserschlauch         Wasserschläuche 
+0.9032258064516129             wasserschlauchart              wasserschlauch                 Wasserschlaucharten            Wasserschläuche 
+1.0                            fragil syndrom x               fragil syndrom x               Fragiles-X-Syndrome            Fragiles-X-Syndrom   
+1.0                            god of                         god of                         God of War                     God_of_War
+1.0                            hochof                         hochof                         Hochöfen                       Hochofen
+1.0                            hochof                         hochof                         Hochofens                      Hochofen 
+```
+
+## True negatives (für threshold 0.5)
+```
+Similarity                     Refactored mention             Refactored entity              Original mention               Original entity               
+------------------------------------------------------------------------------------------------------------------------------------------------------ 
+0.2                            siebdruck                      enzyklopadi                    Siebdruck                      Enzyklopädie 
+0.20689655172413793            Adams John                     Friedrich Nietzsche            John Adams                     Friedrich_Nietzsche 
+0.25                           pavian                         friedrich nietzsch             Pavianen                       Friedrich_Nietzsche  
+0.2777777777777778             intercityexperimental          galilei galileo                InterCityExperimental          Galileo_Galilei
+0.32                           fletch klass                   erwarm global                  Fletcher-Klasse                Globale_Erwärmung
+0.34285714285714286            de enzinas francisco           galilei galileo                Francisco de Enzinas           Galileo_Galilei 
+0.34782608695652173            stufentheori                   enzyklopadi                    Stufentheorie                  Enzyklopädie 
+0.375                          senat                          enzyklopadi                    Senat                          Enzyklopädie 
+0.42857142857142855            margaret valois                erwarm global                  Margarete von Valois           Globale_Erwärmung      
+0.4375                         First Nations                  Friedrich Nietzsche            First Nations                  Friedrich_Nietzsche
+0.45714285714285713            wien zentralfriedhof           galilei galileo                Wiener Zentralfriedhof         Galileo_Galilei   
+```
+
+-----------------------------------------
 
 ## Beispiele bei denen die Regeln geholfen haben
 ```
