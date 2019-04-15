@@ -1,21 +1,19 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, List
+from typing import Tuple, List, Set, Dict
 import sqlite3
 
 
 class Classifier(metaclass=ABCMeta):
-    def __init__(self, dataset_db_name: str, load_negative_samples: bool = False, skip_trivial_samples: bool = False,
-                 load_context: bool = False):
-        self._load_dataset(dataset_db_name, load_negative_samples, skip_trivial_samples, load_context)
+    def __init__(self):
+        self.train_data = None
+        self.test_data = None
+        self.val_data = None
+        self.train_entities = None
+        self.test_entities = None
+        self.val_entities = None
 
-    def _load_dataset(self, dataset_db_name: str, load_negative_samples: bool = False,
-                      skip_trivial_samples: bool = False, load_context: bool = False):
+    def load_datasets(self, dataset_db_name: str, skip_trivial_samples: bool = False, load_context: bool = False):
         curs, connection = self._connect_db(dataset_db_name)
-
-        if load_negative_samples:
-            print("Negative samples will be loaded.")
-        else:
-            print("Only positive samples will be loaded.")
 
         if skip_trivial_samples:
             print("Trivial samples will be skipped.")
@@ -23,25 +21,27 @@ class Classifier(metaclass=ABCMeta):
         if load_context:
             print("Context sentences will be loaded. This can take a while.")
 
-        self.train_data = self._load_split(curs, split='train', load_negative_samples=load_negative_samples,
-                                           skip_trivial_samples=skip_trivial_samples, load_context=load_context)
-        self.test_data = self._load_split(curs, split='test', load_negative_samples=load_negative_samples,
-                                          skip_trivial_samples=skip_trivial_samples, load_context=load_context)
-        self.val_data = self._load_split(curs, split='val', load_negative_samples=load_negative_samples,
-                                         skip_trivial_samples=skip_trivial_samples, load_context=load_context)
+        # Retrieve all samples from the database (corresponding to their split)
+        self.train_data = self._load_split(curs, split='train', skip_trivial_samples=skip_trivial_samples,
+                                           load_context=load_context)
+        self.test_data = self._load_split(curs, split='test', skip_trivial_samples=skip_trivial_samples,
+                                          load_context=load_context)
+        self.val_data = self._load_split(curs, split='val', skip_trivial_samples=skip_trivial_samples,
+                                         load_context=load_context)
 
-        # Some statistical information about the splits
-        train_entities = set([x['entity_title'] for x in self.train_data])
-        test_entities = set([x['entity_title'] for x in self.test_data])
-        val_entities = set([x['entity_title'] for x in self.val_data])
+        # Collect a set of all entities per dataset
+        self.train_entities = set([x['entity_title'] for x in self.train_data])
+        self.test_entities = set([x['entity_title'] for x in self.test_data])
+        self.val_entities = set([x['entity_title'] for x in self.val_data])
 
-        print("Found %s sentences for %s entities for the training split." % (len(self.train_data), len(train_entities)))
-        print("Found %s sentences for %s entities for the test split." % (len(self.test_data), len(test_entities)))
-        print("Found %s sentences for %s entities for the val split." % (len(self.val_data), len(val_entities)))
+        # Some statistical information
+        print("Found %s sentences for %s entities for the training split." % (len(self.train_data), len(self.train_entities)))
+        print("Found %s sentences for %s entities for the test split." % (len(self.test_data), len(self.test_entities)))
+        print("Found %s sentences for %s entities for the val split." % (len(self.val_data), len(self.val_entities)))
 
         self._close_db(connection)
 
-    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', load_negative_samples: bool = False,
+    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train',
                     skip_trivial_samples: bool = False, load_context: bool = False) -> List[sqlite3.Row]:
         """
         Load a split from the dataset database.
@@ -53,6 +53,7 @@ class Classifier(metaclass=ABCMeta):
 
         :return: Contains all (sentence, mention, entity_title, backlink_title(, backlink_text)) tuples
         """
+        # FIXME: remove the positive part from the databases and then remove it here as well +  remove it from the code project
         command_head = """
             SELECT  sentences.mention, 
                     sentences.sentence, 
@@ -72,9 +73,7 @@ class Classifier(metaclass=ABCMeta):
             INNER JOIN splits 
               ON splits.id = entity_articles.id 
             WHERE splits.split = ? 
-        """
-        command_positive_samples_only = """
-            AND sentences.positive = 1 
+            AND sentences.positive = 1
         """
         command_skip_trivial_samples = """
             AND sentences.mention != entity_title
@@ -85,8 +84,6 @@ class Classifier(metaclass=ABCMeta):
             command = command_head + command_context + command_body
         else:
             command = command_head + command_body
-        if not load_negative_samples:
-            command = command + command_positive_samples_only
         if skip_trivial_samples:
             command = command + command_skip_trivial_samples
 
@@ -108,5 +105,17 @@ class Classifier(metaclass=ABCMeta):
         connection.close()
 
     @abstractmethod
-    def classify(self):
+    def compute_similarity(self, mention: str, reference_entity: str) -> float:
+        pass
+
+    @abstractmethod
+    def evaluate_datasplit(self, split: str):
+        pass
+
+    @abstractmethod
+    def compute_similarity(self, mention: str, entity: str) -> Tuple[float, str, str]:
+        pass
+
+    @abstractmethod
+    def classify(self, mention: str, entities: Set[str]) -> Dict[str, float]:
         pass
