@@ -14,8 +14,11 @@ from symspellpy.symspellpy import SymSpell, Verbosity
 epsilon = sys.float_info.epsilon
 
 
+# FIXME: auslagern in eigene Datei
 class Heuristic(metaclass=ABCMeta):
-    def __init__(self, max_edit_distance_dictionary=7, prefix_length=8, count_threshold=1, compact_level=0):
+    # FIXME: parameter auslagern, damit experimentieren am ende für accuracy
+    # Note: lower max_edit_distance and higher prefix_length=2*max_edit_distance == faster
+    def __init__(self, max_edit_distance_dictionary=5, prefix_length=10, count_threshold=1, compact_level=5):
         self.sym_speller = SymSpell(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         self.rule_mapping = {}
 
@@ -34,6 +37,7 @@ class HeuristicPunctuation(Heuristic):
         return "punctuation"
 
     def refactor(self, s: str) -> str:
+        s = str(s)
         return s.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation))) \
                .replace(' ' * 4, ' ').replace(' ' * 3, ' ').replace(' ' * 2, ' ').strip()
 
@@ -147,11 +151,11 @@ class RuleClassifier(Classifier):
         # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropiate version)
         self._fill_symspell_dictionaries(entities)
 
-        # FIXME: hashing approach
         print("Start comparing")
         eval_results = {}
         start = datetime.datetime.now()
         for mention in data.keys():
+            # FIXME: auslagern
             best_results = {'distance': 99999, 'suggestions': {}, 'heuristic': None}
 
             previous_refactored_mention = mention
@@ -173,15 +177,18 @@ class RuleClassifier(Classifier):
                         elif best_results['heuristic'].name() == heuristic.name():
                             best_results['suggestions'].update({suggestion.term})
 
-            # print(mention, best_results)
-            # for suggestion in best_results['suggestions']:
-            #     print(mention, best_results['heuristic'].rule_mapping[suggestion])
             eval_results[mention] = best_results
-        end = datetime.datetime.now()
-        print(end-start)
         print("Comparing done")
+        end = datetime.datetime.now()
+        print(end - start)
 
-        print(eval_results)
+        # Printing the results
+        for mention, res in eval_results.items():
+            matched_entities = set()
+            for suggestion in res['suggestions']:
+                matched_entities.update(res['heuristic'].rule_mapping[suggestion])
+
+            print(mention, res['distance'], matched_entities)
         # FIXME: calculate some sort of accuracy?
 
     def classify(self, mention: str, entities: Set[str]) -> Dict[str, float]:

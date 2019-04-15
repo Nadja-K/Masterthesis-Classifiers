@@ -13,7 +13,7 @@ def main():
     skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
     classifier_threshold = config['CLASSIFIER'].getfloat('THRESHOLD', 1.0)
 
-    # FIXME: is the original_heuristic even necessary?
+    # Create heuristic objects
     punctuation_heuristic = HeuristicPunctuation()
     stemming_heuristic = HeuristicStemming()
     stopword_heuristic = HeuristicStopwords()
