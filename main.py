@@ -1,7 +1,7 @@
 import configparser
 
-from rule_classifier import RuleClassifier
-from rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords
+from classifiers.rule_classifier import RuleClassifier
+from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords
 
 
 def main():
@@ -11,7 +11,6 @@ def main():
 
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
     skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
-    classifier_threshold = config['CLASSIFIER'].getfloat('THRESHOLD', 1.0)
 
     # Create heuristic objects
     punctuation_heuristic = HeuristicPunctuation()
@@ -21,9 +20,7 @@ def main():
 
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
     heuristic_list = [punctuation_heuristic, stemming_heuristic, stopword_heuristic, sort_heuristic]
-    classifier = RuleClassifier(heuristic_list)
-    classifier.load_datasets(dataset_db_name,
-                            skip_trivial_samples=skip_trivial_samples)
+    classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
     classifier.evaluate_datasplit('val')
     # classifier.classify_datasplit('train', threshold=classifier_threshold)
 

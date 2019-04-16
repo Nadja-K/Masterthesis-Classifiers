@@ -105,17 +105,7 @@ class Classifier(metaclass=ABCMeta):
         connection.close()
 
     @abstractmethod
-    def compute_similarity(self, mention: str, reference_entity: str) -> float:
-        pass
-
-    @abstractmethod
     def evaluate_datasplit(self, split: str):
         pass
 
-    @abstractmethod
-    def compute_similarity(self, mention: str, entity: str) -> Tuple[float, str, str]:
-        pass
 
-    @abstractmethod
-    def classify(self, mention: str, entities: Set[str]) -> Dict[str, float]:
-        pass
