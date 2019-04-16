@@ -87,8 +87,15 @@ class RuleClassifier(Classifier):
             # We want to refactor the already refactored entity further with every rule
             previous_refactored_entity = entity
 
+            # FIXME: is it possible to combine it with _classify so that changes/limitations (e.g. the abbreviation one) don't have to be written twice (and possibly forgotten)
+            # Maybe use the classify method but with an extra flag to disable the best_result calculation?
             for heuristic in self.heuristics:
-                refactored_entity = heuristic.refactor(previous_refactored_entity)
+                # For the abbreviation heuristic, use the original mention
+                if heuristic.name() == 'abbreviations':
+                # FIXME: not original mention but the one from the filtering out punctuation
+                    refactored_entity = heuristic.refactor(entity)
+                else:
+                    refactored_entity = heuristic.refactor(previous_refactored_entity)
                 previous_refactored_entity = refactored_entity
 
                 # Save the refactored entity in the heuristic symspeller + the mapping to the untouched entity
@@ -129,6 +136,9 @@ class RuleClassifier(Classifier):
         end = datetime.datetime.now()
         print("Classification took: ", end - start)
 
+        # Calculate micro precision, recall and f1-score
+        self._calculate_fscore(eval_results, data)
+
         # Printing the results
         # for mention, res in eval_results.items():
         #     matched_entities = set()
@@ -137,8 +147,7 @@ class RuleClassifier(Classifier):
         #
         #     print(mention, res['distance'], matched_entities)
 
-        # FIXME auslagern
-        # Calculate micro precision, recall and f1-score
+    def _calculate_fscore(self, eval_results: Dict[str, Union[str, int, Set[str], Heuristic]], data: Dict[str, Set[str]]):
         TP = 0
         FP = 0
         FN = 0
@@ -163,7 +172,14 @@ class RuleClassifier(Classifier):
         micro_f1_score = 2 * ((micro_precision * micro_recall) / (micro_precision + micro_recall))
         print(micro_precision, micro_recall, micro_f1_score)
 
-    def classify(self, mention: str) -> Set[str]:
+    def _ratio(self, s1: str, s2: str, ldist: int) -> float:
+        """
+        Calculate a simple ratio between two strings based on their length and levenshtein distance.
+        """
+        len_sum = len(s1) + len(s2)
+        return (len_sum - ldist) / len_sum
+
+    def classify(self, mention: str) -> Set[Tuple[str, float]]:
         """
         Public classify method that users can use to classify a given string based on the train split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be
@@ -180,11 +196,14 @@ class RuleClassifier(Classifier):
         res = self._classify(mention)
         matched_entities = set()
         for suggestion in res['suggestions']:
-            matched_entities.update(res['heuristic'].rule_mapping[suggestion])
+            entities = res['heuristic'].rule_mapping[suggestion]
+            for entity in entities:
+                ratio = self._ratio(res['refactored_mention'], suggestion, res['distance'])
+                matched_entities.add((entity, ratio))
 
         return matched_entities
 
-    def _classify(self, mention: str) -> Dict[str, Union[int, Set[str], Heuristic]]:
+    def _classify(self, mention: str) -> Dict[str, Union[str, int, Set[str], Heuristic]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
@@ -192,13 +211,20 @@ class RuleClassifier(Classifier):
 
         previous_refactored_mention = mention
         for heuristic in self.heuristics:
-            refactored_mention = heuristic.refactor(previous_refactored_mention)
+            # For the abbreviation heuristic, use the original mention
+            if heuristic.name() == 'abbreviations':
+                # FIXME: not original mention but the one from the filtering out punctuation
+                refactored_mention = heuristic.refactor(mention)
+                print(mention, refactored_mention)
+            else:
+                refactored_mention = heuristic.refactor(previous_refactored_mention)
             previous_refactored_mention = refactored_mention
 
             suggestions = heuristic.sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
             for suggestion in suggestions:
                 if suggestion.distance <= best_results['distance']:
                     if suggestion.distance < best_results['distance']:
+                        best_results['refactored_mention'] = refactored_mention
                         best_results['suggestions'] = {suggestion.term}
                         best_results['distance'] = suggestion.distance
                         best_results['heuristic'] = heuristic

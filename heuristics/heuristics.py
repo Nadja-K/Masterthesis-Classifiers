@@ -2,8 +2,10 @@ from abc import ABCMeta, abstractmethod
 
 from nltk import SnowballStemmer
 from nltk.corpus import stopwords
+from typing import List
 
 from symspellpy.symspellpy import SymSpell
+from CharSplit import char_split
 
 import string
 
@@ -79,4 +81,54 @@ class HeuristicSort(Heuristic):
         return " ".join(sorted(s.split(" ")))
 
 
-# FIXME: remaining heuristics
+class HeuristicAbbreviations(Heuristic):
+    def __init__(self, prob_threshold):
+        super().__init__()
+        assert prob_threshold > 0
+        self._prop_threshold = prob_threshold
+
+    def name(self):
+        return "abbreviations"
+
+    def _split(self, s: str) -> List[str]:
+        """
+        This method recursively splits an input string into its compounds based on a probability threshold.
+
+        The compound splitter used in this function (CharSplit) only splits a string into two compounds.
+        However, words can have far more relevant compounds. To solve this issue I recursively split the compounds
+        into further compounds until they no longer satisfy the probability threshold.
+
+        CharSplit has some other 'weaknesses' that are covered here.
+        1) If the input string consists of multiple words separated by a space, CharSplit is unable to handle it very
+           well. Usually the resulting probability is negative. Instead, I split the input string manually on spaces.
+        2) The compound splitter capitalizes every word, but I want them lowercased.
+        3) CharSplit returns various splits (sorted by a probability) but to keep it simple, I only take the first one
+           into consideration
+        """
+        if " " in s:
+            split = s.split(" ")
+            probability = 1.0
+        else:
+            split_res = char_split.split_compound(s)[0]
+            probability = split_res[0]
+            split = split_res[1:]
+        compounds = [split.strip().lower() for split in split]
+
+        if probability >= self._prop_threshold:
+            recursive_compounds = []
+            for compound in compounds:
+                recursive_compounds.extend(self._split(compound))
+            return recursive_compounds
+        else:
+            return [s]
+
+    def refactor(self, s: str) -> str:
+        # CharSplit has a bug that causes the splitter to behave unnatural if a - is present, so I fix this here
+        s = str(s).replace("-", " ")
+
+        compounds = self._split(s)
+        print(s, compounds)
+        # FIXME: filter out compounds that start with a non-alphanumerical character (e.g. brackets)
+        abbreviation = "".join([compound[:1] for compound in compounds])
+
+        return abbreviation
