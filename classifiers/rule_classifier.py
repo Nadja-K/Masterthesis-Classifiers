@@ -124,19 +124,13 @@ class RuleClassifier(Classifier):
         # Calculate micro precision, recall and f1-score
         self._calculate_fscore(eval_results, data)
 
-        # Printing the results
-        # for mention, res in eval_results.items():
-        #     matched_entities = set()
-        #     for suggestion in res['suggestions']:
-        #         matched_entities.update(res['heuristic'].rule_mapping[suggestion])
-        #
-        #     print(mention, res['distance'], matched_entities)
-
     def _calculate_fscore(self, eval_results: Dict[str, Dict[str, Union[str, List[SuggestItem], int, Heuristic]]],
                           data: Dict[str, Set[str]]):
         TP = 0
         FP = 0
         FN = 0
+        macro_precision = 0
+        macro_recall = 0
         print("{:40}{:40}{:40}{:40}".format("Mention", "TP entities", "FP entities", "FN entities"))
         print("{:40}{:40}{:40}{:40}".format("-"*15,"-"*15,"-"*15,"-"*15))
         for mention, res in eval_results.items():
@@ -149,14 +143,29 @@ class RuleClassifier(Classifier):
             FP_entities = matched_entities - data[mention]
             print("{:40}{:40}{:40}{:40}".format(mention, str(TP_entities), str(FP_entities), str(FN_entities)))
 
+            # Macro metric
+            macro_precision += (len(TP_entities) / (len(TP_entities) + len(FP_entities) + epsilon))
+            macro_recall += (len(TP_entities) / (len(TP_entities) + len(FN_entities) + epsilon))
+
+            # Micro metric
             TP += len(TP_entities)
             FP += len(FP_entities)
             FN += len(FN_entities)
 
-        micro_precision = TP / (TP + FP)
-        micro_recall = TP / (TP + FN)
+        macro_precision = macro_precision / len(eval_results)
+        macro_recall = macro_recall / len(eval_results)
+        macro_f1_score = 2 * ((macro_precision * macro_recall) / (macro_precision + macro_recall))
+        print("\nMacro metrics:"
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" %
+              (macro_precision*100, macro_recall*100, macro_f1_score*100))
+
+        micro_precision = TP / (TP + FP + epsilon)
+        micro_recall = TP / (TP + FN + epsilon)
         micro_f1_score = 2 * ((micro_precision * micro_recall) / (micro_precision + micro_recall))
-        print(micro_precision, micro_recall, micro_f1_score)
+        print("\nMicro metrics:"
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" %
+              (micro_precision*100, micro_recall*100, micro_f1_score*100))
+        print("TP: %s, FP: %s, FN: %s" % (TP, FP, FN))
 
     def _ratio(self, s1: str, s2: str, ldist: int) -> float:
         """

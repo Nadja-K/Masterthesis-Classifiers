@@ -34,7 +34,7 @@ def main():
                       abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
-    classifier.evaluate_datasplit('train')
+    classifier.evaluate_datasplit('test')
 
 
 if __name__ == '__main__':
