@@ -53,13 +53,11 @@ class Classifier(metaclass=ABCMeta):
 
         :return: Contains all (sentence, mention, entity_title, backlink_title(, backlink_text)) tuples
         """
-        # FIXME: remove the positive part from the databases and then remove it here as well +  remove it from the code project
         command_head = """
             SELECT  sentences.mention, 
                     sentences.sentence, 
                     entity_articles.title as entity_title, 
-                    backlink_articles.title as backlink_title, 
-                    sentences.positive as positive
+                    backlink_articles.title as backlink_title
         """
         command_context = """
             , backlink_articles.text as backlink_text
@@ -73,7 +71,6 @@ class Classifier(metaclass=ABCMeta):
             INNER JOIN splits 
               ON splits.id = entity_articles.id 
             WHERE splits.split = ? 
-            AND sentences.positive = 1
         """
         command_skip_trivial_samples = """
             AND sentences.mention != entity_title
