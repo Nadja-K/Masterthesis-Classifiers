@@ -88,7 +88,7 @@ class RuleClassifier(Classifier):
             previous_refactored_entity = entity
             for heuristic in self.heuristics:
                 # Apply the heuristic to the entity and add it to the symspell dictionary
-                previous_refactored_entity = heuristic.add_dictionary_entity(entity, previous_refactored_entity)
+                previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
 
     def evaluate_datasplit(self, split: str):
         """
@@ -132,7 +132,8 @@ class RuleClassifier(Classifier):
         #
         #     print(mention, res['distance'], matched_entities)
 
-    def _calculate_fscore(self, eval_results: Dict[str, Union[str, int, Set[str], Heuristic]], data: Dict[str, Set[str]]):
+    def _calculate_fscore(self, eval_results: Dict[str, Dict[str, Union[str, List[SuggestItem], int, Heuristic]]],
+                          data: Dict[str, Set[str]]):
         TP = 0
         FP = 0
         FN = 0
@@ -141,7 +142,7 @@ class RuleClassifier(Classifier):
         for mention, res in eval_results.items():
             matched_entities = set()
             for suggestion in res['suggestions']:
-                matched_entities.update(res['heuristic'].rule_mapping[suggestion])
+                matched_entities.update(suggestion.reference_entities)
 
             TP_entities = data[mention] & matched_entities
             FN_entities = data[mention] - matched_entities
@@ -164,6 +165,27 @@ class RuleClassifier(Classifier):
         len_sum = len(s1) + len(s2)
         return (len_sum - ldist) / len_sum
 
+    def _classify(self, mention: str) -> Dict[str, Union[str, List[SuggestItem], int, Heuristic]]:
+        """
+        Internal classify method that collects raw results that might be interesting for statistics.
+        """
+        best_results = {'distance': 99999, 'refactored_mention': '', 'suggestions': {}, 'heuristic': None}
+
+        # We want to refactor the already refactored string further with every rule (with some exceptions)
+        previous_refactored_mention = mention
+        for heuristic in self.heuristics:
+            suggestions, previous_refactored_mention = heuristic.lookup(previous_refactored_mention,
+                                                                        original_mention=mention)
+            # All returned suggestions have the same edit distance, so if the distance is lower than the current best
+            # result, overwrite it with the new suggestions
+            if len(suggestions) > 0 and suggestions[0].distance < best_results['distance']:
+                best_results['refactored_mention'] = previous_refactored_mention
+                best_results['suggestions'] = suggestions
+                best_results['distance'] = suggestions[0].distance
+                best_results['heuristic'] = heuristic.name()
+
+        return best_results
+
     def classify(self, mention: str) -> Set[Tuple[str, float]]:
         """
         Public classify method that users can use to classify a given string based on the train split.
@@ -181,65 +203,8 @@ class RuleClassifier(Classifier):
         res = self._classify(mention)
         matched_entities = set()
         for suggestion in res['suggestions']:
-            entities = res['heuristic'].rule_mapping[suggestion]
-            for entity in entities:
-                ratio = self._ratio(res['refactored_mention'], suggestion, res['distance'])
+            for entity in suggestion.reference_entities:
+                ratio = self._ratio(res['refactored_mention'], suggestion.term, suggestion.distance)
                 matched_entities.add((entity, ratio))
 
         return matched_entities
-
-    def _get_matching_entities(self, mention: str, suggestions: SuggestItem, heuristic: Heuristic,
-                               best_results: Dict[str, Union[str, int, Set[str], Heuristic]]) -> Dict[str, Union[str, int, Set[str], Heuristic]]:
-        """
-        Find matching entities for the given string and keep the best
-        """
-        # FIXME: idea - lookup for the heuristic that calls this but for the Abbreviation Heuristic it does 'more' (it looksup both cases and only returns the better result)
-        # FIXME: if the above is done, the rule_mapping might need to be combined with the original_rule_mapping (?) TBD
-        # suggestions = heuristic.sym_speller.lookup(mention, Verbosity.CLOSEST)
-        for suggestion in suggestions:
-            if suggestion.distance <= best_results['distance']:
-                if suggestion.distance < best_results['distance']:
-                    best_results['refactored_mention'] = mention
-                    best_results['suggestions'] = {suggestion.term}
-                    best_results['distance'] = suggestion.distance
-                    best_results['heuristic'] = heuristic
-
-                # If the current heuristic is a different one from the best one and did NOT improve the
-                # similarity, ignore it.
-                # Only keep ALL results from the heuristic that FIRST achieved the shortest distance.
-                elif best_results['heuristic'].name() == heuristic.name():
-                    best_results['suggestions'].update({suggestion.term})
-
-        return best_results
-
-    def _classify(self, mention: str) -> Dict[str, Union[str, int, Set[str], Heuristic]]:
-        """
-        Internal classify method that collects raw results that might be interesting for statistics.
-        """
-        best_results = {'distance': 99999, 'suggestions': {}, 'heuristic': None}
-
-        # We want to refactor the already refactored string further with every rule (with some exceptions)
-        previous_refactored_mention = mention
-        for heuristic in self.heuristics:
-            # Apply the current heuristic
-            refactored_mention = heuristic.apply_heuristic(mention, previous_refactored_mention)
-            previous_refactored_mention = refactored_mention
-
-            # For abbreviations, two possible cases exist that have to be considered:
-            # 1) The mention is already an abbreviation, that means we should NOT refactor it into an abbreviation
-            # 2) The entity is the abbreviation, that means we SHOULD refactor the mention with the heuristic
-            if heuristic.name() == 'abbreviations':
-                # FIXME: this is not correct right now, we need the punctuation refactored "original" mention here
-                # Case 1: match the untouched mention against the refactored entities
-                suggestions = heuristic.sym_speller.lookup(mention, Verbosity.CLOSEST)
-                best_results = self._get_matching_entities(mention, suggestions, heuristic, best_results)
-
-                # Case 2: match the refactored mention against the untouched entities
-                suggestions = heuristic.original_sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
-                best_results = self._get_matching_entities(refactored_mention, suggestions, heuristic, best_results)
-            else:
-                # General case
-                suggestions = heuristic.sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
-                best_results = self._get_matching_entities(refactored_mention, suggestions, heuristic, best_results)
-
-        return best_results
