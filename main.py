@@ -23,8 +23,9 @@ def main():
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
     heuristic_list = [punctuation_heuristic, stemming_heuristic, stopword_heuristic, sort_heuristic,
                       abbreviation_heuristic]
+    # heuristic_list = [punctuation_heuristic, stemming_heuristic, stopword_heuristic, sort_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
-    classifier.evaluate_datasplit('train')
+    classifier.evaluate_datasplit('test')
     # classifier.classify_datasplit('train', threshold=classifier_threshold)
 
 

@@ -4,7 +4,7 @@ import datetime
 
 from Levenshtein import ratio  # https://github.com/ztane/python-Levenshtein
 from typing import Tuple, List, Dict, Set, Union
-from symspellpy.symspellpy import Verbosity
+from symspellpy.symspellpy import Verbosity, SuggestItem
 
 from classifiers.classifier import Classifier
 from heuristics.heuristics import *
@@ -84,26 +84,11 @@ class RuleClassifier(Classifier):
             heuristic.initialize_sym_speller()
 
         for entity in entities:
-            # We want to refactor the already refactored entity further with every rule
+            # We want to refactor the already refactored entity further with every rule (with some exceptions)
             previous_refactored_entity = entity
-
-            # FIXME: is it possible to combine it with _classify so that changes/limitations (e.g. the abbreviation one) don't have to be written twice (and possibly forgotten)
-            # Maybe use the classify method but with an extra flag to disable the best_result calculation?
             for heuristic in self.heuristics:
-                # For the abbreviation heuristic, use the original mention
-                if heuristic.name() == 'abbreviations':
-                # FIXME: not original mention but the one from the filtering out punctuation
-                    refactored_entity = heuristic.refactor(entity)
-                else:
-                    refactored_entity = heuristic.refactor(previous_refactored_entity)
-                previous_refactored_entity = refactored_entity
-
-                # Save the refactored entity in the heuristic symspeller + the mapping to the untouched entity
-                heuristic.sym_speller.create_dictionary_entry(refactored_entity, 1)
-                if refactored_entity not in heuristic.rule_mapping:
-                    heuristic.rule_mapping[refactored_entity] = {entity}
-                else:
-                    heuristic.rule_mapping[refactored_entity].update({entity})
+                # Apply the heuristic to the entity and add it to the symspell dictionary
+                previous_refactored_entity = heuristic.add_dictionary_entity(entity, previous_refactored_entity)
 
     def evaluate_datasplit(self, split: str):
         """
@@ -203,93 +188,58 @@ class RuleClassifier(Classifier):
 
         return matched_entities
 
+    def _get_matching_entities(self, mention: str, suggestions: SuggestItem, heuristic: Heuristic,
+                               best_results: Dict[str, Union[str, int, Set[str], Heuristic]]) -> Dict[str, Union[str, int, Set[str], Heuristic]]:
+        """
+        Find matching entities for the given string and keep the best
+        """
+        # FIXME: idea - lookup for the heuristic that calls this but for the Abbreviation Heuristic it does 'more' (it looksup both cases and only returns the better result)
+        # FIXME: if the above is done, the rule_mapping might need to be combined with the original_rule_mapping (?) TBD
+        # suggestions = heuristic.sym_speller.lookup(mention, Verbosity.CLOSEST)
+        for suggestion in suggestions:
+            if suggestion.distance <= best_results['distance']:
+                if suggestion.distance < best_results['distance']:
+                    best_results['refactored_mention'] = mention
+                    best_results['suggestions'] = {suggestion.term}
+                    best_results['distance'] = suggestion.distance
+                    best_results['heuristic'] = heuristic
+
+                # If the current heuristic is a different one from the best one and did NOT improve the
+                # similarity, ignore it.
+                # Only keep ALL results from the heuristic that FIRST achieved the shortest distance.
+                elif best_results['heuristic'].name() == heuristic.name():
+                    best_results['suggestions'].update({suggestion.term})
+
+        return best_results
+
     def _classify(self, mention: str) -> Dict[str, Union[str, int, Set[str], Heuristic]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
         best_results = {'distance': 99999, 'suggestions': {}, 'heuristic': None}
 
+        # We want to refactor the already refactored string further with every rule (with some exceptions)
         previous_refactored_mention = mention
         for heuristic in self.heuristics:
-            # For the abbreviation heuristic, use the original mention
-            if heuristic.name() == 'abbreviations':
-                # FIXME: not original mention but the one from the filtering out punctuation
-                refactored_mention = heuristic.refactor(mention)
-                print(mention, refactored_mention)
-            else:
-                refactored_mention = heuristic.refactor(previous_refactored_mention)
+            # Apply the current heuristic
+            refactored_mention = heuristic.apply_heuristic(mention, previous_refactored_mention)
             previous_refactored_mention = refactored_mention
 
-            suggestions = heuristic.sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
-            for suggestion in suggestions:
-                if suggestion.distance <= best_results['distance']:
-                    if suggestion.distance < best_results['distance']:
-                        best_results['refactored_mention'] = refactored_mention
-                        best_results['suggestions'] = {suggestion.term}
-                        best_results['distance'] = suggestion.distance
-                        best_results['heuristic'] = heuristic
+            # For abbreviations, two possible cases exist that have to be considered:
+            # 1) The mention is already an abbreviation, that means we should NOT refactor it into an abbreviation
+            # 2) The entity is the abbreviation, that means we SHOULD refactor the mention with the heuristic
+            if heuristic.name() == 'abbreviations':
+                # FIXME: this is not correct right now, we need the punctuation refactored "original" mention here
+                # Case 1: match the untouched mention against the refactored entities
+                suggestions = heuristic.sym_speller.lookup(mention, Verbosity.CLOSEST)
+                best_results = self._get_matching_entities(mention, suggestions, heuristic, best_results)
 
-                    # If the current heuristic is a different one from the best one and did NOT improve the
-                    # similarity, ignore it.
-                    # Only keep the results from the heuristic that FIRST achieved the shortest distance.
-                    elif best_results['heuristic'].name() == heuristic.name():
-                        best_results['suggestions'].update({suggestion.term})
+                # Case 2: match the refactored mention against the untouched entities
+                suggestions = heuristic.original_sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
+                best_results = self._get_matching_entities(refactored_mention, suggestions, heuristic, best_results)
+            else:
+                # General case
+                suggestions = heuristic.sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
+                best_results = self._get_matching_entities(refactored_mention, suggestions, heuristic, best_results)
 
         return best_results
-
-    # # FIXME: move to heuristics.py
-    # def _heuristic_abbreviations(self, s1: str, s2: str) -> Tuple[str, str]:
-    #     if len(s1) > len(s2):
-    #         # Case: s2 might be the abbreviation
-    #         return ''.join([s[:1] for s in s1.split(" ")]), s2
-    #     else:
-    #         # Case: s1 might be the abbreviation
-    #         return s1, ''.join([s[:1] for s in s2.split(" ")])
-    #
-    #
-    # # FIXME: remove
-    # def compute_similarity(self, mention: str, reference_entity: str) -> Tuple[float, str, str]:
-    #     """
-    #     Decide if the string mention is identical to the string reference_entity or not.
-    #     Example: GB and Großbritannien
-    #     I use several heuristics to alter the two strings (removing punctuation, lowercasing, stemming, ...).
-    #     After every heuristic, I calculate the similarity between the two altered strings.
-    #     The highest similarity value is returned.
-    #
-    #     :param mention:
-    #     :param reference_entity:
-    #     :return:
-    #     """
-    #     # Initialize the highest_sim value
-    #     highest_sim = (ratio(mention, reference_entity), mention, reference_entity)
-    #     tmp_sim = highest_sim[0]
-    #
-    #     # Heuristic: remove punctuation in general
-    #     tmp1, tmp2 = self._heuristic_punctuation(highest_sim[1], highest_sim[2])
-    #     highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-    #
-    #     # Heuristic: stemming + lowercasing
-    #     tmp1, tmp2 = self._heuristic_stemming(highest_sim[1], highest_sim[2])
-    #     highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-    #
-    #     # Heuristic: remove stopwords
-    #     tmp1, tmp2 = self._heuristic_remove_stopwords(highest_sim[1], highest_sim[2])
-    #     highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-    #
-    #     # Heuristic: switch words (example: kenyon dorothy vs dorothy kenyon)
-    #     tmp1, tmp2 = self._heuristic_sort_words(highest_sim[1], highest_sim[2])
-    #     highest_sim = self._check_similarity(tmp1, tmp2, highest_sim)
-    #
-    #     # Heuristic: word Splitter + keep the first letter of each word
-    #     # FIXME muss ich natürlich anpassen wenn die regel nur noch auf 1 wort angewendet wird (dann kein vergleich ob mention oder entity die potentielle abkürzung ist, in dem fall einfach davon ausgehen, dass das wort die abkürzung ist)
-    #     # FIXME für den Fall mention='GB' hieße das aber auch, dass wir die mention NICHT vorher in eine abkürzung umwandeln dürfen, wir müssen erstmal davon ausgehen dass unsere mention bereits die abkürzung ist und alle entities in abkürzungen umwandeln und so rausfinden, welche entity korrekt ist
-    #     tmp1, tmp2 = self._heuristic_abbreviations(highest_sim[1], highest_sim[2])
-    #     highest_sim_tmp = self._check_similarity(tmp1, tmp2, highest_sim)
-    #     highest_sim = (highest_sim_tmp[0], highest_sim[1], highest_sim[2])
-    #
-    #     # FIXME: Heuristic: Compound Splitter u. 1 Buchstaben jeweils behalten
-    #     # Note: incorporate into the above heuristic somehow?
-    #     # Note2: definitely don't use the returned string from the above heuristic as input for this one
-    #
-    #     # Return a 'similarity' value (percentage) of the two strings/entities based on real minimal edit distance
-    #     return highest_sim

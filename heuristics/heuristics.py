@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 from nltk import SnowballStemmer
 from nltk.corpus import stopwords
-from typing import List
+from typing import List, Set
 
 from symspellpy.symspellpy import SymSpell
 from CharSplit import char_split
@@ -30,7 +30,7 @@ class Heuristic(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         pass
 
     def initialize_sym_speller(self):
@@ -38,12 +38,42 @@ class Heuristic(metaclass=ABCMeta):
                                     self.compact_level)
         self.rule_mapping = {}
 
+    def apply_heuristic(self, original_mention: str, previous_refactored_mention: str) -> str:
+        """
+        General method to apply a heuristic.
+        Depending on the heuristic the previously refactored mention is used or the original (unrefactored) mention.
+        """
+        # For the abbreviation heuristic, use the original mention
+        # The heuristic includes the punctuation heuristic
+        if self.name() == 'abbreviations':
+            refactored_mention = self._refactor(original_mention)
+        else:
+            refactored_mention = self._refactor(previous_refactored_mention)
+
+        return refactored_mention
+
+    def lookup_match(self, original_mention: str, refactored_mention: str) -> Set[str]:
+        pass
+
+    def add_dictionary_entity(self, entity: str, previous_refactored_entity: str) -> str:
+        # Apply the current heuristic
+        refactored_entity = self.apply_heuristic(entity, previous_refactored_entity)
+
+        # Save the refactored entity in the heuristic symspeller + the mapping to the untouched entity
+        self.sym_speller.create_dictionary_entry(refactored_entity, 1)
+        if refactored_entity not in self.rule_mapping:
+            self.rule_mapping[refactored_entity] = {entity}
+        else:
+            self.rule_mapping[refactored_entity].update({entity})
+
+        return refactored_entity
+
 
 class HeuristicPunctuation(Heuristic):
     def name(self):
         return "punctuation"
 
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         s = str(s)
         return s.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))\
             .replace(' ' * 4, ' ').replace(' ' * 3, ' ').replace(' ' * 2, ' ').strip()
@@ -57,7 +87,7 @@ class HeuristicStemming(Heuristic):
     def name(self):
         return "stemming"
 
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         return " ".join([self.stemmer.stem(word) for word in s.split(" ")])
 
 
@@ -69,7 +99,7 @@ class HeuristicStopwords(Heuristic):
     def name(self):
         return "stopwords"
 
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         return ' '.join([word for word in s.split(" ") if word not in self.stop_words])
 
 
@@ -77,18 +107,27 @@ class HeuristicSort(Heuristic):
     def name(self):
         return "sort"
 
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         return " ".join(sorted(s.split(" ")))
 
 
-class HeuristicAbbreviations(Heuristic):
+class HeuristicAbbreviations(HeuristicPunctuation):
     def __init__(self, prob_threshold):
         super().__init__()
         assert prob_threshold > 0
         self._prop_threshold = prob_threshold
+        # FIXME: explanation
+        self.original_sym_speller = None
+        self.original_rule_mapping = None
 
     def name(self):
         return "abbreviations"
+
+    def initialize_sym_speller(self):
+        super().initialize_sym_speller()
+        self.original_sym_speller = SymSpell(self.max_edit_distance_dictionary, self.prefix_length,
+                                             self.count_threshold, self.compact_level)
+        self.original_rule_mapping = {}
 
     def _split(self, s: str) -> List[str]:
         """
@@ -122,13 +161,33 @@ class HeuristicAbbreviations(Heuristic):
         else:
             return [s]
 
-    def refactor(self, s: str) -> str:
+    def _refactor(self, s: str) -> str:
         # CharSplit has a bug that causes the splitter to behave unnatural if a - is present, so I fix this here
-        s = str(s).replace("-", " ")
-
+        # by making sure no punctuation characters are in the string
+        s = super()._refactor(s)
         compounds = self._split(s)
-        print(s, compounds)
-        # FIXME: filter out compounds that start with a non-alphanumerical character (e.g. brackets)
-        abbreviation = "".join([compound[:1] for compound in compounds])
+
+        # Create an abbreviation from the compounds. However, pure digit compounds are kept as is.
+        abbreviation = "".join([compound if compound.isdigit() else compound[:1] for compound in compounds])
+        # print(s, compounds, abbreviation)
 
         return abbreviation
+
+    def add_dictionary_entity(self, entity: str, previous_refactored_entity: str) -> str:
+        """
+        This heuristic needs the refactored entity as well as the original entity in its dictionary because it is
+        possible, that either the mention or the reference entity is the abbreviation.
+        """
+        entity = str(entity)
+        refactored_entity = super().add_dictionary_entity(entity, previous_refactored_entity)
+
+        # Because the original entity could already be the abbreviation, we also want to save this here.
+        # Do the same for the mapping and apply the punctuation heuristic to the original entity.
+        refactored_original_entity = super()._refactor(entity)
+        self.original_sym_speller.create_dictionary_entry(refactored_original_entity, 1)
+        if refactored_original_entity not in self.rule_mapping:
+            self.original_rule_mapping[refactored_original_entity] = {entity}
+        else:
+            self.original_rule_mapping[refactored_original_entity].update({entity})
+
+        return refactored_entity
