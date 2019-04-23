@@ -7,6 +7,7 @@ from typing import Tuple, List, Dict, Set, Union
 from symspellpy.symspellpy import Verbosity, SuggestItem
 
 from classifiers.classifier import Classifier
+from eval.evaluation import RuleEvaluator
 from heuristics.heuristics import *
 
 epsilon = sys.float_info.epsilon
@@ -121,51 +122,13 @@ class RuleClassifier(Classifier):
         end = datetime.datetime.now()
         print("Classification took: ", end - start)
 
-        # Calculate micro precision, recall and f1-score
-        self._calculate_fscore(eval_results, data)
-
-    def _calculate_fscore(self, eval_results: Dict[str, Dict[str, Union[str, List[SuggestItem], int, Heuristic]]],
-                          data: Dict[str, Set[str]]):
-        TP = 0
-        FP = 0
-        FN = 0
-        macro_precision = 0
-        macro_recall = 0
-        print("{:40}{:40}{:40}{:40}".format("Mention", "TP entities", "FP entities", "FN entities"))
-        print("{:40}{:40}{:40}{:40}".format("-"*15,"-"*15,"-"*15,"-"*15))
-        for mention, res in eval_results.items():
-            matched_entities = set()
-            for suggestion in res['suggestions']:
-                matched_entities.update(suggestion.reference_entities)
-
-            TP_entities = data[mention] & matched_entities
-            FN_entities = data[mention] - matched_entities
-            FP_entities = matched_entities - data[mention]
-            print("{:40}{:40}{:40}{:40}".format(mention, str(TP_entities), str(FP_entities), str(FN_entities)))
-
-            # Macro metric
-            macro_precision += (len(TP_entities) / (len(TP_entities) + len(FP_entities) + epsilon))
-            macro_recall += (len(TP_entities) / (len(TP_entities) + len(FN_entities) + epsilon))
-
-            # Micro metric
-            TP += len(TP_entities)
-            FP += len(FP_entities)
-            FN += len(FN_entities)
-
-        macro_precision = macro_precision / len(eval_results)
-        macro_recall = macro_recall / len(eval_results)
-        macro_f1_score = 2 * ((macro_precision * macro_recall) / (macro_precision + macro_recall))
+        # Calculate precision, recall and f1-score
+        eval = RuleEvaluator()
+        macro, micro = eval.evaluate(eval_results, data)
         print("\nMacro metrics:"
-              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" %
-              (macro_precision*100, macro_recall*100, macro_f1_score*100))
-
-        micro_precision = TP / (TP + FP + epsilon)
-        micro_recall = TP / (TP + FN + epsilon)
-        micro_f1_score = 2 * ((micro_precision * micro_recall) / (micro_precision + micro_recall))
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
         print("\nMicro metrics:"
-              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" %
-              (micro_precision*100, micro_recall*100, micro_f1_score*100))
-        print("TP: %s, FP: %s, FN: %s" % (TP, FP, FN))
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
     def _ratio(self, s1: str, s2: str, ldist: int) -> float:
         """
@@ -192,6 +155,10 @@ class RuleClassifier(Classifier):
                 best_results['suggestions'] = suggestions
                 best_results['distance'] = suggestions[0].distance
                 best_results['heuristic'] = heuristic.name()
+
+            # If the distance is already perfect, return the result here
+            if best_results['distance'] == 1.0:
+                return best_results
 
         return best_results
 

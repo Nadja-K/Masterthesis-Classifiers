@@ -12,8 +12,8 @@ import re
 
 
 class Heuristic(metaclass=ABCMeta):
-    # FIXME: parameter auslagern, damit experimentieren am ende für accuracy
-    def __init__(self, max_edit_distance_dictionary=5, prefix_length=10, count_threshold=1, compact_level=5):
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5):
         """
         Note:  lower max_edit_distance and higher prefix_length=2*max_edit_distance == faster
         """
@@ -85,8 +85,9 @@ class HeuristicBrackets(Heuristic):
     Remove brackets and their content from a string.
     Example: Höxter_(Schiff) -> Höxter_
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5):
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         self._regex = re.compile("\(.*\)")
 
     def name(self):
@@ -121,8 +122,9 @@ class HeuristicStemming(Heuristic):
             It is possible that a match would be found for the lowercased unstemmed version, so there is a separate
             lowercasing heuristic.
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5):
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         self.stemmer = SnowballStemmer('german')
 
     def name(self):
@@ -134,8 +136,9 @@ class HeuristicStemming(Heuristic):
 
 
 class HeuristicStopwords(Heuristic):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5):
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         self.stop_words = stopwords.words('german')
 
     def name(self):
@@ -173,7 +176,8 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
 
                 This heuristic checks both cases and returns the better result of the two.
     """
-    def __init__(self, prob_threshold: float = 0.1, max_edit_distance_dictionary: int = 0):
+    def __init__(self, max_edit_distance_dictionary: int = 0, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5, prob_threshold: float = 0.1):
         """
         :param prob_threshold: This threshold is used for the compound splitter. CharSplit returns a probability for
         how likely the compounds are for a word. All compounds that have a lower probability are discarded. Furthermore,
@@ -182,7 +186,7 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         :param max_edit_distance_dictionary: A threshold to ensure that the matched abbreviation is as similar as
         possible to the reference entity.
         """
-        super().__init__(max_edit_distance_dictionary=max_edit_distance_dictionary)
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         assert prob_threshold > 0
         self._prop_threshold = prob_threshold
         # self._max_ldist = max_ldist

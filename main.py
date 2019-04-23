@@ -1,4 +1,5 @@
 import configparser
+import time
 
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
@@ -11,30 +12,42 @@ def main():
     config.read("configs/config.ini")
     # config.read("configs/remote_config.ini")
 
+    # Config settings
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
     skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
+    max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
+    abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
+                                                                                 'DISTANCE_DICTIONARY', 5)
+    prefix_length = config['RULECLASSIFIER'].getint('PREFIX_LENGTH', 5)
+    count_threshold = config['RULECLASSIFIER'].getint('COUNT_THRESHOLD', 5)
+    compact_level = config['RULECLASSIFIER'].getint('COMPACT_LEVEL', 5)
+    print(dataset_db_name)
 
     # Create heuristic objects
-    original_heuristic = HeuristicOriginal()
-    brackets_heuristic = HeuristicBrackets()
-    punctuation_heuristic = HeuristicPunctuation()
-    lowercasing_heuristic = HeuristicLowercasing()
-    stemming_heuristic = HeuristicStemming()
-    stopword_heuristic = HeuristicStopwords()
-    sort_heuristic = HeuristicSort()
-    abbreviation_compounds_heuristic = HeuristicAbbreviationsCompounds(0.1)
-    abbreviation_spaces_heuristic = HeuristicAbbreviationsSpaces()
+    original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    brackets_heuristic = HeuristicBrackets(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    punctuation_heuristic = HeuristicPunctuation(max_edit_distance_dictionary, prefix_length, count_threshold,
+                                                 compact_level)
+    lowercasing_heuristic = HeuristicLowercasing(max_edit_distance_dictionary, prefix_length, count_threshold,
+                                                 compact_level)
+    stemming_heuristic = HeuristicStemming(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    stopword_heuristic = HeuristicStopwords(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    sort_heuristic = HeuristicSort(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    abbreviation_compounds_heuristic = HeuristicAbbreviationsCompounds(abbreviations_max_edit_distance_dictionary,
+                                                                       prefix_length, count_threshold, compact_level,
+                                                                       0.1)
+    abbreviation_spaces_heuristic = HeuristicAbbreviationsSpaces(abbreviations_max_edit_distance_dictionary,
+                                                                 prefix_length, count_threshold, compact_level)
 
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
     heuristic_list = [brackets_heuristic, punctuation_heuristic, lowercasing_heuristic, stemming_heuristic,
                       stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    heuristic_list = [brackets_heuristic, punctuation_heuristic, lowercasing_heuristic, stemming_heuristic,
-                      stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
-                      abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
-    classifier.evaluate_datasplit('test')
+    start = time.time()
+    classifier.evaluate_datasplit('val')
+    print("Evaluation took %s" % (time.time() - start))
 
 
 if __name__ == '__main__':
