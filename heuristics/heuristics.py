@@ -44,6 +44,8 @@ class Heuristic(metaclass=ABCMeta):
         The original mention is optional here because it is only necessary for very specific heuristics.
         In the general case, it will be ignored and a previously refactored mention will be further refactored here.
         """
+        mention = str(mention)
+
         refactored_mention = self._refactor(mention)
         suggestions = self._sym_speller.lookup(refactored_mention, Verbosity.CLOSEST)
 
@@ -59,6 +61,8 @@ class Heuristic(metaclass=ABCMeta):
         The original entity is usually not necessary except for very specific heuristics that rely on the original,
         untouched entity. Otherwise, the previously refactored entitiy is used here.
         """
+        entity = str(entity)
+
         # Apply the current heuristic
         refactored_entity = self._refactor(entity)
 
@@ -77,7 +81,7 @@ class HeuristicOriginal(Heuristic):
         return "original"
 
     def _refactor(self, s: str) -> str:
-        return s
+        return str(s)
 
 
 class HeuristicBrackets(Heuristic):
@@ -99,13 +103,27 @@ class HeuristicBrackets(Heuristic):
 
 
 class HeuristicPunctuation(Heuristic):
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5):
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+        self._punctuation_list = string.punctuation + '„“'
+
     def name(self):
         return "punctuation"
 
     def _refactor(self, s: str) -> str:
         s = str(s)
-        return s.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))\
-            .replace(' ' * 4, ' ').replace(' ' * 3, ' ').replace(' ' * 2, ' ').strip()
+
+        # For dots, we want no space instead
+        refactored = s.replace('.', '')
+
+        # For every other punctuation symbol (e.g. - or _) we want a space instead
+        refactored = refactored.translate(str.maketrans(self._punctuation_list, ' ' * len(self._punctuation_list)))
+        refactored = " ".join([word for word in refactored.split(" ") if len(word) > 0])
+        # refactored = refactored.translate(str.maketrans(self._punctuation_list, ' ' * len(self._punctuation_list)))\
+        #     .replace(' ' * 4, '').replace(' ' * 3, '').replace(' ' * 2, '').strip()
+
+        return refactored
 
 
 class HeuristicLowercasing(Heuristic):
@@ -113,7 +131,7 @@ class HeuristicLowercasing(Heuristic):
         return "lowercasing"
 
     def _refactor(self, s: str) -> str:
-        return s.lower()
+        return str(s).lower()
 
 
 class HeuristicStemming(Heuristic):
@@ -220,6 +238,8 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         3) CharSplit returns various splits (sorted by a probability) but to keep it simple, I only take the first one
            into consideration
         """
+        s = str(s)
+
         if " " in s:
             split = s.split(" ")
             probability = 1.0
@@ -253,6 +273,9 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         The abbreviation heuristic only uses the original mention instead of a previously refactored mention.
         This is because previous refactoring might affect the compound splitting.
         """
+        mention = str(mention)
+        original_mention = str(original_mention)
+
         # Case1: the mention is the abbreviation, the original entity is not known as abbreviation
         # I only do a punctuation refactoring on the mention and then match against the abbreviation refactored entities
         case1_refactored_mention = super()._refactor(original_mention)
@@ -282,8 +305,9 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         This heuristic needs the refactored entity as well as the original entity in its dictionary because it is
         possible, that either the mention or the reference entity is the abbreviation.
         """
-        # Add the entities in abbreviation form to the own sym spell dictionary
         original_entity = str(original_entity)
+
+        # Add the entities in abbreviation form to the own sym spell dictionary
         abbreviation = self._refactor(original_entity)
         self._sym_speller.create_dictionary_entry(abbreviation, 1)
         if abbreviation not in self._rule_mapping:
@@ -309,7 +333,29 @@ class HeuristicAbbreviationsSpaces(HeuristicAbbreviationsCompounds):
     compounds but rather only splits at spaces.
     """
     def _split(self, s: str) -> List[str]:
-        split = s.split(" ")
+        split = str(s).split(" ")
         compounds = [split.strip().lower() for split in split]
 
         return compounds
+
+
+class HeuristicCorporateForms(Heuristic):
+    def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
+                 compact_level: int = 5, corporate_list=[]):
+        super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+        self._corporate_regex = re.compile("((?<=[\s])|(?<=^))(%s)((?=([\s]))|(?=($)))" % "|".join(corporate_list))
+
+    def name(self):
+        return "corporate_forms"
+
+    def _refactor(self, s: str) -> str:
+        refactored = self._corporate_regex.sub("", str(s))
+
+        # Remove possible excess whitespaces that were left from the refactoring process
+        refactored = " ".join([word for word in refactored.split(" ") if len(word) > 0])
+
+        # It is possible that a mention only consists of one of the corporate forms. In this case I do not touch it.
+        if len(s) > 0:
+            return refactored
+        else:
+            return s

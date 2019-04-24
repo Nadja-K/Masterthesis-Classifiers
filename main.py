@@ -1,16 +1,17 @@
 import configparser
 import time
+import json
 
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicOriginal, HeuristicBrackets, \
-    HeuristicLowercasing
+    HeuristicLowercasing, HeuristicCorporateForms
 
 
 def main():
     config = configparser.ConfigParser()
-    config.read("configs/config.ini")
-    # config.read("configs/remote_config.ini")
+    # config.read("configs/config.ini")
+    config.read("configs/remote_config.ini")
 
     # Config settings
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
@@ -18,6 +19,7 @@ def main():
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
                                                                                  'DISTANCE_DICTIONARY', 5)
+    corporate_forms_list = json.loads(config['RULECLASSIFIER'].get('CORPORATE_FORMS_LIST', '[]'))
     prefix_length = config['RULECLASSIFIER'].getint('PREFIX_LENGTH', 5)
     count_threshold = config['RULECLASSIFIER'].getint('COUNT_THRESHOLD', 5)
     compact_level = config['RULECLASSIFIER'].getint('COMPACT_LEVEL', 5)
@@ -25,6 +27,8 @@ def main():
 
     # Create heuristic objects
     original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    corporate_forms_heuristic = HeuristicCorporateForms(max_edit_distance_dictionary, prefix_length, count_threshold,
+                                                        compact_level, corporate_forms_list)
     brackets_heuristic = HeuristicBrackets(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
     punctuation_heuristic = HeuristicPunctuation(max_edit_distance_dictionary, prefix_length, count_threshold,
                                                  compact_level)
@@ -40,7 +44,8 @@ def main():
                                                                  prefix_length, count_threshold, compact_level)
 
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
-    heuristic_list = [brackets_heuristic, punctuation_heuristic, lowercasing_heuristic, stemming_heuristic,
+    heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
+                      stemming_heuristic,
                       stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]

@@ -47,7 +47,7 @@ def recall(tp: int, fn: int) -> float:
 
 
 def f_measure(precision, recall) -> float:
-    return 2 * ((precision * recall) / (precision + recall))
+    return 2 * ((precision * recall) / (precision + recall + epsilon))
 
 
 class Evaluator(metaclass=ABCMeta):
@@ -169,7 +169,10 @@ class RuleEvaluator(Evaluator):
             fp_entities = matched_entities - data[mention]
 
             if print_samples:
-                print("{:40}{:40}{:40}{:40}".format(mention, str(tp_entities), str(fp_entities), str(fn_entities)))
+                # FIXME remove this if condition later, rn only for printing needed
+                if len(tp_entities) == 0:
+                    print("{:40}{:40}{:40}{:40}".format(mention, str(tp_entities), str(fp_entities), str(fn_entities)))
+                # print("{:40}{:40}{:40}{:40}".format(mention, str(tp_entities), str(fp_entities), str(fn_entities)))
 
             # Macro metric
             self._macro_precision += precision(len(tp_entities), len(fp_entities))
@@ -188,6 +191,11 @@ class RuleEvaluator(Evaluator):
         micro_precision = precision(self._tp, self._fp) * 100
         micro_recall = recall(self._tp, self._fn) * 100
         micro_f1_score = f_measure(micro_precision, micro_recall)
+
+        # FIXME: remove this again later
+        print("%s\n%s\n%s" % (self._tp, self._fp, self._fn))
+        print("%s\n%s\n%s" % (macro_precision, macro_recall, macro_f1_score))
+        print("%s\n%s\n%s" % (micro_precision, micro_recall, micro_f1_score))
 
         return ValidationResult(macro_precision, macro_recall, macro_f1_score), ValidationResult(
             micro_precision, micro_recall, micro_f1_score)
