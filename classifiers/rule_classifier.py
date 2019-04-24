@@ -156,10 +156,8 @@ class RuleClassifier(Classifier):
                 best_results['distance'] = suggestions[0].distance
                 best_results['heuristic'] = heuristic.name()
 
-            # FIXME: remove this print later again
-            print(heuristic.name(), previous_refactored_mention, suggestions)
             # If the distance is already perfect, return the result here
-            if best_results['distance'] == 1.0:
+            if best_results['distance'] == 0.0:
                 return best_results
 
         return best_results
@@ -172,17 +170,11 @@ class RuleClassifier(Classifier):
 
         Note: the entities of the split will be used to fill the dictionaries.
         """
-        # FIXME: change this to train again
-        if self._symspell_loaded_datasplit != 'val':
+        if self._symspell_loaded_datasplit != 'train':
             print("The symspell dictionaries have not been filled with the train split data. Doing this now. "
                   "This might take a while.")
-            self._fill_symspell_dictionaries(self.val_entities)
-            self._symspell_loaded_datasplit = 'val'
-        # if self._symspell_loaded_datasplit != 'train':
-        #     print("The symspell dictionaries have not been filled with the train split data. Doing this now. "
-        #           "This might take a while.")
-        #     self._fill_symspell_dictionaries(self.train_entities)
-        #     self._symspell_loaded_datasplit = 'train'
+            self._fill_symspell_dictionaries(self.train_entities)
+            self._symspell_loaded_datasplit = 'train'
 
         res = self._classify(mention)
         matched_entities = set()

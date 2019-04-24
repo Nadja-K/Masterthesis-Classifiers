@@ -45,8 +45,7 @@ def main():
 
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
-                      stemming_heuristic,
-                      stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
+                      stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
