@@ -1,16 +1,9 @@
 import sys
-import sqlite3
-import datetime
 
-from Levenshtein import ratio  # https://github.com/ztane/python-Levenshtein
 from typing import Tuple, List, Dict, Set, Union
-from symspellpy.symspellpy import Verbosity, SuggestItem
 
 from classifiers.classifier import Classifier
-from eval.evaluation import RuleEvaluator, Evaluator
 from heuristics.heuristics import *
-
-epsilon = sys.float_info.epsilon
 
 
 class RuleClassifier(Classifier):
@@ -72,43 +65,8 @@ class RuleClassifier(Classifier):
         # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropiate version)
         self._fill_symspell_dictionaries(dataset_split=dataset_split)
 
-        # FIXME move this part to the parent classifier class? If possible
-        start = datetime.datetime.now()
-
-        i = 0
-        eval_results = {}
-        for sample in self._data:
-            # FIXME: remove this later, just for fast debugging rn
-            # if i > 100:
-            #     break
-            # i += 1
-            mention = sample['mention']
-            entity = sample['entity_title']
-            suggestions = self._classify(mention)
-
-            if 'sentence' not in suggestions:
-                suggestions['sentence'] = sample['sentence']
-
-            if entity not in eval_results:
-                eval_results[entity] = {}
-
-            if mention not in eval_results[entity]:
-                eval_results[entity][mention] = []
-
-            eval_results[entity][mention].append(suggestions)
-
-        end = datetime.datetime.now()
-        print("Classification took: ", end - start)
-
-        # Calculate some metrics
-        eval = Evaluator(self._mention_entity_duplicate_count)
-        eval.evaluate(eval_results)
-        # macro, micro = eval.evaluate(eval_results, data)
-        # print("\nMacro metrics:"
-        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
-        # print("\nMicro metrics:"
-        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
-        pass
+        # The actual evaluation process
+        super().evaluate_datasplit(dataset_split)
 
     def _ratio(self, s1: str, s2: str, ldist: int) -> float:
         """

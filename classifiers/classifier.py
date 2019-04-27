@@ -1,6 +1,9 @@
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Set, Dict
 import sqlite3
+import datetime
+
+from eval.evaluation import Evaluator
 
 
 class Classifier(metaclass=ABCMeta):
@@ -118,6 +121,36 @@ class Classifier(metaclass=ABCMeta):
 
     @abstractmethod
     def evaluate_datasplit(self, split: str):
-        pass
+        start = datetime.datetime.now()
+
+        eval_results = {}
+        for sample in self._data:
+            mention = sample['mention']
+            entity = sample['entity_title']
+            suggestions = self._classify(mention)
+
+            if 'sentence' not in suggestions:
+                suggestions['sentence'] = sample['sentence']
+
+            if entity not in eval_results:
+                eval_results[entity] = {}
+
+            if mention not in eval_results[entity]:
+                eval_results[entity][mention] = []
+
+            eval_results[entity][mention].append(suggestions)
+
+        end = datetime.datetime.now()
+        print("Classification took: ", end - start)
+
+        # Calculate some metrics
+        eval = Evaluator()
+        eval.evaluate(eval_results)
+        # FIXME: nice print
+        # macro, micro = eval.evaluate(eval_results, data)
+        # print("\nMacro metrics:"
+        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
+        # print("\nMicro metrics:"
+        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
 
