@@ -8,6 +8,11 @@ class Classifier(metaclass=ABCMeta):
         self.train_data = None
         self.test_data = None
         self.val_data = None
+
+        self.train_mention_entity_duplicate_count = {}
+        self.test_mention_entity_duplicate_count = {}
+        self.val_mention_entity_duplicate_count = {}
+
         self.train_entities = None
         self.test_entities = None
         self.val_entities = None
@@ -21,6 +26,7 @@ class Classifier(metaclass=ABCMeta):
         if load_context:
             print("Context sentences will be loaded. This can take a while.")
 
+        # FIXME: technically I dont need to load all three splits, only one? Check how long this process takes.
         # Retrieve all samples from the database (corresponding to their split)
         self.train_data = self._load_split(curs, split='train', skip_trivial_samples=skip_trivial_samples,
                                            load_context=load_context)
@@ -28,6 +34,11 @@ class Classifier(metaclass=ABCMeta):
                                           load_context=load_context)
         self.val_data = self._load_split(curs, split='val', skip_trivial_samples=skip_trivial_samples,
                                          load_context=load_context)
+
+        # Count the number of duplicate mentions per entity
+        self.train_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.train_data)
+        self.test_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.test_data)
+        self.val_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.val_data)
 
         # Collect a set of all entities per dataset
         self.train_entities = set([x['entity_title'] for x in self.train_data])
@@ -41,8 +52,8 @@ class Classifier(metaclass=ABCMeta):
 
         self._close_db(connection)
 
-    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train',
-                    skip_trivial_samples: bool = False, load_context: bool = False) -> List[sqlite3.Row]:
+    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', skip_trivial_samples: bool = False,
+                    load_context: bool = False) -> List[sqlite3.Row]:
         """
         Load a split from the dataset database.
 
@@ -73,7 +84,7 @@ class Classifier(metaclass=ABCMeta):
             WHERE splits.split = ? 
         """
         command_skip_trivial_samples = """
-            AND sentences.mention != entity_title
+            AND LOWER(REPLACE(sentences.mention, '_', ' ')) != LOWER(REPLACE(entity_title, '_', ' '))
         """
 
         # FIXME: shuffle data
@@ -85,7 +96,30 @@ class Classifier(metaclass=ABCMeta):
             command = command + command_skip_trivial_samples
 
         curs.execute(command, (split,))
-        return curs.fetchall()
+        data = curs.fetchall()
+
+        return data
+
+    def _collect_mention_entity_duplicate_count(self, data: List[sqlite3.Row]) -> Dict[str, Dict[str, int]]:
+        """
+        Count how many samples with duplicate mentions exist per entity.
+        This is necessary in order to average the evaluation metric later so that mentions that appear often in
+        samples do not falsify the results.
+        """
+        mention_entity_duplicate_count = {}
+        for sample in data:
+            entity = sample['entity_title']
+            mention = sample['mention']
+
+            if entity not in mention_entity_duplicate_count:
+                mention_entity_duplicate_count[entity] = {}
+
+            if mention not in mention_entity_duplicate_count[entity]:
+                mention_entity_duplicate_count[entity][mention] = 1
+            else:
+                mention_entity_duplicate_count[entity][mention] += 1
+
+        return mention_entity_duplicate_count
 
     def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
         connection = sqlite3.connect(db_name, timeout=timeout)
