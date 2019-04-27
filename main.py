@@ -1,6 +1,7 @@
 import configparser
 import time
 import json
+from logging.config import fileConfig
 
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
@@ -9,6 +10,8 @@ from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming,
 
 
 def main():
+    fileConfig("configs/logging_config.ini", disable_existing_loggers=False)
+
     config = configparser.ConfigParser()
     config.read("configs/config.ini")
     # config.read("configs/remote_config.ini")
