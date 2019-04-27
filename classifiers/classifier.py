@@ -5,55 +5,36 @@ import sqlite3
 
 class Classifier(metaclass=ABCMeta):
     def __init__(self):
-        self.train_data = None
-        self.test_data = None
-        self.val_data = None
+        self._loaded_datasplit = None
+        self._data = None
+        self._mention_entity_duplicate_count = {}
+        self._entities = None
 
-        self.train_mention_entity_duplicate_count = {}
-        self.test_mention_entity_duplicate_count = {}
-        self.val_mention_entity_duplicate_count = {}
+    def _load_datasplit(self, dataset_db_name: str, dataset_split: str, skip_trivial_samples: bool = False,
+                        load_context: bool = False):
+        assert dataset_split in ['train', 'test', 'val']
 
-        self.train_entities = None
-        self.test_entities = None
-        self.val_entities = None
-
-    def load_datasets(self, dataset_db_name: str, skip_trivial_samples: bool = False, load_context: bool = False):
         curs, connection = self._connect_db(dataset_db_name)
-
         if skip_trivial_samples:
             print("Trivial samples will be skipped.")
 
         if load_context:
             print("Context sentences will be loaded. This can take a while.")
 
-        # FIXME: technically I dont need to load all three splits, only one? Check how long this process takes.
-        # Retrieve all samples from the database (corresponding to their split)
-        self.train_data = self._load_split(curs, split='train', skip_trivial_samples=skip_trivial_samples,
-                                           load_context=load_context)
-        self.test_data = self._load_split(curs, split='test', skip_trivial_samples=skip_trivial_samples,
-                                          load_context=load_context)
-        self.val_data = self._load_split(curs, split='val', skip_trivial_samples=skip_trivial_samples,
-                                         load_context=load_context)
-
-        # Count the number of duplicate mentions per entity
-        self.train_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.train_data)
-        self.test_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.test_data)
-        self.val_mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self.val_data)
-
-        # Collect a set of all entities per dataset
-        self.train_entities = set([x['entity_title'] for x in self.train_data])
-        self.test_entities = set([x['entity_title'] for x in self.test_data])
-        self.val_entities = set([x['entity_title'] for x in self.val_data])
+        self._data = self._retrieve_datasplit(curs, split=dataset_split, skip_trivial_samples=skip_trivial_samples,
+                                              load_context=load_context)
+        # self._mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self._data)
+        self._entities = set([x['entity_title'] for x in self._data])
+        self._loaded_datasplit = dataset_split
 
         # Some statistical information
-        print("Found %s sentences for %s entities for the training split." % (len(self.train_data), len(self.train_entities)))
-        print("Found %s sentences for %s entities for the test split." % (len(self.test_data), len(self.test_entities)))
-        print("Found %s sentences for %s entities for the val split." % (len(self.val_data), len(self.val_entities)))
+        print("Found %s sentences for %s entities for the %s split." % (len(self._data), len(self._entities),
+                                                                        dataset_split))
 
         self._close_db(connection)
 
-    def _load_split(self, curs: sqlite3.Cursor, split: str = 'train', skip_trivial_samples: bool = False,
-                    load_context: bool = False) -> List[sqlite3.Row]:
+    def _retrieve_datasplit(self, curs: sqlite3.Cursor, split: str = 'train', skip_trivial_samples: bool = False,
+                            load_context: bool = False) -> List[sqlite3.Row]:
         """
         Load a split from the dataset database.
 

@@ -10,12 +10,13 @@ from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming,
 
 def main():
     config = configparser.ConfigParser()
-    # config.read("configs/config.ini")
-    config.read("configs/remote_config.ini")
+    config.read("configs/config.ini")
+    # config.read("configs/remote_config.ini")
 
     # Config settings
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
     skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
+    dataset_split = config['DATASET'].get('SPLIT', 'val')
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
                                                                                  'DISTANCE_DICTIONARY', 5)
@@ -48,7 +49,7 @@ def main():
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]
-    classifier = RuleClassifier(heuristic_list, dataset_db_name, skip_trivial_samples, False)
+    classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
     classifier.evaluate_datasplit('val')
     print("Evaluation took %s" % (time.time() - start))

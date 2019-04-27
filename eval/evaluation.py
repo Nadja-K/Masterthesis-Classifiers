@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import NamedTuple, Tuple, Dict, Union, List, Set
 
 import sys
+import sqlite3
 
 from symspellpy.symspellpy import SuggestItem
 from heuristics.heuristics import Heuristic
@@ -50,17 +51,104 @@ def f_measure(precision, recall) -> float:
     return 2 * ((precision * recall) / (precision + recall + epsilon))
 
 
-class Evaluator(metaclass=ABCMeta):
+# class Evaluator(metaclass=ABCMeta):
+class Evaluator:
     def __init__(self):
-        self._macro_precision = 0
-        self._macro_recall = 0
-        self._count_evaluate = 0
+        self._macro_precision = 0.0
+        self._macro_recall = 0.0
+
+        self._accuracy = 0.0
+
+        self._tp = 0
+        self._fp = 0
+        self._fn = 0
 
     def _precision(self) -> float:
         return self._macro_precision / self._count_evaluate
 
     def _recall(self) -> float:
         return self._macro_recall / self._count_evaluate
+
+    def evaluate(self, eval_results: List[Tuple[sqlite3.Row, Dict[str, Union[str, Set[str], int, Heuristic]]]]):
+        """
+        eval_results should be of the following structure:
+        {
+            'gt_entity_title_1':
+            {
+                'mention_1':
+                [
+                    {
+                        'sentence': str,
+                        'suggestions': List[str],
+                        'distance': float
+                    },
+                    ...
+                ],
+                ...
+            },
+            ...
+        }
+        """
+        # Accuracy only
+        avg_accuracy = 0
+        macro_precision, macro_recall = (0, 0)
+        micro_tp, micro_fp, micro_fn = (0, 0, 0)
+        count_mentions = 0
+        for gt_entity, mentions in eval_results.items():
+            for mention, samples in mentions.items():
+                accuracy_tp, mention_precision, mention_recall = (0, 0, 0)
+                mention_tp, mention_fp, mention_fn = (0, 0, 0)
+                for sample in samples:
+                    tp, fp, fn = (0, 0, 0)
+                    # For the accuracy, we only take a look at the first suggestion
+                    if len(sample['suggestions']) > 0 and sorted(sample['suggestions'])[0] == gt_entity:
+                        accuracy_tp += 1
+
+                    # Check the number of TP, FP and FN in the suggestions
+                    # print(gt_entity, mention, sample['suggestions'], sample['heuristic'], sample['distance'], sample['refactored_mention'])
+                    if gt_entity in sample['suggestions']:
+                        tp = 1
+                        fp = len(sample['suggestions']) - 1
+                    else:
+                        fn = 1
+                        fp = len(sample['suggestions'])
+
+                    if (tp + fp) != 0:
+                        mention_precision += (tp / (tp + fp))
+
+                    if (tp + fn) != 0:
+                        mention_recall += (tp / (tp + fn))
+                    mention_tp += tp
+                    mention_fn += fn
+                    mention_fp += fp
+
+                print(mention, mention_precision, mention_recall, mention_tp, mention_fn, mention_fp)
+                num_samples = len(samples)
+                avg_accuracy += accuracy_tp / num_samples
+                macro_precision += mention_precision / num_samples
+                macro_recall += mention_recall / num_samples
+                micro_tp += mention_tp / num_samples
+                micro_fn += mention_fn / num_samples
+                micro_fp += mention_fp / num_samples
+
+                count_mentions += 1
+
+        avg_accuracy /= count_mentions
+        macro_precision /= count_mentions
+        macro_recall /= count_mentions
+
+        if (micro_tp + micro_fp) != 0:
+            micro_precision = micro_tp / (micro_tp + micro_fp + epsilon)
+        else:
+            micro_precision = 0
+
+        if (micro_tp + micro_fn) != 0:
+            micro_recall = micro_tp / (micro_tp + micro_fn + epsilon)
+        else:
+            micro_recall = 0
+
+        print(avg_accuracy, macro_precision, macro_recall, micro_precision, micro_recall)
+        print(micro_tp, micro_fn, micro_fp)
 
 
 class EmbeddingEvaluator(Evaluator):
