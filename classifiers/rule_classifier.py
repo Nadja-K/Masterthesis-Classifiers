@@ -55,7 +55,7 @@ class RuleClassifier(Classifier):
                     previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
             self._symspell_loaded_datasplit = dataset_split
 
-    def evaluate_datasplit(self, dataset_split: str):
+    def evaluate_datasplit(self, dataset_split: str, eval_mode: str='mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -66,7 +66,7 @@ class RuleClassifier(Classifier):
         self._fill_symspell_dictionaries(dataset_split=dataset_split)
 
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split)
+        super().evaluate_datasplit(dataset_split, eval_mode=eval_mode)
 
     def _ratio(self, s1: str, s2: str, ldist: int) -> float:
         """

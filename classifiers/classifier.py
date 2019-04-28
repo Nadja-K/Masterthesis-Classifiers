@@ -120,7 +120,8 @@ class Classifier(metaclass=ABCMeta):
         connection.close()
 
     @abstractmethod
-    def evaluate_datasplit(self, split: str):
+    def evaluate_datasplit(self, split: str, eval_mode: str='mentions'):
+        assert eval_mode in ['mentions', 'samples']
         start = datetime.datetime.now()
 
         eval_results = {}
@@ -145,7 +146,7 @@ class Classifier(metaclass=ABCMeta):
 
         # Calculate some metrics
         eval = Evaluator()
-        eval.evaluate(eval_results)
+        eval.evaluate(eval_results, eval_mode)
         # FIXME: nice print
         # macro, micro = eval.evaluate(eval_results, data)
         # print("\nMacro metrics:"
