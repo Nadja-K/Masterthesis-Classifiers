@@ -55,7 +55,7 @@ def main():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    # heuristic_list = [original_heuristic]
+    heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
     classifier.evaluate_datasplit('val', eval_mode=eval_mode)
