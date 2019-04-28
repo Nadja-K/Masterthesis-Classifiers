@@ -129,6 +129,7 @@ pip-selfcheck.json
 .idea/mongoSettings.xml
 
 .idea/
+.idea/encodings.xml
 
 ## File-based project format:
 *.iws
