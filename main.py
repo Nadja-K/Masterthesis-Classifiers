@@ -1,6 +1,7 @@
 import configparser
 import time
 import json
+import logging
 from logging.config import fileConfig
 
 from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier
@@ -11,6 +12,7 @@ from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming,
 
 
 fileConfig("configs/logging_config.ini", disable_existing_loggers=False)
+# logging.disable(logging.WARNING)
 
 config = configparser.ConfigParser()
 # config.read("configs/config.ini")
@@ -27,11 +29,20 @@ print(dataset_db_name)
 
 
 def token_level_embedding_classifier_main():
-    # FIXME: load other configs
+    # FIXME: load other config options
+    embedding_model_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('EMBEDDING_MODEL_PATH', None)
+    annoy_metric = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_METRIC', 'euclidean')
+    num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
+    annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
+    annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
 
-    classifier = TokenLevelEmbeddingClassifier(dataset_db_name, dataset_split)
+    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                                               embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
+                                               num_trees=num_trees, annoy_index_path=annoy_index_path,
+                                               annoy_output_dir=annoy_output_dir,
+                                               skip_trivial_samples=skip_trivial_samples)
     start = time.time()
-    classifier.evaluate_datasplit('val', eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -69,7 +80,7 @@ def rule_classifier_main():
     # heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit('val', eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 

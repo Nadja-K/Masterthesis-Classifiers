@@ -3,7 +3,7 @@ from typing import NamedTuple, Tuple, Dict, Union, List, Set
 import logging
 import sys
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('sampleOutput')
 epsilon = sys.float_info.epsilon
 
 ComparisonResult = NamedTuple('ComparisonResult', [('tp', int), ('fp', int), ('tn', int), ('fn', int)])

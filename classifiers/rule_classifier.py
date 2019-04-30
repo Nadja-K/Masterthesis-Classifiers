@@ -12,7 +12,8 @@ class RuleClassifier(Classifier):
         self._dataset_db_name = dataset_db_name
 
         # Load the specified datasplit
-        super()._load_datasplit(dataset_db_name, dataset_split, skip_trivial_samples, False)
+        super()._load_datasplit(dataset_db_name, dataset_split, skip_trivial_samples=skip_trivial_samples,
+                                load_context=False)
         self._heuristics = heuristics
 
         # Fill the symspell dictionaries of each heuristic with the data of the train split
