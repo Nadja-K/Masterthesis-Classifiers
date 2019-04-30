@@ -5,7 +5,7 @@ import logging
 import numpy as np
 
 from pathlib import Path
-from typing import Set, List
+from typing import Set, List, Tuple
 from abc import ABCMeta, abstractmethod
 
 log = logging.getLogger(__name__)
@@ -70,22 +70,22 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
 
-    def get_nns_by_vector(self, emb_vector: List[float], num_nn: int) -> List[str]:
+    def get_nns_by_vector(self, emb_vector: List[float], num_nn: int) -> List[Tuple[str, float]]:
         """
         Returns a set of nearest neighbour entities for the given embedding vector.
         """
         assert self._annoy_index is not None, "No annoy index has been loaded. Call load_entity_index(file_annoy)"
         assert self._annoy_mapping is not None, "No annoy mapping has been loaded. Call load_entity_index(file_annoy)"
 
-        nns_ids = self._annoy_index.get_nns_by_vector(emb_vector, num_nn)
+        nearest_neighbours = self._annoy_index.get_nns_by_vector(emb_vector, num_nn, include_distances=True)
         nns_entities = []
         with self._annoy_mapping.begin() as mapping:
-            for id in nns_ids:
-                nns_entities.append(mapping.get(str(id).encode()).decode())
+            for neighbour_id, distance in zip(nearest_neighbours[0], nearest_neighbours[1]):
+                nns_entities.append((mapping.get(str(neighbour_id).encode()).decode(), distance))
 
         return nns_entities
 
-    def get_nns_by_phrase(self, phrase: str, num_nn: int) -> List[str]:
+    def get_nns_by_phrase(self, phrase: str, num_nn: int) -> List[Tuple[str, float]]:
         """
         Returns a set of nearest neighbour entities for the given phrase.
         """

@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, List, Set, Dict
+from typing import Tuple, List, Set, Dict, Union
 import sqlite3
 import datetime
 
@@ -84,26 +84,26 @@ class Classifier(metaclass=ABCMeta):
 
         return data
 
-    def _collect_mention_entity_duplicate_count(self, data: List[sqlite3.Row]) -> Dict[str, Dict[str, int]]:
-        """
-        Count how many samples with duplicate mentions exist per entity.
-        This is necessary in order to average the evaluation metric later so that mentions that appear often in
-        samples do not falsify the results.
-        """
-        mention_entity_duplicate_count = {}
-        for sample in data:
-            entity = sample['entity_title']
-            mention = sample['mention']
-
-            if entity not in mention_entity_duplicate_count:
-                mention_entity_duplicate_count[entity] = {}
-
-            if mention not in mention_entity_duplicate_count[entity]:
-                mention_entity_duplicate_count[entity][mention] = 1
-            else:
-                mention_entity_duplicate_count[entity][mention] += 1
-
-        return mention_entity_duplicate_count
+    # def _collect_mention_entity_duplicate_count(self, data: List[sqlite3.Row]) -> Dict[str, Dict[str, int]]:
+    #     """
+    #     Count how many samples with duplicate mentions exist per entity.
+    #     This is necessary in order to average the evaluation metric later so that mentions that appear often in
+    #     samples do not falsify the results.
+    #     """
+    #     mention_entity_duplicate_count = {}
+    #     for sample in data:
+    #         entity = sample['entity_title']
+    #         mention = sample['mention']
+    #
+    #         if entity not in mention_entity_duplicate_count:
+    #             mention_entity_duplicate_count[entity] = {}
+    #
+    #         if mention not in mention_entity_duplicate_count[entity]:
+    #             mention_entity_duplicate_count[entity][mention] = 1
+    #         else:
+    #             mention_entity_duplicate_count[entity][mention] += 1
+    #
+    #     return mention_entity_duplicate_count
 
     def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
         connection = sqlite3.connect(db_name, timeout=timeout)
@@ -118,6 +118,20 @@ class Classifier(metaclass=ABCMeta):
     def _close_db(self, connection: sqlite3.Connection):
         connection.commit()
         connection.close()
+
+    @abstractmethod
+    def _classify(self, mention: str) -> Dict[str, Union[str, Set[str], int]]:
+        """
+        Internal classify method that collects raw results that might be interesting for statistics.
+        """
+        pass
+
+    @abstractmethod
+    def classify(self, mention: str) -> Set[Tuple[str, float]]:
+        """
+        Public classify method that users can use to classify a given string including some sort of similarity measure.
+        """
+        pass
 
     @abstractmethod
     def evaluate_datasplit(self, split: str, eval_mode: str='mentions'):

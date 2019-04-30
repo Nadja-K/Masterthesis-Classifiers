@@ -1,15 +1,23 @@
 from classifiers.classifier import Classifier
+from index.annoy_index import AnnoyIndexer
 
 
-class EmbeddingClassifier(Classifier):
-    def __init__(self):
+class TokenLevelEmbeddingClassifier(Classifier):
+    def __init__(self, dataset_db_name: str, dataset_split: str):
+        assert dataset_split in ['train', 'test', 'val']
         super().__init__()
+        self._dataset_db_name = dataset_db_name
 
-    def classify(self):
+        # Load the specified datasplit
+        super()._load_datasplit(dataset_db_name, dataset_split, False, False)
+
+        # FIXME: Create (or load if possible) the annoy index
+
+    def evaluate_datasplit(self, split: str, eval_mode: str='mentions'):
         pass
 
-    # FIXME: prepare the evaluation so that it is similar to the rule-based classifier and averages the results over the amount of equal mentions
-    # e.g. Astro-Physik is a mention that appears in 100 sentences while astrophysics only appears once.
-    # If we count every sentence for itself and our system is able to match Astro-Physik correctly but fails for astrophysics, it would still
-    # end up with a high score. However, this is not what we want. We want to measure the average score per mention.
-    # So: we calculate the performance for 1 sentence and later average the performance over the duplicate mentions.
+    def _classify(self, mention: str):
+        pass
+
+    def classify(self, mention: str):
+        pass

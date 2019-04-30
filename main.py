@@ -3,24 +3,39 @@ import time
 import json
 from logging.config import fileConfig
 
+from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicOriginal, HeuristicBrackets, \
     HeuristicLowercasing, HeuristicCorporateForms
 
 
-def main():
-    fileConfig("configs/logging_config.ini", disable_existing_loggers=False)
+fileConfig("configs/logging_config.ini", disable_existing_loggers=False)
 
-    config = configparser.ConfigParser()
-    # config.read("configs/config.ini")
-    config.read("configs/remote_config.ini")
+config = configparser.ConfigParser()
+# config.read("configs/config.ini")
+config.read("configs/remote_config.ini")
 
-    # Config settings
-    dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
-    skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
-    dataset_split = config['DATASET'].get('SPLIT', 'val')
+# Config settings
+dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
+skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
+dataset_split = config['DATASET'].get('SPLIT', 'val')
 
+eval_mode = config['EVALUATION'].get('MODE', 'mentions')
+assert eval_mode in ['mentions', 'samples']
+print(dataset_db_name)
+
+
+def token_level_embedding_classifier_main():
+    # FIXME: load other configs
+
+    classifier = TokenLevelEmbeddingClassifier(dataset_db_name, dataset_split)
+    start = time.time()
+    classifier.evaluate_datasplit('val', eval_mode=eval_mode)
+    print("Evaluation took %s" % (time.time() - start))
+
+
+def rule_classifier_main():
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
                                                                                  'DISTANCE_DICTIONARY', 5)
@@ -28,10 +43,6 @@ def main():
     prefix_length = config['RULECLASSIFIER'].getint('PREFIX_LENGTH', 5)
     count_threshold = config['RULECLASSIFIER'].getint('COUNT_THRESHOLD', 5)
     compact_level = config['RULECLASSIFIER'].getint('COMPACT_LEVEL', 5)
-
-    eval_mode = config['EVALUATION'].get('MODE', 'mentions')
-    assert eval_mode in ['mentions', 'samples']
-    print(dataset_db_name)
 
     # Create heuristic objects
     original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
@@ -55,7 +66,7 @@ def main():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    heuristic_list = [original_heuristic]
+    # heuristic_list = [original_heuristic]
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
     classifier.evaluate_datasplit('val', eval_mode=eval_mode)
@@ -63,4 +74,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    token_level_embedding_classifier_main()
+    # rule_classifier_main()

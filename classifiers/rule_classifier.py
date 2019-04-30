@@ -1,5 +1,3 @@
-import sys
-
 from typing import Tuple, List, Dict, Set, Union
 
 from classifiers.classifier import Classifier
@@ -21,12 +19,12 @@ class RuleClassifier(Classifier):
         # The flag is used in order to re-fill the dictionaries if a different split needs to be used.
         if prefill_symspell:
             print("Filling the symspell dictionaries for the %s split. This might take a while." % dataset_split)
-            self._fill_symspell_dictionaries()
+            self._fill_symspell_dictionaries(dataset_split)
             self._symspell_loaded_datasplit = dataset_split
         else:
             self._symspell_loaded_datasplit = None
 
-    def _fill_symspell_dictionaries(self, dataset_split):
+    def _fill_symspell_dictionaries(self, dataset_split: str):
         """
         Symspell is used to speed up the matching of a given word with a set of entities (and potentially their
         variations based on the heuristics used in this classifier).
