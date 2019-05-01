@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from typing import List, Set, Tuple
 
 from symspellpy.symspellpy import SymSpell, Verbosity, SuggestItem
-from CharSplit import char_split
+from utils.utils import split_compounds, remove_punctuation
 
 import string
 import re
@@ -112,18 +112,7 @@ class HeuristicPunctuation(Heuristic):
         return "punctuation"
 
     def _refactor(self, s: str) -> str:
-        s = str(s)
-
-        # For dots, we want no space instead
-        refactored = s.replace('.', '')
-
-        # For every other punctuation symbol (e.g. - or _) we want a space instead
-        refactored = refactored.translate(str.maketrans(self._punctuation_list, ' ' * len(self._punctuation_list)))
-        refactored = " ".join([word for word in refactored.split(" ") if len(word) > 0])
-        # refactored = refactored.translate(str.maketrans(self._punctuation_list, ' ' * len(self._punctuation_list)))\
-        #     .replace(' ' * 4, '').replace(' ' * 3, '').replace(' ' * 2, '').strip()
-
-        return refactored
+        return remove_punctuation(s)
 
 
 class HeuristicLowercasing(Heuristic):
@@ -207,7 +196,6 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         assert prob_threshold > 0
         self._prop_threshold = prob_threshold
-        # self._max_ldist = max_ldist
         self.max_edit_distance_dictionary = max_edit_distance_dictionary
 
         # The symspell dictionary and mapping for the unrefactored entities (case 1)
@@ -224,42 +212,9 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         self._original_rule_mapping = {}
 
     def _split(self, s: str) -> List[str]:
-        """
-        This method recursively splits an input string into its compounds based on a probability threshold.
-
-        The compound splitter used in this function (CharSplit) only splits a string into two compounds.
-        However, words can have far more relevant compounds. To solve this issue I recursively split the compounds
-        into further compounds until they no longer satisfy the probability threshold.
-
-        CharSplit has some other 'weaknesses' that are covered here.
-        1) If the input string consists of multiple words separated by a space, CharSplit is unable to handle it very
-           well. Usually the resulting probability is negative. Instead, I split the input string manually on spaces.
-        2) The compound splitter capitalizes every word, but I want them lowercased.
-        3) CharSplit returns various splits (sorted by a probability) but to keep it simple, I only take the first one
-           into consideration
-        """
-        s = str(s)
-
-        if " " in s:
-            split = s.split(" ")
-            probability = 1.0
-        else:
-            split_res = char_split.split_compound(s)[0]
-            probability = split_res[0]
-            split = split_res[1:]
-        compounds = [split.strip().lower() for split in split]
-
-        if probability >= self._prop_threshold:
-            recursive_compounds = []
-            for compound in compounds:
-                recursive_compounds.extend(self._split(compound))
-            return recursive_compounds
-        else:
-            return [s]
+        return split_compounds(s, prop_threshold=self._prop_threshold)
 
     def _refactor(self, s: str) -> str:
-        # CharSplit has a bug that causes the splitter to behave unnatural if a - is present, so I fix this here
-        # by making sure no punctuation characters are in the string
         s = super()._refactor(s)
         compounds = self._split(s)
 
@@ -341,7 +296,7 @@ class HeuristicAbbreviationsSpaces(HeuristicAbbreviationsCompounds):
 
 class HeuristicCorporateForms(Heuristic):
     def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
-                 compact_level: int = 5, corporate_list=[]):
+                 compact_level: int = 5, corporate_list: List[str]=[]):
         super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
         self._corporate_regex = re.compile("((?<=[\s])|(?<=^))(%s)((?=([\s]))|(?=($)))" % "|".join(corporate_list))
 

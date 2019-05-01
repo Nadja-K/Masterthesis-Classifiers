@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 
 from classifiers.classifier import Classifier
 from index.annoy_index import Sent2VecIndexer
@@ -12,7 +11,7 @@ log = logging.getLogger(__name__)
 class TokenLevelEmbeddingClassifier(Classifier):
     def __init__(self, dataset_db_name: str, dataset_split: str, embedding_model_path: str, annoy_metric: str,
                  skip_trivial_samples: bool = False, annoy_index_path: str=None, num_trees: int=30,
-                 annoy_output_dir: str=''):
+                 annoy_output_dir: str='', use_compound_splitting: bool=True, compound_splitting_threshold: float=0.5):
         assert dataset_split in ['train', 'test', 'val']
         super().__init__()
         self._dataset_db_name = dataset_db_name
@@ -22,7 +21,8 @@ class TokenLevelEmbeddingClassifier(Classifier):
                                 load_context=False)
 
         # Create (or load) the annoy index
-        self._index = Sent2VecIndexer(embedding_model_path, annoy_metric)
+        self._index = Sent2VecIndexer(embedding_model_path, annoy_metric, use_compound_splitting,
+                                      compound_splitting_threshold)
         if annoy_index_path is None:
             log.info("No annoy index file has been provided, creating new index now.")
             output_path = os.path.join(annoy_output_dir, "%s_%s" % (dataset_db_name.split(os.sep)[-1].split(".")[0],

@@ -41,13 +41,17 @@ def token_level_embedding_classifier_main():
     num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
     annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
     annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
+    use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', True)
+    compound_splitting_threshold =config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
 
     # Classifier
     classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
                                                embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
                                                num_trees=num_trees, annoy_index_path=annoy_index_path,
                                                annoy_output_dir=annoy_output_dir,
-                                               skip_trivial_samples=skip_trivial_samples)
+                                               skip_trivial_samples=skip_trivial_samples,
+                                               use_compound_splitting=use_compound_splitting,
+                                               compound_splitting_threshold=compound_splitting_threshold)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))

@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 from typing import Set, List, Tuple
 from abc import ABCMeta, abstractmethod
+from utils.utils import split_compounds
 
 log = logging.getLogger(__name__)
 
@@ -105,18 +106,32 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
 
 class Sent2VecIndexer(AnnoyIndexer):
-    def __init__(self, embedding_model_path: str, metric: str ='euclidean'):
+    def __init__(self, embedding_model_path: str, metric: str ='euclidean', use_compound_splitting: bool=True,
+                 compound_splitting_threshold: float=0.5):
         embedding_model = sent2vec.Sent2vecModel()
         embedding_model.load_model(embedding_model_path)
         embedding_vector_size = embedding_model.get_emb_size()
 
+        self._use_compound_splitting = use_compound_splitting
+        self._compound_splitting_threshold = compound_splitting_threshold
+
         super().__init__(embedding_model, embedding_vector_size, metric)
 
-    def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
+    def _get_embedding(self, phrase: str, compound_attempt=False) -> Tuple[List[float], bool]:
         emb = self._embedding_model.embed_sentence(phrase)[0]
         phrase_found = True
         if not np.any(emb):
-            log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
-            phrase_found = False
+            if self._use_compound_splitting:
+                if compound_attempt:
+                    log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
+                    phrase_found = False
+                else:
+                    # log.warning("Phrase '%s' not found in sent2vec. Attempting again with compound splitting." % phrase)
+                    compound_splitted_phrase = ' '.join(
+                        split_compounds(phrase, prop_threshold=self._compound_splitting_threshold))
+                    emb, phrase_found = self._get_embedding(compound_splitted_phrase, True)
+            else:
+                log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
+                phrase_found = False
 
-        return self._embedding_model.embed_sentence(phrase)[0], phrase_found
+        return emb, phrase_found
