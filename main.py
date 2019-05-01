@@ -2,7 +2,8 @@ import configparser
 import time
 import json
 import logging
-from logging.config import fileConfig
+from configs.logging_config import logging_config
+from logging.config import dictConfig
 
 from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier
 from classifiers.rule_classifier import RuleClassifier
@@ -10,15 +11,15 @@ from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming,
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicOriginal, HeuristicBrackets, \
     HeuristicLowercasing, HeuristicCorporateForms
 
-
-fileConfig("configs/logging_config.ini", disable_existing_loggers=False)
+# Logging
 # logging.disable(logging.WARNING)
 
+# Config
 config = configparser.ConfigParser()
 # config.read("configs/config.ini")
 config.read("configs/remote_config.ini")
 
-# Config settings
+# Global config settings that are used for all classifiers
 dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
 skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
 dataset_split = config['DATASET'].get('SPLIT', 'val')
@@ -29,13 +30,19 @@ print(dataset_db_name)
 
 
 def token_level_embedding_classifier_main():
-    # FIXME: load other config options
+    # Logging
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[0] + "_token_level_embedding.log"
+    dictConfig(logging_config)
+
+    # Settings
     embedding_model_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('EMBEDDING_MODEL_PATH', None)
     annoy_metric = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_METRIC', 'euclidean')
     num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
     annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
     annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
 
+    # Classifier
     classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
                                                embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
                                                num_trees=num_trees, annoy_index_path=annoy_index_path,
@@ -47,6 +54,12 @@ def token_level_embedding_classifier_main():
 
 
 def rule_classifier_main():
+    # Logging
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[0] + "_rule.log"
+    dictConfig(logging_config)
+
+    # Settings
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
                                                                                  'DISTANCE_DICTIONARY', 5)
@@ -78,6 +91,8 @@ def rule_classifier_main():
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
     # heuristic_list = [original_heuristic]
+
+    # Classifier
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)

@@ -61,6 +61,34 @@ class Evaluator:
     def _accuracy(self) -> float:
         return self._top1_accuracy / self._count_valid_samples
 
+    def _evaluate_sample(self, gt_entity: str, sample: Dict[str, Union[float, Set[str], str]], mention: str
+                         ) -> Tuple[int, int, int, int]:
+        suggestions = [str(x) for x in sample['suggestions']]
+        len_suggestions = len(suggestions)
+        tp, fp, fn = (0, 0, 0)
+        accuracy_tp = 0
+
+        # For the accuracy, we only take a look at the first suggestion
+        if len_suggestions > 0 and sorted(suggestions)[0] == gt_entity:
+            accuracy_tp += 1
+
+        # Check the number of TP, FP and FN in the suggestions
+        if gt_entity in suggestions:
+            tp = 1
+            fp = len_suggestions - 1
+
+            # fp_entities = set(suggestions) - set([gt_entity])
+            d = {'label': 'TP', 'mention': mention, 'tp_fn_entity': gt_entity}
+            log.info('', extra=d)
+        else:
+            fn = 1
+            fp = len_suggestions
+
+            d = {'label': 'FN', 'mention': mention, 'tp_fn_entity': gt_entity}
+            log.info('', extra=d)
+
+        return tp, fp, fn, accuracy_tp
+
     def _evaluate_mentions(self, eval_results: Dict[str, Dict[str, List[Dict[str, Union[str, float, List[str]]]]]]
                            ) -> Tuple[float, ValidationResult, ValidationResult]:
         """
@@ -69,10 +97,6 @@ class Evaluator:
                     'astrophysikalisch'. In this method, an average score per MENTION will be calculated, so that each
                     MENTION contributes equally to the final score regardless of the number of samples per mention.
         """
-        d = {'gt_entity': 'GT_Entity', 'mention': 'Mention', 'tp_entities': 'TP_Entities',
-             'fp_entities': 'FP_Entities', 'fn_entities': 'FN_Entities', 'distance': 'Distance'}
-        log.info('', extra=d)
-
         for gt_entity, mentions in eval_results.items():
             gt_entity = str(gt_entity)
             for mention, samples in mentions.items():
@@ -80,30 +104,9 @@ class Evaluator:
                 mention_tp, mention_fp, mention_fn = (0, 0, 0)
 
                 for sample in samples:
-                    suggestions = [str(x) for x in sample['suggestions']]
-                    len_suggestions = len(suggestions)
-                    tp, fp, fn = (0, 0, 0)
-                    # For the accuracy, we only take a look at the first suggestion
-                    if len_suggestions > 0 and sorted(suggestions)[0] == gt_entity:
-                        accuracy_tp += 1
+                    tp, fp, fn, accuracy_tmp = self._evaluate_sample(gt_entity, sample, mention)
 
-                    # Check the number of TP, FP and FN in the suggestions
-                    if gt_entity in suggestions:
-                        tp = 1
-                        fp = len_suggestions - 1
-
-                        fp_entities = set(suggestions) - set([gt_entity])
-                        d = {'gt_entity': gt_entity, 'mention': mention, 'tp_entities': gt_entity,
-                             'fp_entities': ', '.join(fp_entities), 'fn_entities': '', 'distance': sample['distance']}
-                        log.info('', extra=d)
-                    else:
-                        fn = 1
-                        fp = len_suggestions
-
-                        d = {'gt_entity': gt_entity, 'mention': mention, 'tp_entities': '',
-                             'fp_entities': ', '.join(suggestions), 'fn_entities': gt_entity,
-                             'distance': sample['distance']}
-                        log.info('', extra=d)
+                    accuracy_tp += accuracy_tmp
                     mention_precision += precision(tp, fp)
                     mention_recall += recall(tp, fn)
 
@@ -142,40 +145,13 @@ class Evaluator:
                     even though 9 of the 10 Astro-Physik samples will be trivial for the rule-based classifier,
                     which will result in a rather high final score.
         """
-        d = {'gt_entity': 'GT_Entity', 'mention': 'Mention', 'tp_entities': 'TP_Entities',
-             'fp_entities': 'FP_Entities', 'fn_entities': 'FN_Entities', 'distance': 'Distance'}
-        log.info('', extra=d)
-
         for gt_entity, mentions in eval_results.items():
             gt_entity = str(gt_entity)
             for mention, samples in mentions.items():
                 for sample in samples:
-                    suggestions = [str(x) for x in sample['suggestions']]
-                    len_suggestions = len(suggestions)
-                    tp, fp, fn = (0, 0, 0)
+                    tp, fp, fn, accuracy_tmp = self._evaluate_sample(gt_entity, sample, mention)
 
-                    # For the accuracy, we only take a look at the first suggestion
-                    if len_suggestions > 0 and sorted(suggestions)[0] == gt_entity:
-                        self._top1_accuracy += 1
-
-                    # Check the number of TP, FP and FN in the suggestions
-                    if gt_entity in suggestions:
-                        tp += 1
-                        fp += (len_suggestions - 1)
-
-                        fp_entities = set(suggestions) - set([gt_entity])
-                        d = {'gt_entity': gt_entity, 'mention': mention, 'tp_entities': gt_entity,
-                             'fp_entities': ', '.join(fp_entities), 'fn_entities': '', 'distance': sample['distance']}
-                        log.info('', extra=d)
-                    else:
-                        fn += 1
-                        fp += len_suggestions
-
-                        d = {'gt_entity': gt_entity, 'mention': mention, 'tp_entities': '',
-                             'fp_entities': ', '.join(suggestions), 'fn_entities': gt_entity,
-                             'distance': sample['distance']}
-                        log.info('', extra=d)
-
+                    self._top1_accuracy += accuracy_tmp
                     self._macro_precision += precision(tp, fp)
                     self._macro_recall += recall(tp, fn)
                     self._tp += tp

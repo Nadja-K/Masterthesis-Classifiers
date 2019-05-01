@@ -49,12 +49,12 @@ class TokenLevelEmbeddingClassifier(Classifier):
         suggestions = self._index.get_nns_by_phrase(mention, 1)
 
         min_distance = 99999
-        top_10_suggestions = set([])
+        top_suggestions = set([])
         if len(suggestions) > 0:
             min_distance = suggestions[0][1]
-            top_10_suggestions = set([tuple[0] for tuple in suggestions if tuple[1] == min_distance])
+            top_suggestions = set([tuple[0] for tuple in suggestions if tuple[1] == min_distance])
 
-        result = {'distance': min_distance, 'suggestions': top_10_suggestions}
+        result = {'distance': min_distance, 'suggestions': top_suggestions}
         return result
 
     def classify(self, mention: str) -> Set[Tuple[str, float]]:
