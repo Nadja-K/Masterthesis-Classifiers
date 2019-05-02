@@ -7,11 +7,19 @@ from eval.evaluation import Evaluator
 
 
 class Classifier(metaclass=ABCMeta):
-    def __init__(self):
+    def __init__(self, dataset_db_name: str, dataset_split: str, skip_trivial_samples: bool = False,
+                 load_context: bool = False):
         self._loaded_datasplit = None
         self._data = None
         self._mention_entity_duplicate_count = {}
         self._entities = None
+
+        self._dataset_db_name = dataset_db_name
+
+        # Load the specified datasplit
+        assert dataset_split in ['train', 'test', 'val']
+        self._load_datasplit(dataset_db_name, dataset_split, skip_trivial_samples=skip_trivial_samples,
+                             load_context=load_context)
 
     def _load_datasplit(self, dataset_db_name: str, dataset_split: str, skip_trivial_samples: bool = False,
                         load_context: bool = False):
@@ -134,15 +142,25 @@ class Classifier(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def evaluate_datasplit(self, split: str, eval_mode: str='mentions'):
+    def evaluate_datasplit(self, split: str, eval_sentences: bool = False, eval_mode: str= 'mentions'):
+        """
+        Evaluate the given datasplit.
+        split has to be one of the three: train, test, val.
+        """
+        assert split in ['train', 'test', 'val']
+
         assert eval_mode in ['mentions', 'samples']
         start = datetime.datetime.now()
 
         eval_results = {}
         for sample in self._data:
+            sentence = sample['sentence']
             mention = sample['mention']
             entity = sample['entity_title']
-            suggestions = self._classify(mention)
+            if eval_sentences:
+                suggestions = self._classify(sentence)
+            else:
+                suggestions = self._classify(mention)
 
             if 'sentence' not in suggestions:
                 suggestions['sentence'] = sample['sentence']

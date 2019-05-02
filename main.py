@@ -5,7 +5,7 @@ import logging
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 
-from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier
+from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier, BertEmbeddingClassifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicOriginal, HeuristicBrackets, \
@@ -27,6 +27,29 @@ dataset_split = config['DATASET'].get('SPLIT', 'val')
 eval_mode = config['EVALUATION'].get('MODE', 'mentions')
 assert eval_mode in ['mentions', 'samples']
 print(dataset_db_name)
+
+
+def bert_embedding_classifier_main():
+    # Logging
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[0] + "_token_level_embedding.log"
+    dictConfig(logging_config)
+
+    # Settings
+    annoy_metric = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_METRIC', 'euclidean')
+    num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
+    annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
+    annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
+    # FIXME other arguments
+
+    # Classifier
+    classifier = BertEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                                         annoy_metric=annoy_metric, num_trees=num_trees,
+                                         annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
+                                         skip_trivial_samples=skip_trivial_samples)
+    start = time.time()
+    classifier.evaluate_datasplit(dataset_split, eval_sentences=True, eval_mode=eval_mode)
+    print("Evaluation took %s" % (time.time() - start))
 
 
 def token_level_embedding_classifier_main():
@@ -53,7 +76,7 @@ def token_level_embedding_classifier_main():
                                                use_compound_splitting=use_compound_splitting,
                                                compound_splitting_threshold=compound_splitting_threshold)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_sentences=False, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -99,10 +122,11 @@ def rule_classifier_main():
     # Classifier
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_sentences=False, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
 if __name__ == '__main__':
-    token_level_embedding_classifier_main()
+    # token_level_embedding_classifier_main()
+    bert_embedding_classifier_main()
     # rule_classifier_main()

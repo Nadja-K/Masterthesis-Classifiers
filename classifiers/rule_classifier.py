@@ -7,13 +7,8 @@ from heuristics.heuristics import *
 class RuleClassifier(Classifier):
     def __init__(self, heuristics: List[Heuristic], dataset_db_name: str, dataset_split: str,
                  skip_trivial_samples: bool = False, prefill_symspell: bool = True):
-        assert dataset_split in ['train', 'test', 'val']
-        super().__init__()
-        self._dataset_db_name = dataset_db_name
-
-        # Load the specified datasplit
-        super()._load_datasplit(dataset_db_name, dataset_split, skip_trivial_samples=skip_trivial_samples,
-                                load_context=False)
+        super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                         skip_trivial_samples=skip_trivial_samples, load_context=False)
         self._heuristics = heuristics
 
         # Fill the symspell dictionaries of each heuristic with the data of the train split
@@ -54,18 +49,16 @@ class RuleClassifier(Classifier):
                     previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
             self._symspell_loaded_datasplit = dataset_split
 
-    def evaluate_datasplit(self, dataset_split: str, eval_mode: str='mentions'):
+    def evaluate_datasplit(self, dataset_split: str, eval_sentences: bool = False, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
-        assert dataset_split in ['train', 'test', 'val']
-
         # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropiate version)
         self._fill_symspell_dictionaries(dataset_split=dataset_split)
 
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, eval_sentences=eval_sentences, eval_mode=eval_mode)
 
     def _ratio(self, s1: str, s2: str, ldist: int) -> float:
         """

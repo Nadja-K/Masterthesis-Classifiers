@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Set, List, Tuple
 from abc import ABCMeta, abstractmethod
 from utils.utils import split_compounds
+from bert_serving.client import BertClient
 
 log = logging.getLogger(__name__)
 
@@ -135,3 +136,15 @@ class Sent2VecIndexer(AnnoyIndexer):
                 phrase_found = False
 
         return emb, phrase_found
+
+
+class BertIndexer(AnnoyIndexer):
+    def __init__(self, metric: str ='euclidean'):
+        # FIXME params to config file
+        bc = BertClient(ip="omen.local.cs.hs-rm.de", port=9555, port_out=9556)
+        embedding_vector_size = bc.encode(['test']).flatten().shape[0]
+
+        super().__init__(bc, embedding_vector_size, metric)
+
+    def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
+        return self._embedding_model.encode([phrase])[0], True
