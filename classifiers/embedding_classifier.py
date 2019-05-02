@@ -24,7 +24,9 @@ class TokenLevelEmbeddingClassifier(Classifier):
             log.info("No annoy index file has been provided, creating new index now.")
             output_path = os.path.join(annoy_output_dir, "%s_%s" % (dataset_db_name.split(os.sep)[-1].split(".")[0],
                                                                     dataset_split))
-            self._index.create_entity_index(self._entities, output_path, num_trees)
+            # FIXME remove this
+            # self._index.create_entity_index(self._entities, output_path, num_trees)
+            self._index.create_entity_index(self._context_data, output_path, num_trees)
         else:
             log.info("Loading provided annoy index.")
             self._index.load_entity_index(annoy_index_path)

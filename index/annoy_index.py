@@ -28,7 +28,12 @@ class AnnoyIndexer(metaclass=ABCMeta):
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
         pass
 
-    def create_entity_index(self, entities: Set[str], output_filename: str, num_trees: int=30):
+    def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
+        """
+        Overwrites the parent create_entity_index method because we need sentence embeddings here instead of entity
+        embeddings.
+
+        """
         file_annoy = output_filename + ".ann"
         file_lmdb = output_filename + ".lmdb"
 
@@ -40,10 +45,17 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         # Get embeddings for all entities
         with self._annoy_mapping.begin(write=True) as mapping:
-            for entity_id, entity in enumerate(entities):
+            context_entities = {}
+
+            # Collect all sentences for BERT
+            for sample in context_data:
+                context_entities[str(sample['entity_title'])] = int(sample['entity_id'])
+
+            for entity, entity_id in context_entities.items():
                 # Replace _ symbols with spaces
-                entity = str(entity)
                 refactored_entity = entity.replace("_", " ")
+
+                # Get the entity embedding
                 emb, _ = self._get_embedding(refactored_entity)
 
                 # Add entity embedding to index
