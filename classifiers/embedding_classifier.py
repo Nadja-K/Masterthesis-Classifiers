@@ -70,6 +70,10 @@ class BertEmbeddingClassifier(Classifier):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
                          split_table_name=split_table_name,
                          skip_trivial_samples=skip_trivial_samples, load_context=True)
+        assert len(self._entities - set([x['entity_title'] for x in self._context_data])) == 0, "Embedding based " \
+                   "classifiers that rely on context will not work with the SKIP_TRIVIAL_SAMPLES flag active because it " \
+                   "can filter out too many samples, resulting in empty context or query data. Please make sure it is " \
+                   "set to FALSE."
 
         # Create (or load) annoy index
         self._index = BertIndexer(metric=annoy_metric)
@@ -78,7 +82,7 @@ class BertEmbeddingClassifier(Classifier):
             log.info("No annoy index file has been provided, creating new index now.")
             output_path = os.path.join(annoy_output_dir, "%s_%s" % (dataset_db_name.split(os.sep)[-1].split(".")[0],
                                                                     dataset_split))
-            self._index.create_entity_index(self._entities, output_path, num_trees)
+            self._index.create_entity_index(self._context_data, output_path, num_trees)
         else:
             log.info("Loading provided annoy index.")
             self._index.load_entity_index(annoy_index_path)

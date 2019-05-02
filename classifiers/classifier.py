@@ -39,7 +39,6 @@ class Classifier(metaclass=ABCMeta):
                                                                         skip_trivial_samples=skip_trivial_samples,
                                                                         load_context=load_context)
         self._entities = set([x['entity_title'] for x in self._query_data])
-        assert len(self._entities - set([x['entity_title'] for x in self._context_data])) == 0
         self._loaded_datasplit = dataset_split
 
         # Some statistical information
@@ -64,6 +63,7 @@ class Classifier(metaclass=ABCMeta):
         command_head = """
             SELECT  sentences.mention, 
                     sentences.sentence, 
+                    sentences.entity_id,
                     entity_articles.title as entity_title, 
                     backlink_articles.title as backlink_title
         """
@@ -140,8 +140,6 @@ class Classifier(metaclass=ABCMeta):
         start = datetime.datetime.now()
 
         eval_results = {}
-        # FIXME: remove this
-        # for sample in self._data:
         for sample in self._query_data:
             sentence = sample['sentence']
             mention = sample['mention']

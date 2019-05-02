@@ -1,3 +1,5 @@
+import sqlite3
+
 import annoy
 import lmdb
 import sent2vec
@@ -146,8 +148,55 @@ class BertIndexer(AnnoyIndexer):
 
         super().__init__(bc, embedding_vector_size, metric)
 
-    # FIXME: create_entity_index
-    # We do not need entities in this case but rather sentences?
+    # FIXME: change the main create_entity_index 'mentions: List[str]' also to this format but only use the mentions there
+    def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
+        """
+        Overwrites the parent create_entity_index method because we need sentence embeddings here instead of entity
+        embeddings.
+
+        """
+        file_annoy = output_filename + ".ann"
+        file_lmdb = output_filename + ".lmdb"
+
+        # Create AnnoyIndex instance
+        self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
+
+        # Create mapping instance
+        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
+
+        # Get embeddings for all entities
+        with self._annoy_mapping.begin(write=True) as mapping:
+            context_entities = []
+            context_sentences = []
+
+            # Collect all sentences for BERT
+            for sample in context_data:
+                context_entities.append({'entity_id': int(sample['entity_id']), 'entity_title': str(sample['entity_title'])})
+                context_sentences.append(str(sample['sentence']))
+
+            # Get the embeddings for all sentences
+            embeddings = self._get_embeddings(context_sentences)
+
+            # Add the embeddings to the annoy index
+            for data in zip(context_entities, embeddings):
+                entity_id = data[0]['entity_id']
+                entity_title = data[0]['entity_title']
+                emb = data[1]
+
+                # Add entity embedding to index
+                self._annoy_index.add_item(entity_id, emb)
+
+                # Add ID <-> word mapping
+                mapping.put(str(entity_id).encode(), entity_title.encode())
+
+        # Build annoy index
+        self._annoy_index.build(num_trees)
+
+        # Save annoy index
+        self._annoy_index.save(file_annoy)
+
+    def _get_embeddings(self, sentences: List[str]) -> Tuple[List[float]]:
+        return self._embedding_model.encode(sentences)
 
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
         return self._embedding_model.encode([phrase])[0], True
