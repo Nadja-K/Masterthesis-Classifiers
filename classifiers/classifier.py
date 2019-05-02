@@ -7,10 +7,11 @@ from eval.evaluation import Evaluator
 
 
 class Classifier(metaclass=ABCMeta):
-    def __init__(self, dataset_db_name: str, dataset_split: str, skip_trivial_samples: bool = False,
-                 load_context: bool = False):
+    def __init__(self, dataset_db_name: str, dataset_split: str, split_table_name: str='splits',
+                 skip_trivial_samples: bool = False, load_context: bool = False):
         self._loaded_datasplit = None
-        self._data = None
+        self._query_data = None
+        self._context_data = None
         self._mention_entity_duplicate_count = {}
         self._entities = None
 
@@ -18,11 +19,12 @@ class Classifier(metaclass=ABCMeta):
 
         # Load the specified datasplit
         assert dataset_split in ['train', 'test', 'val']
-        self._load_datasplit(dataset_db_name, dataset_split, skip_trivial_samples=skip_trivial_samples,
+        self._load_datasplit(dataset_db_name, dataset_split, split_table_name=split_table_name,
+                             skip_trivial_samples=skip_trivial_samples,
                              load_context=load_context)
 
-    def _load_datasplit(self, dataset_db_name: str, dataset_split: str, skip_trivial_samples: bool = False,
-                        load_context: bool = False):
+    def _load_datasplit(self, dataset_db_name: str, dataset_split: str, split_table_name: str = 'splits',
+                        skip_trivial_samples: bool = False, load_context: bool = False):
         assert dataset_split in ['train', 'test', 'val']
 
         curs, connection = self._connect_db(dataset_db_name)
@@ -32,20 +34,23 @@ class Classifier(metaclass=ABCMeta):
         if load_context:
             print("Context sentences will be loaded. This can take a while.")
 
-        self._data = self._retrieve_datasplit(curs, split=dataset_split, skip_trivial_samples=skip_trivial_samples,
-                                              load_context=load_context)
-        # self._mention_entity_duplicate_count = self._collect_mention_entity_duplicate_count(self._data)
-        self._entities = set([x['entity_title'] for x in self._data])
+        self._query_data, self._context_data = self._retrieve_datasplit(curs, split=dataset_split,
+                                                                        split_table_name=split_table_name,
+                                                                        skip_trivial_samples=skip_trivial_samples,
+                                                                        load_context=load_context)
+        self._entities = set([x['entity_title'] for x in self._query_data])
+        assert len(self._entities - set([x['entity_title'] for x in self._context_data])) == 0
         self._loaded_datasplit = dataset_split
 
         # Some statistical information
-        print("Found %s sentences for %s entities for the %s split." % (len(self._data), len(self._entities),
-                                                                        dataset_split))
-
+        print("Found %s query sentences, %s context sentences and %s entities for the %s split of "
+              "the %s table." % (len(self._query_data), len(self._context_data), len(self._entities),
+                                 dataset_split, split_table_name))
         self._close_db(connection)
 
-    def _retrieve_datasplit(self, curs: sqlite3.Cursor, split: str = 'train', skip_trivial_samples: bool = False,
-                            load_context: bool = False) -> List[sqlite3.Row]:
+    def _retrieve_datasplit(self, curs: sqlite3.Cursor, split: str = 'train', split_table_name: str='splits',
+                            skip_trivial_samples: bool = False,
+                            load_context: bool = False) -> Tuple[List[sqlite3.Row], List[sqlite3.Row]]:
         """
         Load a split from the dataset database.
 
@@ -71,10 +76,11 @@ class Classifier(metaclass=ABCMeta):
               ON entity_articles.id = sentences.entity_id
             INNER JOIN (articles) backlink_articles 
               ON backlink_articles.id = sentences.backlink_id 
-            INNER JOIN splits 
-              ON splits.id = entity_articles.id 
-            WHERE splits.split = ? 
-        """
+            INNER JOIN %s 
+              ON %s.sample_id = sentences.rowid 
+            WHERE %s.data_split = ?
+            AND %s.query_context_split = ? 
+        """ % (split_table_name, split_table_name, split_table_name, split_table_name)
         command_skip_trivial_samples = """
             AND LOWER(REPLACE(sentences.mention, '_', ' ')) != LOWER(REPLACE(entity_title, '_', ' '))
         """
@@ -87,31 +93,12 @@ class Classifier(metaclass=ABCMeta):
         if skip_trivial_samples:
             command = command + command_skip_trivial_samples
 
-        curs.execute(command, (split,))
-        data = curs.fetchall()
+        curs.execute(command, (split, 'query'))
+        query_data = curs.fetchall()
+        curs.execute(command, (split, 'context'))
+        context_data = curs.fetchall()
 
-        return data
-
-    # def _collect_mention_entity_duplicate_count(self, data: List[sqlite3.Row]) -> Dict[str, Dict[str, int]]:
-    #     """
-    #     Count how many samples with duplicate mentions exist per entity.
-    #     This is necessary in order to average the evaluation metric later so that mentions that appear often in
-    #     samples do not falsify the results.
-    #     """
-    #     mention_entity_duplicate_count = {}
-    #     for sample in data:
-    #         entity = sample['entity_title']
-    #         mention = sample['mention']
-    #
-    #         if entity not in mention_entity_duplicate_count:
-    #             mention_entity_duplicate_count[entity] = {}
-    #
-    #         if mention not in mention_entity_duplicate_count[entity]:
-    #             mention_entity_duplicate_count[entity][mention] = 1
-    #         else:
-    #             mention_entity_duplicate_count[entity][mention] += 1
-    #
-    #     return mention_entity_duplicate_count
+        return query_data, context_data
 
     def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
         connection = sqlite3.connect(db_name, timeout=timeout)
@@ -153,7 +140,9 @@ class Classifier(metaclass=ABCMeta):
         start = datetime.datetime.now()
 
         eval_results = {}
-        for sample in self._data:
+        # FIXME: remove this
+        # for sample in self._data:
+        for sample in self._query_data:
             sentence = sample['sentence']
             mention = sample['mention']
             entity = sample['entity_title']

@@ -23,6 +23,7 @@ config.read("configs/remote_config.ini")
 dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
 skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
 dataset_split = config['DATASET'].get('SPLIT', 'val')
+split_table_name = config['DATASET'].get('SPLIT_TABLE_NAME', 'splits')
 
 eval_mode = config['EVALUATION'].get('MODE', 'mentions')
 assert eval_mode in ['mentions', 'samples']
@@ -44,6 +45,7 @@ def bert_embedding_classifier_main():
 
     # Classifier
     classifier = BertEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                                         split_table_name=split_table_name,
                                          annoy_metric=annoy_metric, num_trees=num_trees,
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
                                          skip_trivial_samples=skip_trivial_samples)
@@ -69,6 +71,7 @@ def token_level_embedding_classifier_main():
 
     # Classifier
     classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                                               split_table_name=split_table_name,
                                                embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
                                                num_trees=num_trees, annoy_index_path=annoy_index_path,
                                                annoy_output_dir=annoy_output_dir,
@@ -120,7 +123,8 @@ def rule_classifier_main():
     # heuristic_list = [original_heuristic]
 
     # Classifier
-    classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, skip_trivial_samples, False)
+    classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, split_table_name,
+                                skip_trivial_samples, False)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, eval_sentences=False, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
@@ -128,5 +132,5 @@ def rule_classifier_main():
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
-    # rule_classifier_main()
+    # bert_embedding_classifier_main()
+    rule_classifier_main()

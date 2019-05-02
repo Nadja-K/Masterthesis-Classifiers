@@ -146,5 +146,8 @@ class BertIndexer(AnnoyIndexer):
 
         super().__init__(bc, embedding_vector_size, metric)
 
+    # FIXME: create_entity_index
+    # We do not need entities in this case but rather sentences?
+
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
         return self._embedding_model.encode([phrase])[0], True

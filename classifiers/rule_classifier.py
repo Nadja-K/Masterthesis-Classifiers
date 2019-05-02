@@ -6,9 +6,10 @@ from heuristics.heuristics import *
 
 class RuleClassifier(Classifier):
     def __init__(self, heuristics: List[Heuristic], dataset_db_name: str, dataset_split: str,
-                 skip_trivial_samples: bool = False, prefill_symspell: bool = True):
+                 split_table_name: str='splits', skip_trivial_samples: bool = False, prefill_symspell: bool = True):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
-                         skip_trivial_samples=skip_trivial_samples, load_context=False)
+                         split_table_name=split_table_name, skip_trivial_samples=skip_trivial_samples,
+                         load_context=False)
         self._heuristics = heuristics
 
         # Fill the symspell dictionaries of each heuristic with the data of the train split

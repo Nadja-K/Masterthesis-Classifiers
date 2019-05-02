@@ -10,9 +10,11 @@ log = logging.getLogger(__name__)
 
 class TokenLevelEmbeddingClassifier(Classifier):
     def __init__(self, dataset_db_name: str, dataset_split: str, embedding_model_path: str, annoy_metric: str,
-                 skip_trivial_samples: bool = False, annoy_index_path: str=None, num_trees: int=30,
-                 annoy_output_dir: str='', use_compound_splitting: bool=True, compound_splitting_threshold: float=0.5):
+                 split_table_name: str='splits', skip_trivial_samples: bool = False, annoy_index_path: str=None,
+                 num_trees: int=30, annoy_output_dir: str='', use_compound_splitting: bool=True,
+                 compound_splitting_threshold: float=0.5):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                         split_table_name=split_table_name,
                          skip_trivial_samples=skip_trivial_samples, load_context=False)
 
         # Create (or load) the annoy index
@@ -63,8 +65,10 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
 class BertEmbeddingClassifier(Classifier):
     def __init__(self, dataset_db_name: str, dataset_split: str, annoy_metric: str, skip_trivial_samples: bool = False,
-                 annoy_index_path: str=None, num_trees: int=30, annoy_output_dir: str=''):
+                 split_table_name: str='splits', annoy_index_path: str=None, num_trees: int=30,
+                 annoy_output_dir: str=''):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                         split_table_name=split_table_name,
                          skip_trivial_samples=skip_trivial_samples, load_context=True)
 
         # Create (or load) annoy index
