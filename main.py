@@ -33,7 +33,7 @@ print(dataset_db_name)
 def bert_embedding_classifier_main():
     # Logging
     logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
-                                                                'filename'].split(".")[0] + "_token_level_embedding.log"
+                                                                'filename'].split(".")[0] + "_bert_embedding.log"
     dictConfig(logging_config)
 
     # Settings
@@ -131,6 +131,6 @@ def rule_classifier_main():
 
 
 if __name__ == '__main__':
-    token_level_embedding_classifier_main()
+    # token_level_embedding_classifier_main()
     # bert_embedding_classifier_main()
-    # rule_classifier_main()
+    rule_classifier_main()

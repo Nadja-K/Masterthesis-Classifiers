@@ -78,13 +78,13 @@ class Evaluator:
             fp = len_suggestions - 1
 
             # fp_entities = set(suggestions) - set([gt_entity])
-            d = {'label': 'TP', 'mention': mention, 'tp_fn_entity': gt_entity}
+            d = {'label': 'TP', 'mention': mention, 'tp_fn_entity': gt_entity, 'sentence': sample['sentence']}
             log.info('', extra=d)
         else:
             fn = 1
             fp = len_suggestions
 
-            d = {'label': 'FN', 'mention': mention, 'tp_fn_entity': gt_entity}
+            d = {'label': 'FN', 'mention': mention, 'tp_fn_entity': gt_entity, 'sentence': sample['sentence']}
             log.info('', extra=d)
 
         return tp, fp, fn, accuracy_tp

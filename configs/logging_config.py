@@ -6,7 +6,7 @@ logging_config = {
             'format': '%(asctime)s %(name)-12s %(levelname)-8s | %(message)s'
         },
         'outputFormatter': {
-            'format': '%(label)-10s |%(mention)-50s |%(tp_fn_entity)-50s'
+            'format': '%(label)-10s |%(mention)-50s |%(tp_fn_entity)-50s |%(sentence)-256s'
         }
     },
     'handlers': {

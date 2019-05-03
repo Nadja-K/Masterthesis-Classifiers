@@ -5,6 +5,8 @@ import lmdb
 import sent2vec
 import logging
 import numpy as np
+import nltk
+import time
 
 from pathlib import Path
 from typing import Set, List, Tuple
@@ -28,26 +30,12 @@ class AnnoyIndexer(metaclass=ABCMeta):
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
         pass
 
-    def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
-        """
-        Overwrites the parent create_entity_index method because we need sentence embeddings here instead of entity
-        embeddings.
-
-        """
-        file_annoy = output_filename + ".ann"
-        file_lmdb = output_filename + ".lmdb"
-
-        # Create AnnoyIndex instance
-        self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
-
-        # Create mapping instance
-        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
-
-        # Get embeddings for all entities
+    @abstractmethod
+    def _create_entity_index(self, context_data: List[sqlite3.Row]):
         with self._annoy_mapping.begin(write=True) as mapping:
             context_entities = {}
 
-            # Collect all sentences for BERT
+            # Collect all entities
             for sample in context_data:
                 context_entities[str(sample['entity_title'])] = int(sample['entity_id'])
 
@@ -64,8 +52,29 @@ class AnnoyIndexer(metaclass=ABCMeta):
                 # Add ID <-> word mapping
                 mapping.put(str(entity_id).encode(), entity.encode())
 
+    def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
+        """
+        The public create entity index method that users can call.
+        The basic structure is the same but the entity embedding collection is different for every embedding model
+        and has to be implemented explicitly using the private _create_entity_index method.
+        """
+        file_annoy = output_filename + ".ann"
+        file_lmdb = output_filename + ".lmdb"
+
+        # Create AnnoyIndex instance
+        self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
+
+        # Create mapping instance
+        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
+
+        # Retrieve entity embeddings and add them to the annoy index
+        self._create_entity_index(context_data)
+
         # Build annoy index
+        log.info("Building annoy index now.")
+        start = time.time()
         self._annoy_index.build(num_trees)
+        log.info("Building annoy index took %s" % (time.time() - start))
 
         # Save annoy index
         self._annoy_index.save(file_annoy)
@@ -132,6 +141,9 @@ class Sent2VecIndexer(AnnoyIndexer):
 
         super().__init__(embedding_model, embedding_vector_size, metric)
 
+    def _create_entity_index(self, context_data: List[sqlite3.Row]):
+        super()._create_entity_index(context_data)
+
     def _get_embedding(self, phrase: str, compound_attempt=False) -> Tuple[List[float], bool]:
         emb = self._embedding_model.embed_sentence(phrase)[0]
         phrase_found = True
@@ -158,25 +170,10 @@ class BertIndexer(AnnoyIndexer):
         bc = BertClient(ip="omen.local.cs.hs-rm.de", port=9555, port_out=9556)
         embedding_vector_size = bc.encode(['test']).flatten().shape[0]
 
+        self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
         super().__init__(bc, embedding_vector_size, metric)
 
-    # FIXME: change the main create_entity_index 'mentions: List[str]' also to this format but only use the mentions there
-    def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
-        """
-        Overwrites the parent create_entity_index method because we need sentence embeddings here instead of entity
-        embeddings.
-
-        """
-        file_annoy = output_filename + ".ann"
-        file_lmdb = output_filename + ".lmdb"
-
-        # Create AnnoyIndex instance
-        self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
-
-        # Create mapping instance
-        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
-
-        # Get embeddings for all entities
+    def _create_entity_index(self, context_data: List[sqlite3.Row]):
         with self._annoy_mapping.begin(write=True) as mapping:
             context_entities = []
             context_sentences = []
@@ -185,6 +182,7 @@ class BertIndexer(AnnoyIndexer):
             for sample in context_data:
                 context_entities.append({'entity_id': int(sample['entity_id']), 'entity_title': str(sample['entity_title'])})
                 context_sentences.append(str(sample['sentence']))
+                # context_sentences.append(self._word_tokenizer.tokenize(str(sample['sentence'])))
 
             # Get the embeddings for all sentences
             embeddings = self._get_embeddings(context_sentences)
@@ -201,14 +199,11 @@ class BertIndexer(AnnoyIndexer):
                 # Add ID <-> word mapping
                 mapping.put(str(entity_id).encode(), entity_title.encode())
 
-        # Build annoy index
-        self._annoy_index.build(num_trees)
-
-        # Save annoy index
-        self._annoy_index.save(file_annoy)
-
     def _get_embeddings(self, sentences: List[str]) -> Tuple[List[float]]:
+        # return self._embedding_model.encode(sentences, is_tokenized=True)
         return self._embedding_model.encode(sentences)
 
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
+        # phrase = self._word_tokenizer.tokenize(phrase)
+        # return self._embedding_model.encode([phrase], is_tokenized=True)[0], True
         return self._embedding_model.encode([phrase])[0], True
