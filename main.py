@@ -37,18 +37,23 @@ def bert_embedding_classifier_main():
     dictConfig(logging_config)
 
     # Settings
-    annoy_metric = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_METRIC', 'euclidean')
-    num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
-    annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
-    annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
-    # FIXME other arguments
+    annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
+    num_trees = config['ANNOY'].getint('NUM_TREES', 30)
+    annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
+    annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
+
+    bert_service_ip = config['EMBEDDINGCLASSIFIER_BERT'].get('IP', '')
+    bert_service_port = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT', 9555)
+    bert_service_port_out = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT_OUT', 9556)
 
     # Classifier
     classifier = BertEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
                                          split_table_name=split_table_name,
                                          annoy_metric=annoy_metric, num_trees=num_trees,
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
-                                         skip_trivial_samples=skip_trivial_samples)
+                                         skip_trivial_samples=skip_trivial_samples,
+                                         bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,
+                                         bert_service_port_out=bert_service_port_out)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, eval_sentences=True, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
@@ -62,10 +67,10 @@ def token_level_embedding_classifier_main():
 
     # Settings
     embedding_model_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('EMBEDDING_MODEL_PATH', None)
-    annoy_metric = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_METRIC', 'euclidean')
-    num_trees = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_TREES', 30)
-    annoy_index_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_INDEX_PATH', None)
-    annoy_output_dir = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('ANNOY_OUTPUT_DIR', '')
+    annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
+    num_trees = config['ANNOY'].getint('NUM_TREES', 30)
+    annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
+    annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
     use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', True)
     compound_splitting_threshold =config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
 

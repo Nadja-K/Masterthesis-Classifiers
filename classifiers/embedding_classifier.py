@@ -64,7 +64,8 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
 
 class BertEmbeddingClassifier(Classifier):
-    def __init__(self, dataset_db_name: str, dataset_split: str, annoy_metric: str, skip_trivial_samples: bool = False,
+    def __init__(self, dataset_db_name: str, dataset_split: str, annoy_metric: str, bert_service_ip: str,
+                 bert_service_port: int, bert_service_port_out: int, skip_trivial_samples: bool = False,
                  split_table_name: str='splits', annoy_index_path: str=None, num_trees: int=30,
                  annoy_output_dir: str=''):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
@@ -77,7 +78,8 @@ class BertEmbeddingClassifier(Classifier):
                    "set to FALSE."
 
         # Create (or load) annoy index
-        self._index = BertIndexer(metric=annoy_metric)
+        self._index = BertIndexer(bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,
+                                  bert_service_port_out=bert_service_port_out, metric=annoy_metric)
 
         if annoy_index_path is None:
             log.info("No annoy index file has been provided, creating new index now.")

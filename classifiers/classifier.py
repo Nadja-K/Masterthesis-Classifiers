@@ -164,13 +164,13 @@ class Classifier(metaclass=ABCMeta):
         print("Classification took: ", end - start)
 
         # Calculate some metrics
-        eval = Evaluator()
-        eval.evaluate(eval_results, eval_mode)
-        # FIXME: nice print
-        # macro, micro = eval.evaluate(eval_results, data)
-        # print("\nMacro metrics:"
-        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
-        # print("\nMicro metrics:"
-        #       "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
+        evaluator = Evaluator()
+        top1_accuracy, macro, micro = evaluator.evaluate(eval_results, eval_mode)
+
+        print("\nTop1 Accuracy: %.2f%%" % top1_accuracy)
+        print("\nMacro metrics:"
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
+        print("\nMicro metrics:"
+              "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
 

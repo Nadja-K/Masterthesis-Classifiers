@@ -165,9 +165,9 @@ class Sent2VecIndexer(AnnoyIndexer):
 
 
 class BertIndexer(AnnoyIndexer):
-    def __init__(self, metric: str ='euclidean'):
-        # FIXME params to config file
-        bc = BertClient(ip="omen.local.cs.hs-rm.de", port=9555, port_out=9556)
+    def __init__(self, bert_service_ip: str, bert_service_port: int, bert_service_port_out: int,
+                 metric: str ='euclidean'):
+        bc = BertClient(ip=bert_service_ip, port=bert_service_port, port_out=bert_service_port_out)
         embedding_vector_size = bc.encode(['test']).flatten().shape[0]
 
         self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
