@@ -74,7 +74,7 @@ def token_level_embedding_classifier_main():
     num_trees = config['ANNOY'].getint('NUM_TREES', 30)
     annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
     annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
-    use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', True)
+    use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', False)
     compound_splitting_threshold = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
     distance_allowance = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('DISTANCE_ALLOWANCE', None)
     num_results = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_RESULTS', 1)
@@ -142,6 +142,6 @@ def rule_classifier_main():
 
 
 if __name__ == '__main__':
-    token_level_embedding_classifier_main()
-    # bert_embedding_classifier_main()
+    # token_level_embedding_classifier_main()
+    bert_embedding_classifier_main()
     # rule_classifier_main()

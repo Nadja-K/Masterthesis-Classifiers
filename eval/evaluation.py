@@ -63,17 +63,18 @@ class Evaluator:
 
     def _evaluate_sample(self, gt_entity: str, sample: Dict[str, Union[float, Dict[str, Union[float, int]], str]],
                          mention: str) -> Tuple[int, int, int, int]:
+        gt_entity = str(gt_entity)
         suggestions = sample['suggestions']
         len_suggestions = len(suggestions)
         tp, fp, fn = (0, 0, 0)
         accuracy_tp = 0
 
         # For the accuracy, we only take a look at the first suggestion
-        if len_suggestions > 0 and sorted(suggestions.items(), key=lambda kv: (kv[1], kv[0]))[0][0] == gt_entity:
+        if len_suggestions > 0 and str(sorted(suggestions.items(), key=lambda kv: (kv[1], str(kv[0])))[0][0]) == gt_entity:
             accuracy_tp += 1
 
         # Check the number of TP, FP and FN in the suggestions
-        if gt_entity in suggestions.keys():
+        if gt_entity in [str(s) for s in suggestions.keys()]:
             tp = 1
             fp = len_suggestions - 1
 
