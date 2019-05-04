@@ -61,23 +61,22 @@ class Evaluator:
     def _accuracy(self) -> float:
         return self._top1_accuracy / self._count_valid_samples
 
-    def _evaluate_sample(self, gt_entity: str, sample: Dict[str, Union[float, Set[str], str]], mention: str
-                         ) -> Tuple[int, int, int, int]:
-        suggestions = [str(x) for x in sample['suggestions']]
+    def _evaluate_sample(self, gt_entity: str, sample: Dict[str, Union[float, Dict[str, Union[float, int]], str]],
+                         mention: str) -> Tuple[int, int, int, int]:
+        suggestions = sample['suggestions']
         len_suggestions = len(suggestions)
         tp, fp, fn = (0, 0, 0)
         accuracy_tp = 0
 
         # For the accuracy, we only take a look at the first suggestion
-        if len_suggestions > 0 and sorted(suggestions)[0] == gt_entity:
+        if len_suggestions > 0 and sorted(suggestions.items(), key=lambda kv: (kv[1], kv[0]))[0][0] == gt_entity:
             accuracy_tp += 1
 
         # Check the number of TP, FP and FN in the suggestions
-        if gt_entity in suggestions:
+        if gt_entity in suggestions.keys():
             tp = 1
             fp = len_suggestions - 1
 
-            # fp_entities = set(suggestions) - set([gt_entity])
             d = {'label': 'TP', 'mention': mention, 'tp_fn_entity': gt_entity, 'sentence': sample['sentence']}
             log.info('', extra=d)
         else:
@@ -183,8 +182,7 @@ class Evaluator:
                 [
                     {
                         'sentence': str,
-                        'suggestions': List[str],
-                        'distance': float
+                        'suggestions': {'entity': distance, ...},
                     },
                     ...
                 ],

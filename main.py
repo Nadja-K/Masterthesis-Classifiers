@@ -45,6 +45,8 @@ def bert_embedding_classifier_main():
     bert_service_ip = config['EMBEDDINGCLASSIFIER_BERT'].get('IP', '')
     bert_service_port = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT', 9555)
     bert_service_port_out = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT_OUT', 9556)
+    bert_distance_allowance = config['EMBEDDINGCLASSIFIER_BERT'].getfloat('DISTANCE_ALLOWANCE', None)
+    num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
     # Classifier
     classifier = BertEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
@@ -53,9 +55,10 @@ def bert_embedding_classifier_main():
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
                                          skip_trivial_samples=skip_trivial_samples,
                                          bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,
-                                         bert_service_port_out=bert_service_port_out)
+                                         bert_service_port_out=bert_service_port_out,
+                                         distance_allowance=bert_distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_sentences=True, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=True, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -72,7 +75,9 @@ def token_level_embedding_classifier_main():
     annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
     annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
     use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', True)
-    compound_splitting_threshold =config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
+    compound_splitting_threshold = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
+    distance_allowance = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('DISTANCE_ALLOWANCE', None)
+    num_results = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_RESULTS', 1)
 
     # Classifier
     classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
@@ -82,9 +87,10 @@ def token_level_embedding_classifier_main():
                                                annoy_output_dir=annoy_output_dir,
                                                skip_trivial_samples=skip_trivial_samples,
                                                use_compound_splitting=use_compound_splitting,
-                                               compound_splitting_threshold=compound_splitting_threshold)
+                                               compound_splitting_threshold=compound_splitting_threshold,
+                                               distance_allowance=distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_sentences=False, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=False, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -137,5 +143,5 @@ def rule_classifier_main():
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
-    # rule_classifier_main()
+    # bert_embedding_classifier_main()
+    rule_classifier_main()

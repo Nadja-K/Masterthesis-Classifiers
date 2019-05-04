@@ -77,7 +77,8 @@ class AnnoyIndexer(metaclass=ABCMeta):
         log.info("Building annoy index took %s" % (time.time() - start))
 
         # Save annoy index
-        self._annoy_index.save(file_annoy)
+        # FIXME: make this optional? Because it cant be loaded anyway if the filesize is >2GB
+        # self._annoy_index.save(file_annoy)
 
     def load_entity_index(self, file_annoy: str):
         """
@@ -104,6 +105,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
         assert self._annoy_mapping is not None, "No annoy mapping has been loaded. Call load_entity_index(file_annoy)"
 
         nearest_neighbours = self._annoy_index.get_nns_by_vector(emb_vector, num_nn, include_distances=True)
+
         nns_entities = []
         with self._annoy_mapping.begin() as mapping:
             for neighbour_id, distance in zip(nearest_neighbours[0], nearest_neighbours[1]):
@@ -143,6 +145,38 @@ class Sent2VecIndexer(AnnoyIndexer):
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
         super()._create_entity_index(context_data)
+
+    # FIXME: remove this or make a sent2vec classifier that does not work on token level
+    # def _create_entity_index(self, context_data: List[sqlite3.Row]):
+    #     """
+    #     Sent2Vec test for using context sentences as entity reference instead of working on token level.
+    #
+    #     """
+    #     with self._annoy_mapping.begin(write=True) as mapping:
+    #         context_entities = []
+    #         context_sentences = []
+    #
+    #         # Collect all sentences for BERT
+    #         for sample in context_data:
+    #             context_entities.append(
+    #                 {'entity_id': int(sample['entity_id']), 'entity_title': str(sample['entity_title'])})
+    #             context_sentences.append(str(sample['sentence']))
+    #             # context_sentences.append(self._word_tokenizer.tokenize(str(sample['sentence'])))
+    #
+    #         # Get the embeddings for all sentences
+    #         embeddings = self._embedding_model.embed_sentences(context_sentences)
+    #
+    #         # Add the embeddings to the annoy index
+    #         for data in zip(context_entities, embeddings):
+    #             entity_id = data[0]['entity_id']
+    #             entity_title = data[0]['entity_title']
+    #             emb = data[1]
+    #
+    #             # Add entity embedding to index
+    #             self._annoy_index.add_item(entity_id, emb)
+    #
+    #             # Add ID <-> word mapping
+    #             mapping.put(str(entity_id).encode(), entity_title.encode())
 
     def _get_embedding(self, phrase: str, compound_attempt=False) -> Tuple[List[float], bool]:
         emb = self._embedding_model.embed_sentence(phrase)[0]

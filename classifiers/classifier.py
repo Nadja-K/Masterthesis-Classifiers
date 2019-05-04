@@ -115,7 +115,7 @@ class Classifier(metaclass=ABCMeta):
         connection.close()
 
     @abstractmethod
-    def _classify(self, mention: str) -> Dict[str, Union[str, Set[str], int]]:
+    def _classify(self, mention: str, num_results: int=1) -> Dict[str, Union[float, int]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
@@ -129,7 +129,7 @@ class Classifier(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def evaluate_datasplit(self, split: str, eval_sentences: bool = False, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, split: str, num_results: int = 1, eval_sentences: bool = False, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -145,9 +145,9 @@ class Classifier(metaclass=ABCMeta):
             mention = sample['mention']
             entity = sample['entity_title']
             if eval_sentences:
-                suggestions = self._classify(sentence)
+                suggestions = self._classify(sentence, num_results)
             else:
-                suggestions = self._classify(mention)
+                suggestions = self._classify(mention, num_results)
 
             if 'sentence' not in suggestions:
                 suggestions['sentence'] = sample['sentence']

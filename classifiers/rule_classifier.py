@@ -50,7 +50,7 @@ class RuleClassifier(Classifier):
                     previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
             self._symspell_loaded_datasplit = dataset_split
 
-    def evaluate_datasplit(self, dataset_split: str, eval_sentences: bool = False, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_sentences: bool = False, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -59,38 +59,45 @@ class RuleClassifier(Classifier):
         self._fill_symspell_dictionaries(dataset_split=dataset_split)
 
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, eval_sentences=eval_sentences, eval_mode=eval_mode)
+        assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
+                                 'with the same distance are returned for this classifier.'
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=eval_sentences,
+                                   eval_mode=eval_mode)
 
-    def _ratio(self, s1: str, s2: str, ldist: int) -> float:
-        """
-        Calculate a simple ratio between two strings based on their length and levenshtein distance.
-        """
-        len_sum = len(s1) + len(s2)
-        return (len_sum - ldist) / len_sum
+    # FIXME: remove this later
+    # def _ratio(self, s1: str, s2: str, ldist: int) -> float:
+    #     """
+    #     Calculate a simple ratio between two strings based on their length and levenshtein distance.
+    #     """
+    #     len_sum = len(s1) + len(s2)
+    #     return (len_sum - ldist) / len_sum
 
-    def _classify(self, mention: str) -> Dict[str, Union[str, Set[str], int, Heuristic]]:
+    def _classify(self, mention: str, num_results: int=1) -> Dict[str, Union[str, Dict[str, Union[int, float]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
-        best_results = {'distance': 99999, 'refactored_mention': '', 'suggestions': set(), 'heuristic': None}
+        best_results = {'refactored_mention': '', 'suggestions': {}, 'heuristic': None}
 
         # We want to refactor the already refactored string further with every rule (with some exceptions)
         previous_refactored_mention = mention
         for heuristic in self._heuristics:
+            min_distance = 99999
             suggestions, previous_refactored_mention = heuristic.lookup(previous_refactored_mention,
                                                                         original_mention=mention)
             # All returned suggestions have the same edit distance, so if the distance is lower than the current best
             # result, overwrite it with the new suggestions
-            if len(suggestions) > 0 and suggestions[0].distance < best_results['distance']:
+            if len(suggestions) > 0 and suggestions[0].distance < min_distance:
                 best_results['refactored_mention'] = previous_refactored_mention
-                best_results['distance'] = suggestions[0].distance
                 best_results['heuristic'] = heuristic.name()
-                best_results['suggestions'] = set()
+                best_results['suggestions'] = {}
                 for suggestion in suggestions:
-                    best_results['suggestions'].update(suggestion.reference_entities)
+                    for reference_entity in suggestion.reference_entities:
+                        if suggestion.distance < min_distance:
+                            min_distance = suggestion.distance
+                        best_results['suggestions'][reference_entity] = suggestion.distance
 
             # If the distance is already perfect, return the result here
-            if best_results['distance'] == 0.0:
+            if min_distance == 0.0:
                 return best_results
 
         return best_results
@@ -107,9 +114,7 @@ class RuleClassifier(Classifier):
 
         res = self._classify(mention)
         matched_entities = set()
-        for suggestion in res['suggestions']:
-            for entity in suggestion.reference_entities:
-                ratio = self._ratio(res['refactored_mention'], suggestion.term, suggestion.distance)
-                matched_entities.add((entity, ratio))
+        for suggestion, distance in res['suggestions'].items():
+            matched_entities.add((suggestion, distance))
 
         return matched_entities
