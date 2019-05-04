@@ -8,6 +8,7 @@ import numpy as np
 import nltk
 import time
 
+from nltk.corpus import stopwords
 from pathlib import Path
 from typing import Set, List, Tuple
 from abc import ABCMeta, abstractmethod
@@ -205,6 +206,7 @@ class BertIndexer(AnnoyIndexer):
         embedding_vector_size = bc.encode(['test']).flatten().shape[0]
 
         self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
+        self._stopwords = set(stopwords.words('german'))
         super().__init__(bc, embedding_vector_size, metric)
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
@@ -216,7 +218,6 @@ class BertIndexer(AnnoyIndexer):
             for sample in context_data:
                 context_entities.append({'entity_id': int(sample['entity_id']), 'entity_title': str(sample['entity_title'])})
                 context_sentences.append(str(sample['sentence']))
-                # context_sentences.append(self._word_tokenizer.tokenize(str(sample['sentence'])))
 
             # Get the embeddings for all sentences
             embeddings = self._get_embeddings(context_sentences)
@@ -234,10 +235,22 @@ class BertIndexer(AnnoyIndexer):
                 mapping.put(str(entity_id).encode(), entity_title.encode())
 
     def _get_embeddings(self, sentences: List[str]) -> Tuple[List[float]]:
-        # return self._embedding_model.encode(sentences, is_tokenized=True)
+        # tokenized_sentences = []
+        # filtered_sentences = []
+        # for sentence in sentences:
+        #     tokenized_sent = self._word_tokenizer.tokenize(sentence)
+        #
+        #     tokenized_sentences.append(tokenized_sent)
+        #     filtered_sentences.append([w for w in tokenized_sent if w.lower() not in self._stopwords])
+
+        # return self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
+        # return self._embedding_model.encode(filtered_sentences, is_tokenized=True)
         return self._embedding_model.encode(sentences)
 
     def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
-        # phrase = self._word_tokenizer.tokenize(phrase)
-        # return self._embedding_model.encode([phrase], is_tokenized=True)[0], True
+        # tokenized_phrase = self._word_tokenizer.tokenize(phrase)
+        # filtered_phrase = [w for w in tokenized_phrase if w.lower() not in self._stopwords]
+
+        # return self._embedding_model.encode([tokenized_phrase], is_tokenized=True)[0], True
+        # return self._embedding_model.encode([filtered_phrase], is_tokenized=True)[0], True
         return self._embedding_model.encode([phrase])[0], True
