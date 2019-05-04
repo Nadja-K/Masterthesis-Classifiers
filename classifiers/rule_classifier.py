@@ -80,8 +80,8 @@ class RuleClassifier(Classifier):
 
         # We want to refactor the already refactored string further with every rule (with some exceptions)
         previous_refactored_mention = mention
+        min_distance = 99999
         for heuristic in self._heuristics:
-            min_distance = 99999
             suggestions, previous_refactored_mention = heuristic.lookup(previous_refactored_mention,
                                                                         original_mention=mention)
             # All returned suggestions have the same edit distance, so if the distance is lower than the current best
@@ -91,9 +91,10 @@ class RuleClassifier(Classifier):
                 best_results['heuristic'] = heuristic.name()
                 best_results['suggestions'] = {}
                 for suggestion in suggestions:
+                    if suggestion.distance < min_distance:
+                        min_distance = suggestion.distance
+
                     for reference_entity in suggestion.reference_entities:
-                        if suggestion.distance < min_distance:
-                            min_distance = suggestion.distance
                         best_results['suggestions'][reference_entity] = suggestion.distance
 
             # If the distance is already perfect, return the result here
