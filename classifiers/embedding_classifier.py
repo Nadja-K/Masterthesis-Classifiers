@@ -45,6 +45,7 @@ class TokenLevelEmbeddingClassifier(Classifier):
         mention = str(mention)
         mention = mention.replace("-", " ").replace("(", " ").replace(")", " ")
         suggestions = self._index.get_nns_by_phrase(mention, num_results)
+        # log.info("%s | %s" % (suggestions, mention))
 
         top_suggestions = {'suggestions': {}}
         if len(suggestions) > 0:
@@ -55,6 +56,7 @@ class TokenLevelEmbeddingClassifier(Classifier):
                         top_suggestions['suggestions'][tuple[0]] = tuple[1]
                 else:
                     top_suggestions['suggestions'][tuple[0]] = tuple[1]
+
         return top_suggestions
 
     def classify(self, mention: str) -> Set[Tuple[str, float]]:
