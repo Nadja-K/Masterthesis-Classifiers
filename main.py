@@ -142,6 +142,6 @@ def rule_classifier_main():
 
 
 if __name__ == '__main__':
-    # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
+    token_level_embedding_classifier_main()
+    # bert_embedding_classifier_main()
     # rule_classifier_main()
