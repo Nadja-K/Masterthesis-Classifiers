@@ -80,10 +80,9 @@ class BertEmbeddingClassifier(Classifier):
                          skip_trivial_samples=skip_trivial_samples, load_context=True)
 
         self._distance_allowance = distance_allowance
-        assert self._entities == set([x['entity_title'] for x in self._context_data]), "Embedding based " \
-                   "classifiers that rely on context will not work with the SKIP_TRIVIAL_SAMPLES flag active because it " \
-                   "can filter out too many samples, resulting in empty context or query data. Please make sure it is " \
-                   "set to FALSE."
+        # FIXME: remove this eventually
+        assert self._entities == set([x['entity_title'] for x in self._context_data]), "The query and context data is " \
+                                                                                       "not sharing the same entities."
 
         # Create (or load) annoy index
         self._index = BertIndexer(bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,

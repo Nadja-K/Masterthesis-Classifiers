@@ -98,7 +98,33 @@ class Classifier(metaclass=ABCMeta):
         curs.execute(command, (split, 'context'))
         context_data = curs.fetchall()
 
-        return query_data, context_data
+        return self._filter_out_empty_entities(query_data, context_data, skip_trivial_samples)
+
+    def _filter_out_empty_entities(self, query_data: List[sqlite3.Row], context_data: List[sqlite3.Row],
+                                   skip_trivial_samples: bool) -> Tuple[List[sqlite3.Row], List[sqlite3.Row]]:
+        """
+        If trivial samples are filtered out, it is possible that entities are left with either 0 query or context
+        sentences. These entities can't be used for the context based classifiers, so they have to be filtered out
+        manually here (since I couldn't come up with a sql query that takes care of this).
+        """
+        query_entities = set([x['entity_title'] for x in query_data])
+        context_entities = set([x['entity_title'] for x in context_data])
+
+        if not skip_trivial_samples:
+            assert query_entities == context_entities, "The context and query samples do not share the same entities"
+            return query_data, context_data
+
+        trivial_entities = query_entities ^ context_entities
+
+        filtered_query_data = [sample for sample in query_data if sample['entity_title'] not in trivial_entities]
+        filtered_context_data = [sample for sample in context_data if sample['entity_title'] not in trivial_entities]
+
+        filtered_query_entities = set([x['entity_title'] for x in filtered_query_data])
+        filtered_context_entities = set([x['entity_title'] for x in filtered_context_data])
+        assert filtered_query_entities == filtered_context_entities, "The filtered context and query samples do not " \
+                                                                     "share the same entities"
+
+        return filtered_query_data, filtered_context_data
 
     def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
         connection = sqlite3.connect(db_name, timeout=timeout)
