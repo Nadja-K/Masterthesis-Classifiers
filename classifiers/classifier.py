@@ -80,6 +80,7 @@ class Classifier(metaclass=ABCMeta):
               ON %s.sample_id = sentences.rowid 
             WHERE %s.data_split = ?
             AND %s.query_context_split = ? 
+            AND LENGTH(sentences.mention) > 0 
         """ % (split_table_name, split_table_name, split_table_name, split_table_name)
         command_skip_trivial_samples = """
             AND LOWER(REPLACE(sentences.mention, '_', ' ')) != LOWER(REPLACE(entity_title, '_', ' '))

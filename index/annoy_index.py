@@ -9,6 +9,7 @@ import nltk
 import time
 import os
 import glob
+import re
 
 from nltk.corpus import stopwords
 from pathlib import Path
@@ -225,18 +226,21 @@ class BertIndexer(AnnoyIndexer):
         with self._annoy_mapping.begin(write=True) as mapping:
             context_entities = []
             context_sentences = []
+            context_mentions = []
 
             # Collect all sentences for BERT
             for sample in context_data:
                 context_entities.append(str(sample['entity_title']))
                 context_sentences.append(str(sample['sentence']))
+                context_mentions.append(str(sample['mention']))
 
             # Get the embeddings for all sentences
-            embeddings = self._get_embeddings(context_sentences)
+            embeddings = self._get_embeddings(context_mentions, context_sentences)
 
             # Add the embeddings to the annoy index
-            for sample_id, data in enumerate(zip(context_entities, embeddings)):
-                entity_title = data[0]
+            for sample_id, data in enumerate(zip(sample, embeddings)):
+                print(data)
+                entity_title = data[0]['entity_title']
                 emb = data[1]
 
                 # Add entity embedding to index
@@ -246,7 +250,43 @@ class BertIndexer(AnnoyIndexer):
                 # Add ID -> word mapping
                 mapping.put(str(sample_id).encode(), entity_title.encode())
 
-    def _get_embeddings(self, sentences: List[str]) -> Tuple[List[float]]:
+    def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
+                                  tokens: List[str]) -> np.ndarray:
+        # Find the start position of the phrase in the sentence
+        phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
+        # If the strict regex didn't find the phrase, use a more lenient regex
+        if phrase_start_index is None:
+            phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
+        phrase_start_index = phrase_start_index.start()
+
+        # Now the start position without counting spaces
+        phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
+        # Get the end position as well (without counting spaces)
+        phrase_end_index = phrase_start_index + len(phrase.replace(" ", ""))
+
+        print(phrase, sentence)
+        string_position = 0
+        phrase_start_token_index = -1
+        phrase_end_token_index = -1
+        # Get the index of the corresponding tokens for the phrase
+        for token_index, token in enumerate(tokens[1:-1]):
+            if phrase_start_index <= string_position < phrase_end_index:
+                if string_position == phrase_start_index:
+                    phrase_start_token_index = token_index + 1
+                else:
+                    phrase_end_token_index = token_index + 1
+                print(token_index + 1, token, string_position)
+
+            if token == '[UNK]':
+                string_position += 1
+            else:
+                string_position += len(token.replace("##", ""))
+
+        # Calculate the average of all token embeddings that belong to the phrase
+        avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index + 1], axis=0)
+        return avg_phrase_embedding
+
+    def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:
         # tokenized_sentences = []
         # filtered_sentences = []
         # for sentence in sentences:
@@ -257,9 +297,20 @@ class BertIndexer(AnnoyIndexer):
 
         # return self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
         # return self._embedding_model.encode(filtered_sentences, is_tokenized=True)
-        return self._embedding_model.encode(sentences)
 
-    def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
+        print("test")
+        sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences, show_tokens=True)
+        phrase_embeddings = []
+        for sentence_data in zip(phrases, sentences, sentences_embeddings, sentences_tokens):
+            phrase, sentence, sentence_emb, sentence_tok = sentence_data
+            # print(phrase, sentence)
+            phrase_emd = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok)
+            phrase_embeddings.append(phrase_emd)
+
+        print(len(phrase_embeddings))
+        return phrase_embeddings
+
+    def _get_embedding(self, phrase: str) -> Tuple[np.ndarray, bool]:
         # tokenized_phrase = self._word_tokenizer.tokenize(phrase)
         # filtered_phrase = [w for w in tokenized_phrase if w.lower() not in self._stopwords]
 

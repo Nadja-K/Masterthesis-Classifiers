@@ -80,9 +80,8 @@ class BertEmbeddingClassifier(Classifier):
                          skip_trivial_samples=skip_trivial_samples, load_context=True)
 
         self._distance_allowance = distance_allowance
-        # FIXME: remove this eventually
-        assert self._entities == set([x['entity_title'] for x in self._context_data]), "The query and context data is " \
-                                                                                       "not sharing the same entities."
+        assert self._entities == set([x['entity_title'] for x in self._context_data]
+                                     ), "The query and context data is not sharing the same entities."
 
         # Create (or load) annoy index
         self._index = BertIndexer(bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,

@@ -131,7 +131,7 @@ def rule_classifier_main():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    # heuristic_list = [original_heuristic]
+    heuristic_list = [original_heuristic]
 
     # Classifier
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, split_table_name,
@@ -142,6 +142,6 @@ def rule_classifier_main():
 
 
 if __name__ == '__main__':
-    token_level_embedding_classifier_main()
-    # bert_embedding_classifier_main()
+    # token_level_embedding_classifier_main()
+    bert_embedding_classifier_main()
     # rule_classifier_main()
