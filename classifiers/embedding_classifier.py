@@ -30,17 +30,15 @@ class TokenLevelEmbeddingClassifier(Classifier):
             log.info("Loading provided annoy index.")
             self._index.load_entity_index(annoy_index_path)
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_sentences: bool = False,
-                           eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=eval_sentences,
-                                   eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
-    def _classify(self, mention: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
+    def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
         # Some minor refactoring before nearest neighbours are looked  up
         mention = str(mention)
         mention = mention.replace("-", " ").replace("(", " ").replace(")", " ")
@@ -59,7 +57,7 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
         return top_suggestions
 
-    def classify(self, mention: str) -> Set[Tuple[str, float]]:
+    def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float]]:
         # Some minor refactoring before nearest neighbours are looked  up
         mention = str(mention)
         mention = mention.replace("-", " ").replace("(", " ").replace(")", " ")
@@ -96,18 +94,16 @@ class BertEmbeddingClassifier(Classifier):
             log.info("Loading provided annoy index.")
             self._index.load_entity_index(annoy_index_path)
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_sentences: bool = True,
-                           eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=eval_sentences,
-                                   eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
-    def _classify(self, mention: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
-        suggestions = self._index.get_nns_by_phrase(mention, num_results)
+    def _classify(self, mention: str, sentence: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
+        suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=num_results)
         # log.info("%s | %s" % (suggestions, mention))
 
         top_suggestions = {'suggestions': {}}
@@ -122,8 +118,8 @@ class BertEmbeddingClassifier(Classifier):
 
         return top_suggestions
 
-    def classify(self, mention: str) -> Set[Tuple[str, float]]:
-        suggestions = self._index.get_nns_by_phrase(mention, 1)
+    def classify(self, mention: str, sentence: str) -> Set[Tuple[str, float]]:
+        suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=1)
         min_distance = suggestions[0][1]
 
         return set([tuple for tuple in suggestions if tuple[1] == min_distance])

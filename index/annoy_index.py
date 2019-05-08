@@ -31,7 +31,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
         self._embedding_vector_size = embedding_vector_size
 
     @abstractmethod
-    def _get_embedding(self, phrase: str) -> Tuple[List[float], bool]:
+    def _get_embedding(self, phrase: str, sentence: str = "") -> Tuple[List[float], bool]:
         pass
 
     @abstractmethod
@@ -111,7 +111,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         return nns_entities
 
-    def get_nns_by_phrase(self, phrase: str, num_nn: int) -> List[Tuple[str, float]]:
+    def get_nns_by_phrase(self, phrase: str, sentence: str, num_nn: int = 1) -> List[Tuple[str, float]]:
         """
         Returns a set of nearest neighbour entities for the given phrase.
         """
@@ -120,8 +120,8 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         phrase = str(phrase)
         refactored_phrase = phrase.replace("_", " ")
-
-        emb, phrase_found = self._get_embedding(refactored_phrase)
+        print(phrase, sentence)
+        emb, phrase_found = self._get_embedding(refactored_phrase, sentence=sentence)
         # Only continue if the query phrase was found in the embedding model, otherwise return an empty list
         if phrase_found:
             return self.get_nns_by_vector(emb, num_nn)
@@ -192,7 +192,7 @@ class Sent2VecIndexer(AnnoyIndexer):
     #             # Add ID <-> word mapping
     #             mapping.put(str(entity_id).encode(), entity_title.encode())
 
-    def _get_embedding(self, phrase: str, compound_attempt=False) -> Tuple[List[float], bool]:
+    def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float], bool]:
         emb = self._embedding_model.embed_sentence(phrase)[0]
         phrase_found = True
         if not np.any(emb):
@@ -204,7 +204,8 @@ class Sent2VecIndexer(AnnoyIndexer):
                     # log.warning("Phrase '%s' not found in sent2vec. Attempting again with compound splitting." % phrase)
                     compound_splitted_phrase = ' '.join(
                         split_compounds(phrase, prop_threshold=self._compound_splitting_threshold))
-                    emb, phrase_found = self._get_embedding(compound_splitted_phrase, True)
+                    emb, phrase_found = self._get_embedding(compound_splitted_phrase, sentence=sentence,
+                                                            compound_attempt=True)
             else:
                 log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
                 phrase_found = False
@@ -216,7 +217,7 @@ class BertIndexer(AnnoyIndexer):
     def __init__(self, bert_service_ip: str, bert_service_port: int, bert_service_port_out: int,
                  metric: str ='euclidean'):
         bc = BertClient(ip=bert_service_ip, port=bert_service_port, port_out=bert_service_port_out)
-        embedding_vector_size = bc.encode(['test']).flatten().shape[0]
+        embedding_vector_size = bc.encode(['t']).shape[-1]
 
         self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
         self._stopwords = set(stopwords.words('german'))
@@ -238,8 +239,7 @@ class BertIndexer(AnnoyIndexer):
             embeddings = self._get_embeddings(context_mentions, context_sentences)
 
             # Add the embeddings to the annoy index
-            for sample_id, data in enumerate(zip(sample, embeddings)):
-                print(data)
+            for sample_id, data in enumerate(zip(context_data, embeddings)):
                 entity_title = data[0]['entity_title']
                 emb = data[1]
 
@@ -252,6 +252,9 @@ class BertIndexer(AnnoyIndexer):
 
     def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
                                   tokens: List[str]) -> np.ndarray:
+        # It is possible that there are still leading or trailing spaces in the phrase that might cause problems
+        phrase = str(phrase.strip())
+
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
         # If the strict regex didn't find the phrase, use a more lenient regex
@@ -298,22 +301,24 @@ class BertIndexer(AnnoyIndexer):
         # return self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
         # return self._embedding_model.encode(filtered_sentences, is_tokenized=True)
 
-        print("test")
         sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences, show_tokens=True)
         phrase_embeddings = []
         for sentence_data in zip(phrases, sentences, sentences_embeddings, sentences_tokens):
+            # FIXME: handle max_seq_len=256 cases
             phrase, sentence, sentence_emb, sentence_tok = sentence_data
-            # print(phrase, sentence)
-            phrase_emd = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok)
-            phrase_embeddings.append(phrase_emd)
+            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok)
+            phrase_embeddings.append(phrase_emb)
 
-        print(len(phrase_embeddings))
         return phrase_embeddings
 
-    def _get_embedding(self, phrase: str) -> Tuple[np.ndarray, bool]:
+    def _get_embedding(self, phrase: str, sentence: str) -> Tuple[np.ndarray, bool]:
         # tokenized_phrase = self._word_tokenizer.tokenize(phrase)
         # filtered_phrase = [w for w in tokenized_phrase if w.lower() not in self._stopwords]
 
         # return self._embedding_model.encode([tokenized_phrase], is_tokenized=True)[0], True
         # return self._embedding_model.encode([filtered_phrase], is_tokenized=True)[0], True
-        return self._embedding_model.encode([phrase])[0], True
+        # FIXME: handle max_seq_len=256 cases
+        sentence_embs, sentence_tokens = self._embedding_model.encode([sentence], show_tokens=True)
+        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_embs[0], sentence_tokens[0])
+        return phrase_emb, True
+        # return self._embedding_model.encode([phrase])[0], True

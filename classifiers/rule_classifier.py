@@ -50,7 +50,7 @@ class RuleClassifier(Classifier):
                     previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
             self._symspell_loaded_datasplit = dataset_split
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_sentences: bool = False, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -61,8 +61,7 @@ class RuleClassifier(Classifier):
         # The actual evaluation process
         assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
                                  'with the same distance are returned for this classifier.'
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=eval_sentences,
-                                   eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
     # FIXME: remove this later
     # def _ratio(self, s1: str, s2: str, ldist: int) -> float:
@@ -72,7 +71,7 @@ class RuleClassifier(Classifier):
     #     len_sum = len(s1) + len(s2)
     #     return (len_sum - ldist) / len_sum
 
-    def _classify(self, mention: str, num_results: int=1) -> Dict[str, Union[str, Dict[str, Union[int, float]]]]:
+    def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Union[str, Dict[str, Union[int, float]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
@@ -103,7 +102,7 @@ class RuleClassifier(Classifier):
 
         return best_results
 
-    def classify(self, mention: str) -> Set[Tuple[str, float]]:
+    def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float]]:
         """
         Public classify method that users can use to classify a given string based on the train split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be

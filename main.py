@@ -58,7 +58,7 @@ def bert_embedding_classifier_main():
                                          bert_service_port_out=bert_service_port_out,
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=True, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -90,7 +90,7 @@ def token_level_embedding_classifier_main():
                                                compound_splitting_threshold=compound_splitting_threshold,
                                                distance_allowance=distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_sentences=False, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -131,13 +131,13 @@ def rule_classifier_main():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    heuristic_list = [original_heuristic]
+    # heuristic_list = [original_heuristic]
 
     # Classifier
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, split_table_name,
                                 skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_sentences=False, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
