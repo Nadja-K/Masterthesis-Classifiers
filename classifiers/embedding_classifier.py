@@ -94,6 +94,9 @@ class BertEmbeddingClassifier(Classifier):
             log.info("Loading provided annoy index.")
             self._index.load_entity_index(annoy_index_path)
 
+    def close_session(self):
+        self._index.close_session()
+
     def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.

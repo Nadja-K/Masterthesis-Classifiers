@@ -22,71 +22,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import codecs
-import collections
-import json
 import re
 
-from typing import List
+from typing import List, Union
 from bert import modeling
 from bert import tokenization
 import tensorflow as tf
 
-# FIXME: remove all flags
-# flags = tf.flags
-#
-# FLAGS = flags.FLAGS
-#
-# flags.DEFINE_string("input_file", None, "")
-#
-# flags.DEFINE_string("output_file", None, "")
-#
-# flags.DEFINE_string("layers", "-1,-2,-3,-4", "")
-#
-# flags.DEFINE_string(
-#     "bert_config_file", None,
-#     "The config json file corresponding to the pre-trained BERT model. "
-#     "This specifies the model architecture.")
-#
-# flags.DEFINE_integer(
-#     "max_seq_length", 128,
-#     "The maximum total input sequence length after WordPiece tokenization. "
-#     "Sequences longer than this will be truncated, and sequences shorter "
-#     "than this will be padded.")
-#
-# flags.DEFINE_string(
-#     "init_checkpoint", None,
-#     "Initial checkpoint (usually from a pre-trained BERT model).")
-#
-# flags.DEFINE_string("vocab_file", None,
-#                     "The vocabulary file that the BERT model was trained on.")
-#
-# flags.DEFINE_bool(
-#     "do_lower_case", True,
-#     "Whether to lower case the input text. Should be True for uncased "
-#     "models and False for cased models.")
-#
-# flags.DEFINE_integer("batch_size", 32, "Batch size for predictions.")
-#
-# flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
-#
-# flags.DEFINE_string("master", None,
-#                     "If using a TPU, the address of the master.")
-#
-# flags.DEFINE_integer(
-#     "num_tpu_cores", 8,
-#     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
-#
-# flags.DEFINE_bool(
-#     "use_one_hot_embeddings", False,
-#     "If True, tf.one_hot will be used for embedding lookups, otherwise "
-#     "tf.nn.embedding_lookup will be used. On TPUs, this should be True "
-#     "since it is much faster.")
-
 
 class InputExample(object):
-    # FIXME: type hinting
-    def __init__(self, unique_id, text_a, text_b):
+    def __init__(self, unique_id: int, text_a: str, text_b: str):
         self.unique_id = unique_id
         self.text_a = text_a
         self.text_b = text_b
@@ -95,134 +40,120 @@ class InputExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    # FIXME: type hinting
-    def __init__(self, tokens, input_ids, input_mask, input_type_ids):
+    def __init__(self, unique_id: int, tokens: List[str], input_ids: List[int], input_mask: List[int],
+                 input_type_ids: List[int]):
+        self.unique_id = unique_id
         self.tokens = tokens
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.input_type_ids = input_type_ids
 
-# FIXME: https://github.com/hanxiao/bert-as-service/blob/9fa1a0a5ad80266e6f30d8635f0e259089270d67/server/bert_serving/server/__init__.py Zeile 530+
-def input_fn_builder(features, seq_length):
-    """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
-    all_unique_ids = []
-    all_input_ids = []
-    all_input_mask = []
-    all_input_type_ids = []
+def input_fn_builder(sentences: List[str], tokenizer: tokenization.FullTokenizer, max_seq_length: int):
+    unique_id_to_feature = {}
 
-    for feature in features:
-        # all_unique_ids.append(feature.unique_id)
-        all_input_ids.append(feature.input_ids)
-        all_input_mask.append(feature.input_mask)
-        all_input_type_ids.append(feature.input_type_ids)
+    def gen():
+        # FIXME: other params here bert_config.max_position_embeddings, is_tokenized, mask_cls_sep
+        for feature in convert_lst_to_features(sentences, max_seq_length=max_seq_length, tokenizer=tokenizer):
+            unique_id_to_feature[feature.unique_id] = feature
+            yield {
+                'unique_ids': [feature.unique_id],
+                'input_ids': [feature.input_ids],
+                'input_mask': [feature.input_mask],
+                'input_type_ids': [feature.input_type_ids]
+            }
 
     def input_fn(params):
         """The actual input function."""
-        batch_size = params["batch_size"]
+        # FIXME: batch_size?
+        # batch_size = params["batch_size"]
 
-        num_examples = len(features)
+        return (tf.data.Dataset.from_generator(
+            gen,
+            output_types={
+                'unique_ids': tf.int32,
+                'input_ids': tf.int32,
+                'input_mask': tf.int32,
+                'input_type_ids': tf.int32
+            },
+            output_shapes={
+                'unique_ids': (None,),
+                'input_ids': (None, None),
+                'input_mask': (None, None),
+                'input_type_ids': (None, None)
+            }
+        ))
 
-        # This is for demo purposes and does NOT scale to large data sets. We do
-        # not use Dataset.from_generator() because that uses tf.py_func which is
-        # not TPU compatible. The right way to load data is with TFRecordReader.
-        d = tf.data.Dataset.from_tensor_slices({
-            "unique_ids":
-                tf.constant(all_unique_ids, shape=[num_examples], dtype=tf.int32),
-            "input_ids":
-                tf.constant(
-                    all_input_ids, shape=[num_examples, seq_length],
-                    dtype=tf.int32),
-            "input_mask":
-                tf.constant(
-                    all_input_mask,
-                    shape=[num_examples, seq_length],
-                    dtype=tf.int32),
-            "input_type_ids":
-                tf.constant(
-                    all_input_type_ids,
-                    shape=[num_examples, seq_length],
-                    dtype=tf.int32),
-        })
-
-        d = d.batch(batch_size=batch_size, drop_remainder=False)
-        return d
-
-    return input_fn
+    return input_fn, unique_id_to_feature
 
 
-def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_tpu,
-                     use_one_hot_embeddings):
+def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_one_hot_embeddings):
     """Returns `model_fn` closure for TPUEstimator."""
 
     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
         """The `model_fn` for TPUEstimator."""
 
-        unique_ids = features["unique_ids"]
-        input_ids = features["input_ids"]
-        input_mask = features["input_mask"]
-        input_type_ids = features["input_type_ids"]
+        # FIXME: param to set device here
+        with tf.device("/device:GPU:2"):
+            unique_ids = features["unique_ids"]
+            input_ids = features["input_ids"]
+            input_mask = features["input_mask"]
+            input_type_ids = features["input_type_ids"]
 
-        model = modeling.BertModel(
-            config=bert_config,
-            is_training=False,
-            input_ids=input_ids,
-            input_mask=input_mask,
-            token_type_ids=input_type_ids,
-            use_one_hot_embeddings=use_one_hot_embeddings)
+            model = modeling.BertModel(
+                config=bert_config,
+                is_training=False,
+                input_ids=input_ids,
+                input_mask=input_mask,
+                token_type_ids=input_type_ids,
+                use_one_hot_embeddings=use_one_hot_embeddings)
 
-        if mode != tf.estimator.ModeKeys.PREDICT:
-            raise ValueError("Only PREDICT modes are supported: %s" % (mode))
+            if mode != tf.estimator.ModeKeys.PREDICT:
+                raise ValueError("Only PREDICT modes are supported: %s" % (mode))
 
-        tvars = tf.trainable_variables()
-        scaffold_fn = None
-        (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(
-            tvars, init_checkpoint)
-        if use_tpu:
-            def tpu_scaffold():
-                tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-                return tf.train.Scaffold()
-
-            scaffold_fn = tpu_scaffold
-        else:
+            tvars = tf.trainable_variables()
+            scaffold_fn = None
+            (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(
+                tvars, init_checkpoint)
             tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
-        tf.logging.info("**** Trainable Variables ****")
-        for var in tvars:
-            init_string = ""
-            if var.name in initialized_variable_names:
-                init_string = ", *INIT_FROM_CKPT*"
-            tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
+            tf.logging.info("**** Trainable Variables ****")
+            for var in tvars:
+                init_string = ""
+                if var.name in initialized_variable_names:
+                    init_string = ", *INIT_FROM_CKPT*"
+                tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
 
-        all_layers = model.get_all_encoder_layers()
+            all_layers = model.get_all_encoder_layers()
 
-        predictions = {
-            "unique_id": unique_ids,
-        }
+            predictions = {
+                "unique_id": unique_ids,
+            }
 
-        for (i, layer_index) in enumerate(layer_indexes):
-            predictions["layer_output_%d" % i] = all_layers[layer_index]
+            for (i, layer_index) in enumerate(layer_indexes):
+                predictions["layer_output_%d" % i] = all_layers[layer_index]
 
-        output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-            mode=mode, predictions=predictions, scaffold_fn=scaffold_fn)
-        return output_spec
+            # output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+            #     mode=mode, predictions=predictions, scaffold_fn=scaffold_fn)
+            output_spec = tf.estimator.EstimatorSpec(
+                mode=mode, predictions=predictions, scaffold=scaffold_fn
+            )
+            return output_spec
 
     return model_fn
 
 
-def convert_lst_to_features(lst_str: List[str], max_seq_length: int, tokenizer: tokenization,
+def convert_lst_to_features(lst_str: Union[List[List[str]], List[str]], max_seq_length: int, tokenizer: tokenization,
                             is_tokenized: bool = False, mask_cls_sep: bool = False):
     """Loads a data file into a list of `InputBatch`s."""
-
     examples = _read_tokenized_examples(lst_str) if is_tokenized else _read_examples(lst_str)
 
     _tokenize = lambda x: tokenizer.mark_unk_tokens(x) if is_tokenized else tokenizer.tokenize(x)
-    all_tokens = [(_tokenize(ex.text_a), _tokenize(ex.text_b) if ex.text_b else []) for ex in examples]
+    all_tokens = [(ex.unique_id, _tokenize(ex.text_a), _tokenize(ex.text_b) if ex.text_b else []) for ex in examples]
 
     assert max_seq_length > 0
 
-    features = []
-    for (tokens_a, tokens_b) in all_tokens:
+    for (unique_id, tokens_a, tokens_b) in all_tokens:
         if tokens_b:
             # Modifies `tokens_a` and `tokens_b` in place so that the total
             # length is less than the specified length.
@@ -272,12 +203,14 @@ def convert_lst_to_features(lst_str: List[str], max_seq_length: int, tokenizer: 
         assert len(input_mask) == max_seq_length
         assert len(input_type_ids) == max_seq_length
 
+        tf.logging.info("unique_id: %s" % unique_id)
         tf.logging.info("tokens: %s" % " ".join([tokenization.printable_text(x) for x in tokens]))
         tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
         tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
         tf.logging.info("input_type_ids: %s" % " ".join([str(x) for x in input_type_ids]))
 
         yield InputFeatures(
+            unique_id=unique_id,
             tokens=tokens,
             input_ids=input_ids,
             input_mask=input_mask,
@@ -340,151 +273,70 @@ def _read_tokenized_examples(lst_strs: List[List[str]]):
         unique_id += 1
 
 
-# FIXME: remove main
 # def main(_):
-#   tf.logging.set_verbosity(tf.logging.INFO)
+#     # FIXME
+#     vocab_file = '../../bert/models/vocab.txt'
+#     do_lower_case = True
+#     init_checkpoint = '../../bert/models/bert_model.ckpt'
+#     layer_indexes = [-1, -2, -3, -4]
+#     batch_size = 32
+#     bert_config_file = '../../bert/models/bert_config.json'
+#     max_seq_length = 256
 #
-#   layer_indexes = [int(x) for x in FLAGS.layers.split(",")]
+#     # import os
+#     # os.environ['CUDA_VISIBLE_DEVICES'] = "2"
+#     tf.logging.set_verbosity(tf.logging.INFO)
+#     tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 #
-#   bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+#     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
+#     run_config = tf.contrib.tpu.RunConfig(
+#         session_config=tf.ConfigProto(
+#             # FIXME: true or false?
+#             allow_soft_placement=False,
+#             # log_device_placement=True
+#         )
+#     )
 #
-#   tokenizer = tokenization.FullTokenizer(
-#       vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+#     model_fn = model_fn_builder(
+#         bert_config=bert_config,
+#         init_checkpoint=init_checkpoint,
+#         layer_indexes=layer_indexes,
+#         use_one_hot_embeddings=False
+#     )
 #
-#   is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-#   run_config = tf.contrib.tpu.RunConfig(
-#       master=FLAGS.master,
-#       tpu_config=tf.contrib.tpu.TPUConfig(
-#           num_shards=FLAGS.num_tpu_cores,
-#           per_host_input_for_training=is_per_host))
+#     estimator = tf.estimator.Estimator(
+#         model_fn=model_fn,
+#         config=run_config
+#     )
+#     estimator = tf.contrib.tpu.TPUEstimator(
+#         use_tpu=False,
+#         model_fn=model_fn,
+#         config=run_config,
+#         predict_batch_size=batch_size
+#     )
 #
-#   examples = read_examples(FLAGS.input_file)
-#
-#   features = convert_examples_to_features(
-#       examples=examples, seq_length=FLAGS.max_seq_length, tokenizer=tokenizer)
-#
-#   unique_id_to_feature = {}
-#   for feature in features:
-#     unique_id_to_feature[feature.unique_id] = feature
-#
-#   model_fn = model_fn_builder(
-#       bert_config=bert_config,
-#       init_checkpoint=FLAGS.init_checkpoint,
-#       layer_indexes=layer_indexes,
-#       use_tpu=FLAGS.use_tpu,
-#       use_one_hot_embeddings=FLAGS.use_one_hot_embeddings)
-#
-#   # If TPU is not available, this will fall back to normal Estimator on CPU
-#   # or GPU.
-#   estimator = tf.contrib.tpu.TPUEstimator(
-#       use_tpu=FLAGS.use_tpu,
-#       model_fn=model_fn,
-#       config=run_config,
-#       predict_batch_size=FLAGS.batch_size)
-#
-#   input_fn = input_fn_builder(
-#       features=features, seq_length=FLAGS.max_seq_length)
-#
-#   with codecs.getwriter("utf-8")(tf.gfile.Open(FLAGS.output_file,
-#                                                "w")) as writer:
+#     sentences = ['test', 'test2', 'test3', 'test4']
+#     # FIXME: Load bert model once here
+#     input_fn, tmp = input_fn_builder(sentences, tokenizer, max_seq_length=max_seq_length)
 #     for result in estimator.predict(input_fn, yield_single_examples=True):
-#       unique_id = int(result["unique_id"])
-#       feature = unique_id_to_feature[unique_id]
-#       output_json = collections.OrderedDict()
-#       output_json["linex_index"] = unique_id
-#       all_features = []
-#       for (i, token) in enumerate(feature.tokens):
-#         all_layers = []
-#         for (j, layer_index) in enumerate(layer_indexes):
-#           layer_output = result["layer_output_%d" % j]
-#           layers = collections.OrderedDict()
-#           layers["index"] = layer_index
-#           layers["values"] = [
-#               round(float(x), 6) for x in layer_output[i:(i + 1)].flat
-#           ]
-#           all_layers.append(layers)
-#         features = collections.OrderedDict()
-#         features["token"] = token
-#         features["layers"] = all_layers
-#         all_features.append(features)
-#       output_json["features"] = all_features
-#       writer.write(json.dumps(output_json) + "\n")
+#         print(result.keys())
+#         unique_id = result['unique_id']
+#         feature = tmp[unique_id]
+#         all_features = []
+#         for (i, token) in enumerate(feature.tokens):
+#             print(token)
+#             all_layers = []
+#             for (j, layer_index) in enumerate(layer_indexes):
+#                 layer_output = result["layer_output_%d" % j]
+#                 layers = collections.OrderedDict()
+#                 layers["index"] = layer_index
+#                 layers["values"] = layer_output[i:(i+1)]
+#                 all_layers.append(layers)
+#             tmp_features = collections.OrderedDict()
+#             tmp_features["token"] = token
+#             tmp_features["layers"] = all_layers
+#             all_features.append(tmp_features)
 #
 #
 # if __name__ == "__main__":
-#   flags.mark_flag_as_required("input_file")
-#   flags.mark_flag_as_required("vocab_file")
-#   flags.mark_flag_as_required("bert_config_file")
-#   flags.mark_flag_as_required("init_checkpoint")
-#   flags.mark_flag_as_required("output_file")
-#   tf.app.run()
-
-def main(_):
-    # FIXME
-    vocab_file = '../../bert/models/vocab.txt'
-    do_lower_case = True
-    init_checkpoint = '../../bert/models/bert_model.ckpt'
-    layer_indexes = [-1, -2, -3, -4]
-    batch_size = 32
-    bert_config_file = '../../bert/models/bert_config.json'
-    max_seq_length = 256
-
-    tf.logging.set_verbosity(tf.logging.INFO)
-    tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
-
-    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-
-    is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-    run_config = tf.contrib.tpu.RunConfig(
-        master=None,
-        tpu_config=tf.contrib.tpu.TPUConfig(
-            num_shards=8,
-            per_host_input_for_training=is_per_host
-        )
-    )
-
-    model_fn = model_fn_builder(
-        bert_config=bert_config,
-        init_checkpoint=init_checkpoint,
-        layer_indexes=layer_indexes,
-        use_tpu=False,
-        use_one_hot_embeddings=False
-    )
-
-    estimator = tf.contrib.tpu.TPUEstimator(
-        use_tpu=False,
-        model_fn=model_fn,
-        config=run_config,
-        predict_batch_size=batch_size
-    )
-
-    sentences = ['test']
-
-    # FIXME: Load bert model once here
-    for feature in convert_lst_to_features(sentences, max_seq_length, tokenizer):
-        # FIXME: get rid of input_fn_builder somehow
-        input_fn = input_fn_builder(features=[feature], seq_length=max_seq_length)
-        for result in estimator.predict(input_fn, yield_single_examples=True):
-            print(result)
-            # unique_id = unique_id_to_feature[unique_id]
-            # feature = unique_id_to_feature[unique_id]
-            all_features = []
-            for (i, token) in enumerate(feature.tokens):
-                all_layers = []
-                for (j, layer_index) in enumerate(layer_indexes):
-                    layer_output = result["layer_output_%d" % j]
-                    layers = collections.OrderedDict()
-                    layers["index"] = layer_index
-                    layers["values"] = [
-                        round(float(x), 6) for x in layer_output[i:(i + 1)].flat
-                    ]
-                    all_layers.append(layers)
-                tmp_features = collections.OrderedDict()
-                tmp_features["token"] = token
-                tmp_features["layers"] = all_layers
-                all_features.append(tmp_features)
-            print(all_features)
-
-
-if __name__ == "__main__":
-    tf.app.run()
+#     tf.app.run()

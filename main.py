@@ -2,6 +2,7 @@ import configparser
 import time
 import json
 import logging
+import tensorflow as tf
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 
@@ -13,6 +14,9 @@ from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming,
 
 # Logging
 # logging.disable(logging.WARNING)
+
+# Disable (most) Tensorflow Log messages
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 # Config
 config = configparser.ConfigParser()
@@ -60,6 +64,9 @@ def bert_embedding_classifier_main():
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
     print("Evaluation took %s" % (time.time() - start))
+
+    # Necessary to close the tensorflow session
+    classifier.close_session()
 
 
 def token_level_embedding_classifier_main():
