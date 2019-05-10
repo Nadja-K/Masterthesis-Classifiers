@@ -3,7 +3,7 @@ import os
 
 from classifiers.classifier import Classifier
 from index.annoy_index import Sent2VecIndexer, BertIndexer
-from typing import Set, Tuple, Dict, Union
+from typing import Set, Tuple, Dict, Union, List
 
 log = logging.getLogger(__name__)
 
@@ -69,8 +69,10 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
 
 class BertEmbeddingClassifier(Classifier):
-    def __init__(self, dataset_db_name: str, dataset_split: str, annoy_metric: str, bert_service_ip: str,
-                 bert_service_port: int, bert_service_port_out: int, skip_trivial_samples: bool = False,
+    def __init__(self, dataset_db_name: str, dataset_split: str, annoy_metric: str,
+                 bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int = 32,
+                 layer_indexes: List[int] = [-1, -2, -3, -4], use_one_hot_embeddings: bool = False,
+                 do_lower_case: bool = True, skip_trivial_samples: bool = False,
                  split_table_name: str='splits', annoy_index_path: str=None, num_trees: int=30,
                  annoy_output_dir: str='', distance_allowance: float=0.05):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
@@ -82,8 +84,10 @@ class BertEmbeddingClassifier(Classifier):
                                      ), "The query and context data is not sharing the same entities."
 
         # Create (or load) annoy index
-        self._index = BertIndexer(bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,
-                                  bert_service_port_out=bert_service_port_out, metric=annoy_metric)
+        self._index = BertIndexer(bert_config_file=bert_config_file, init_checkpoint=init_checkpoint,
+                                  vocab_file=vocab_file, seq_len=seq_len, batch_size=batch_size,
+                                  layer_indexes=layer_indexes, use_one_hot_embeddings=use_one_hot_embeddings,
+                                  do_lower_case=do_lower_case, metric=annoy_metric)
 
         if annoy_index_path is None:
             log.info("No annoy index file has been provided, creating new index now.")

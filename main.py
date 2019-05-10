@@ -46,9 +46,15 @@ def bert_embedding_classifier_main():
     annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
     annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
 
-    bert_service_ip = config['EMBEDDINGCLASSIFIER_BERT'].get('IP', '')
-    bert_service_port = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT', 9555)
-    bert_service_port_out = config['EMBEDDINGCLASSIFIER_BERT'].getint('PORT_OUT', 9556)
+    vocab_file = config['EMBEDDINGCLASSIFIER_BERT'].get('VOCAB_FILE', '')
+    do_lower_case = config['EMBEDDINGCLASSIFIER_BERT'].getboolean('DO_LOWER_CASE', True)
+    init_checkpoint = config['EMBEDDINGCLASSIFIER_BERT'].get('INIT_CHECKPOINT', '')
+    layer_indexes = json.loads(config['EMBEDDINGCLASSIFIER_BERT'].get('LAYER_INDEXES', '[]'))
+    batch_size = config['EMBEDDINGCLASSIFIER_BERT'].getint('BATCH_SIZE', 32)
+    bert_config_file = config['EMBEDDINGCLASSIFIER_BERT'].get('BERT_CONFIG_FILE', '')
+    seq_len = config['EMBEDDINGCLASSIFIER_BERT'].getint('SEQ_LEN', 256)
+    use_one_hot_embeddings = config['EMBEDDINGCLASSIFIER_BERT'].get('USE_ONE_HOT_EMBEDDINGS', False)
+
     bert_distance_allowance = config['EMBEDDINGCLASSIFIER_BERT'].getfloat('DISTANCE_ALLOWANCE', None)
     num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
@@ -58,8 +64,10 @@ def bert_embedding_classifier_main():
                                          annoy_metric=annoy_metric, num_trees=num_trees,
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
                                          skip_trivial_samples=skip_trivial_samples,
-                                         bert_service_ip=bert_service_ip, bert_service_port=bert_service_port,
-                                         bert_service_port_out=bert_service_port_out,
+                                         bert_config_file=bert_config_file, init_checkpoint=init_checkpoint,
+                                         vocab_file=vocab_file, seq_len=seq_len, batch_size=batch_size,
+                                         layer_indexes=layer_indexes, use_one_hot_embeddings=use_one_hot_embeddings,
+                                         do_lower_case=do_lower_case,
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)

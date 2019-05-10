@@ -63,14 +63,6 @@ class RuleClassifier(Classifier):
                                  'with the same distance are returned for this classifier.'
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
-    # FIXME: remove this later
-    # def _ratio(self, s1: str, s2: str, ldist: int) -> float:
-    #     """
-    #     Calculate a simple ratio between two strings based on their length and levenshtein distance.
-    #     """
-    #     len_sum = len(s1) + len(s2)
-    #     return (len_sum - ldist) / len_sum
-
     def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Union[str, Dict[str, Union[int, float]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.

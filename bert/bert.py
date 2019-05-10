@@ -12,12 +12,13 @@ from typing import List
 
 class BertEncoder:
     def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int=32,
-                 layer_indexes: List[int]=[-1, -2, -3, -4], do_lower_case: bool=True):
+                 layer_indexes: List[int]=[-1, -2, -3, -4], use_one_hot_embeddings: bool=False,
+                 do_lower_case: bool=True):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
 
-        self._output_layer = self._load_model(bert_config_file, init_checkpoint)
+        self._output_layer = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
         self._sess = tf.Session()
         self._sess.run(tf.global_variables_initializer())
 
@@ -28,20 +29,19 @@ class BertEncoder:
     def close_session(self):
         self._sess.close()
 
-    def _load_model(self, bert_config_file: str, init_checkpoint: str):
+    def _load_model(self, bert_config_file: str, init_checkpoint: str, use_one_hot_embeddings: bool=False):
         bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-        self.input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids')
-        self.input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask')
-        self.input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids')
-        use_one_hot_embeddings = False
+        self._input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids')
+        self._input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask')
+        self._input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids')
 
         # Load the Bert Model
         model = modeling.BertModel(
             config=bert_config,
             is_training=False,
-            input_ids=self.input_ids,
-            input_mask=self.input_mask,
-            token_type_ids=self.input_type_ids,
+            input_ids=self._input_ids,
+            input_mask=self._input_mask,
+            token_type_ids=self._input_type_ids,
             use_one_hot_embeddings=use_one_hot_embeddings
         )
         tvars = tf.trainable_variables()
@@ -49,31 +49,46 @@ class BertEncoder:
         # Load the checkpoint
         (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(tvars,
                                                                                                    init_checkpoint)
-        tf.train.init_from_checkpoint(self.init_checkpoint, assignment_map)
+        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
         # Get the output layer of the model
-        return model.get_sequence_output()
+        # FIXME: make the layer a param that can be set (maybe even concat somehow?)
+        return model.get_all_encoder_layers()[-2]
 
-    def encode_sentence(self, sentence: str):
-        # FIXME
-        pass
-
-    def encode_sentences(self, sentences: List[str]):
+    def encode(self, sentences: List[str]):
         all_token_embeddings = []
         all_feature_tokens = []
-        # FIXME: do it all at once / batches? Instead of one by one
-        for feature in convert_lst_to_features(sentences, max_seq_length=self.seq_len, tokenizer=self.tokenizer):
-            sample = {
-                self.input_ids: [feature.input_ids],
-                self.input_mask: [feature.input_mask],
-                self.input_type_ids: [feature.input_type_ids]
-            }
-            token_embeddings = self.sess.run(self.output_layer, feed_dict=sample)
-            # print(feature.tokens)
-            # print(token_embeddings.shape)
-            # print(token_embeddings)
-            #
-            all_token_embeddings.append(token_embeddings[0])
+
+        batch = {
+            self._input_ids: [],
+            self._input_mask: [],
+            self._input_type_ids: []
+        }
+        for sample_index, feature in enumerate(convert_lst_to_features(
+                sentences, max_seq_length=self._seq_len, tokenizer=self._tokenizer)):
+            batch[self._input_ids].append(feature.input_ids)
+            batch[self._input_mask].append(feature.input_mask)
+            batch[self._input_type_ids].append(feature.input_type_ids)
+
             all_feature_tokens.append(feature.tokens)
+            if sample_index % self._batch_size == 0:
+                batch_toke_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
+
+                for token_embeddings in batch_toke_embeddings:
+                    all_token_embeddings.append(token_embeddings)
+
+                # Reset the batch
+                batch = {
+                    self._input_ids: [],
+                    self._input_mask: [],
+                    self._input_type_ids: []
+                }
+
+        # Handle leftover samples that did not fit in the last batch
+        if len(batch[self._input_ids]) > 0:
+            batch_toke_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
+
+            for token_embeddings in batch_toke_embeddings:
+                all_token_embeddings.append(token_embeddings)
 
         return all_token_embeddings, all_feature_tokens

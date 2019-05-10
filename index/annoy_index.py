@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Set, List, Tuple
 from abc import ABCMeta, abstractmethod
 from utils.utils import split_compounds
-from bert_serving.client import BertClient
 from bert.bert import BertEncoder
 
 log = logging.getLogger(__name__)
@@ -214,16 +213,18 @@ class Sent2VecIndexer(AnnoyIndexer):
 
 
 class BertIndexer(AnnoyIndexer):
-    def __init__(self, bert_service_ip: str, bert_service_port: int, bert_service_port_out: int,
-                 metric: str ='euclidean'):
-        # bc = BertClient(ip=bert_service_ip, port=bert_service_port, port_out=bert_service_port_out)
-        # embedding_vector_size = bc.encode(['t']).shape[-1]
-        # FIXME
-        be = BertEncoder()
+    def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int=32,
+                 layer_indexes: List[int]=[-1, -2, -3, -4], use_one_hot_embeddings: bool=False,
+                 do_lower_case: bool=True, metric: str ='euclidean'):
+        be = BertEncoder(bert_config_file=bert_config_file, init_checkpoint=init_checkpoint, vocab_file=vocab_file,
+                         seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
+                         use_one_hot_embeddings=use_one_hot_embeddings, do_lower_case=do_lower_case)
 
         self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
         self._stopwords = set(stopwords.words('german'))
+
         # FIXME
+        # embeddings_vector_size = ?
         # super().__init__(bc, embedding_vector_size, metric)
         super().__init__(be, 768, metric)
 
@@ -309,9 +310,7 @@ class BertIndexer(AnnoyIndexer):
         # return self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
         # return self._embedding_model.encode(filtered_sentences, is_tokenized=True)
 
-        # FIXME
-        # sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences, show_tokens=True)
-        sentences_embeddings, sentences_tokens = self._embedding_model.encode_sentences(sentences)
+        sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences)
 
         phrase_embeddings = []
         for sentence_data in zip(phrases, sentences, sentences_embeddings, sentences_tokens):
@@ -328,10 +327,8 @@ class BertIndexer(AnnoyIndexer):
 
         # return self._embedding_model.encode([tokenized_phrase], is_tokenized=True)[0], True
         # return self._embedding_model.encode([filtered_phrase], is_tokenized=True)[0], True
+
         # FIXME: handle max_seq_len=256 cases
-        # FIXME
-        sentence_embs, sentence_tokens = self._embedding_model.encode_sentences([sentence])
-        # sentence_embs, sentence_tokens = self._embedding_model.encode([sentence], show_tokens=True)
+        sentence_embs, sentence_tokens = self._embedding_model.encode([sentence])
         phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_embs[0], sentence_tokens[0])
         return phrase_emb, True
-        # return self._embedding_model.encode([phrase])[0], True

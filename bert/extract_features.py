@@ -92,7 +92,6 @@ class InputFeatures(object):
 #     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
 #         """The `model_fn` for TPUEstimator."""
 #
-#         # FIXME: param to set device here
 #         with tf.device("/device:GPU:2"):
 #             unique_ids = features["unique_ids"]
 #             input_ids = features["input_ids"]
