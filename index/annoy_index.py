@@ -284,9 +284,13 @@ class BertIndexer(AnnoyIndexer):
         string_position = 0
         phrase_start_token_index = -1
         phrase_end_token_index = -1
-        for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:-1]):
+        for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:]):
             cur_word_token, cur_word_token_emb_index = current_token
             next_word_token, next_word_token_emb_index = next_token
+
+            # If the end has already been found, stop
+            if phrase_end_token_index != -1:
+                break
 
             for _ in cur_word_token:
                 if string_position == phrase_start_index:
@@ -341,6 +345,8 @@ class BertIndexer(AnnoyIndexer):
 
         # Calculate the average of all token embeddings that belong to the phrase
         # avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index + 1], axis=0)
+        if len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) == 0:
+            print(phrase_start_token_index, phrase_end_token_index)
         avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
         return avg_phrase_embedding
 
