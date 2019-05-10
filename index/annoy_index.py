@@ -121,7 +121,6 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         phrase = str(phrase)
         refactored_phrase = phrase.replace("_", " ")
-        print(phrase, sentence)
         emb, phrase_found = self._get_embedding(refactored_phrase, sentence=sentence)
         # Only continue if the query phrase was found in the embedding model, otherwise return an empty list
         if phrase_found:
@@ -268,6 +267,7 @@ class BertIndexer(AnnoyIndexer):
         # If the strict regex didn't find the phrase, use a more lenient regex
         if phrase_start_index is None:
             phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
+            print(phrase, sentence)
         phrase_start_index = phrase_start_index.start()
 
         # Now the start position without counting spaces
@@ -275,19 +275,18 @@ class BertIndexer(AnnoyIndexer):
         # Get the end position as well (without counting spaces)
         phrase_end_index = phrase_start_index + len(phrase.replace(" ", ""))
 
-        print(phrase, sentence)
+        # print(phrase, sentence)
         string_position = 0
         phrase_start_token_index = -1
         phrase_end_token_index = -1
         # Get the index of the corresponding tokens for the phrase
-        print(tokens[1:-1])
         for token_index, token in enumerate(tokens[1:-1]):
             if phrase_start_index <= string_position < phrase_end_index:
                 if string_position == phrase_start_index:
                     phrase_start_token_index = token_index + 1
                 else:
                     phrase_end_token_index = token_index + 1
-                print(token_index + 1, token, string_position)
+                # print(token_index + 1, token, string_position)
 
             if token == '[UNK]':
                 string_position += 1

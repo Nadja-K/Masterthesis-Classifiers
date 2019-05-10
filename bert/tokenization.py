@@ -22,12 +22,12 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import re
 import unicodedata
 import six
 import tensorflow as tf
 
 
+# FIXME: remove eventually
 # def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
 #   """Checks whether the casing config is consistent with the checkpoint name."""
 #
@@ -187,6 +187,7 @@ class FullTokenizer(object):
     def mark_unk_tokens(self, tokens, unk_token='[UNK]'):
         # From https://github.com/hanxiao/bert-as-service/blob/master/server/bert_serving/server/bert/tokenization.py
         return [t if t in self.vocab else unk_token for t in tokens]
+
 
 class BasicTokenizer(object):
     """Runs basic tokenization (punctuation splitting, lower casing, etc.)."""

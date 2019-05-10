@@ -142,14 +142,14 @@ class BertModel(object):
         """Constructor for BertModel.
         Args:
           config: `BertConfig` instance.
-          is_training: bool. rue for training model, false for eval model. Controls
+          is_training: bool. true for training model, false for eval model. Controls
             whether dropout will be applied.
           input_ids: int32 Tensor of shape [batch_size, seq_length].
           input_mask: (optional) int32 Tensor of shape [batch_size, seq_length].
           token_type_ids: (optional) int32 Tensor of shape [batch_size, seq_length].
           use_one_hot_embeddings: (optional) bool. Whether to use one-hot word
             embeddings or tf.embedding_lookup() for the word embeddings. On the TPU,
-            it is must faster if this is True, on the CPU or GPU, it is faster if
+            it is much faster if this is True, on the CPU or GPU, it is faster if
             this is False.
           scope: (optional) variable scope. Defaults to "bert".
         Raises:
@@ -264,20 +264,20 @@ class BertModel(object):
         return self.embedding_table
 
 
-def gelu(x):
+def gelu(input_tensor):
     """Gaussian Error Linear Unit.
 
     This is a smoother version of the RELU.
     Original paper: https://arxiv.org/abs/1606.08415
     Args:
-    x: float Tensor to perform activation.
+    input_tensor: float Tensor to perform activation.
 
     Returns:
-    `x` with the GELU activation applied.
+    `input_tensor` with the GELU activation applied.
     """
-    # FIXME: bert-as-service does something else here, check?
-    cdf = 0.5 * (1.0 + tf.tanh((np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
-    return x * cdf
+    cdf = 0.5 * (1.0 + tf.erf(input_tensor / tf.sqrt(2.0)))
+    # cdf = 0.5 * (1.0 + tf.tanh((np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
+    return input_tensor * cdf
 
 
 def get_activation(activation_string):
@@ -409,7 +409,6 @@ def embedding_lookup(input_ids,
       shape=[vocab_size, embedding_size],
       initializer=create_initializer(initializer_range))
 
-    # FIXME Bert-as-service does somethign else here
     flat_input_ids = tf.reshape(input_ids, [-1])
     if use_one_hot_embeddings:
         one_hot_input_ids = tf.one_hot(flat_input_ids, depth=vocab_size)
@@ -462,12 +461,6 @@ def embedding_postprocessor(input_tensor,
     seq_length = input_shape[1]
     width = input_shape[2]
 
-    # tf.Assert(tf.less_equal(seq_length, max_position_embeddings), [seq_length])
-    # if seq_length > max_position_embeddings:
-    #     raise ValueError("The seq length (%d) cannot be greater than "
-    #                      "`max_position_embeddings` (%d)" %
-    #                      (seq_length, max_position_embeddings))
-
     output = input_tensor
 
     if use_token_type:
@@ -488,10 +481,12 @@ def embedding_postprocessor(input_tensor,
         output += token_type_embeddings
 
     if use_position_embeddings:
-        full_position_embeddings = tf.get_variable(
-            name=position_embedding_name,
-            shape=[max_position_embeddings, width],
-            initializer=create_initializer(initializer_range))
+        assert_op = tf.assert_less_equal(seq_length, max_position_embeddings)
+        with tf.control_dependencies([assert_op]):
+            full_position_embeddings = tf.get_variable(
+                name=position_embedding_name,
+                shape=[max_position_embeddings, width],
+                initializer=create_initializer(initializer_range))
         # Since the position embedding table is a learned variable, we create it
         # using a (long) sequence length `max_position_embeddings`. The actual
         # sequence length might be shorter than this, for faster training of
