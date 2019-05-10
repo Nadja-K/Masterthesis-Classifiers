@@ -13,7 +13,7 @@ import re
 
 from nltk.corpus import stopwords
 from pathlib import Path
-from typing import Set, List, Tuple
+from typing import Set, List, Tuple, Union
 from abc import ABCMeta, abstractmethod
 from utils.utils import split_compounds
 from bert.bert import BertEncoder
@@ -220,13 +220,11 @@ class BertIndexer(AnnoyIndexer):
                          seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
                          use_one_hot_embeddings=use_one_hot_embeddings, do_lower_case=do_lower_case)
 
-        self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
+        # self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
         self._stopwords = set(stopwords.words('german'))
 
-        # FIXME
-        # embeddings_vector_size = ?
-        # super().__init__(bc, embedding_vector_size, metric)
-        super().__init__(be, 768, metric)
+        embeddings_vector_size = be.encode([['t']], is_tokenized=True)[0][0].shape[-1]
+        super().__init__(be, embeddings_vector_size, metric)
 
     def close_session(self):
         self._embedding_model.close_session()
@@ -258,11 +256,18 @@ class BertIndexer(AnnoyIndexer):
                 # Add ID -> word mapping
                 mapping.put(str(sample_id).encode(), entity_title.encode())
 
-    def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
-                                  tokens: List[str]) -> np.ndarray:
-        # It is possible that there are still leading or trailing spaces in the phrase that might cause problems
-        phrase = str(phrase.strip())
+    # FIXME: remove this
+    # @staticmethod
+    # def _find_sub_list(pattern: List[str], sentence: List[str]):
+    #     sll = len(pattern)
+    #     for ind in (i for i, e in enumerate(sentence) if pattern[0] in e):
+    #         if pattern[0] in sentence[ind] and pattern[-1] in sentence[ind+sll- 1] and sentence[ind+1: ind+sll-1] == pattern[1:-1]:
+    #             return ind, ind+sll-1
+    #
+    #     return -1, -1
 
+    def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
+                                  token_mapping: List) -> np.ndarray:
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
         # If the strict regex didn't find the phrase, use a more lenient regex
@@ -274,61 +279,107 @@ class BertIndexer(AnnoyIndexer):
         # Now the start position without counting spaces
         phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
         # Get the end position as well (without counting spaces)
-        phrase_end_index = phrase_start_index + len(phrase.replace(" ", ""))
+        phrase_end_index = phrase_start_index + len(phrase.replace(" ", "")) - 1
 
-        # print(phrase, sentence)
         string_position = 0
         phrase_start_token_index = -1
         phrase_end_token_index = -1
-        # Get the index of the corresponding tokens for the phrase
-        for token_index, token in enumerate(tokens[1:-1]):
-            if phrase_start_index <= string_position < phrase_end_index:
-                if string_position == phrase_start_index:
-                    phrase_start_token_index = token_index + 1
-                else:
-                    phrase_end_token_index = token_index + 1
-                # print(token_index + 1, token, string_position)
+        for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:-1]):
+            cur_word_token, cur_word_token_emb_index = current_token
+            next_word_token, next_word_token_emb_index = next_token
 
-            if token == '[UNK]':
+            for _ in cur_word_token:
+                if string_position == phrase_start_index:
+                    phrase_start_token_index = cur_word_token_emb_index
+
+                if string_position == phrase_end_index:
+                    phrase_end_token_index = next_word_token_emb_index
+                    break
+
                 string_position += 1
-            else:
-                string_position += len(token.replace("##", ""))
+        # if is_tokenized:
+        #     tokenized_phrase = self._word_tokenizer.tokenize(phrase)
+        #     phrase_start_token_index, phrase_end_token_index = self._find_sub_list(tokenized_phrase, sentence)
+        #     assert phrase_end_token_index != -1 and phrase_start_token_index != -1
+        #
+        #     phrase_start_token_index += 1
+        #     phrase_end_token_index += 1
+        # else:
+        #     # It is possible that there are still leading or trailing spaces in the phrase that might cause problems
+        #     phrase = str(phrase.strip())
+        #
+        #     # Find the start position of the phrase in the sentence
+        #     phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
+        #     # If the strict regex didn't find the phrase, use a more lenient regex
+        #     if phrase_start_index is None:
+        #         phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
+        #         print(phrase, sentence)
+        #     phrase_start_index = phrase_start_index.start()
+        #
+        #     # Now the start position without counting spaces
+        #     phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
+        #     # Get the end position as well (without counting spaces)
+        #     phrase_end_index = phrase_start_index + len(phrase.replace(" ", ""))
+        #
+        #     # print(phrase, sentence)
+        #     string_position = 0
+        #     phrase_start_token_index = -1
+        #     phrase_end_token_index = -1
+        #     # Get the index of the corresponding tokens for the phrase
+        #     for token_index, token in enumerate(tokens[1:-1]):
+        #         if phrase_start_index <= string_position < phrase_end_index:
+        #             if string_position == phrase_start_index:
+        #                 phrase_start_token_index = token_index + 1
+        #             else:
+        #                 phrase_end_token_index = token_index + 1
+        #             # print(token_index + 1, token, string_position)
+        #
+        #         if token == '[UNK]':
+        #             string_position += 1
+        #         else:
+        #             string_position += len(token.replace("##", ""))
 
         # Calculate the average of all token embeddings that belong to the phrase
-        avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index + 1], axis=0)
+        # avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index + 1], axis=0)
+        avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
         return avg_phrase_embedding
 
     def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:
-        # tokenized_sentences = []
-        # filtered_sentences = []
-        # for sentence in sentences:
-        #     tokenized_sent = self._word_tokenizer.tokenize(sentence)
+        tokenized_sentences = []
+        mappings = []
+        for sentence in sentences:
+            # FIXME: move tokenizer out of embedding model and move it into this class
+            # FIXME: remove is_tokenized from all methods because the tokenization NEEDS to be done with a custom version of the tokenizer anyway
+            tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
+            # Update the mapping with the CLS and SEP tag
+            mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in mapping] + [('[SEP]', mapping[-1][1]+2)]
+
+            tokenized_sentences.append(tokens)
+            mappings.append(mapping)
         #
-        #     tokenized_sentences.append(tokenized_sent)
-        #     filtered_sentences.append([w for w in tokenized_sent if w.lower() not in self._stopwords])
-
-        # return self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
-        # return self._embedding_model.encode(filtered_sentences, is_tokenized=True)
-
-        sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences)
+        # sentences = tokenized_sentences
+        sentences_embeddings, _ = self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
+        # sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences)
 
         phrase_embeddings = []
-        for sentence_data in zip(phrases, sentences, sentences_embeddings, sentences_tokens):
+        for sentence_data in zip(phrases, sentences, sentences_embeddings, mappings):
             # FIXME: handle max_seq_len=256 cases
-            phrase, sentence, sentence_emb, sentence_tok = sentence_data
-            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok)
+            phrase, sentence, tokens_embs, mapping = sentence_data
+            # phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok, is_tokenized=True)
+            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs, token_mapping=mapping)
             phrase_embeddings.append(phrase_emb)
 
         return phrase_embeddings
 
     def _get_embedding(self, phrase: str, sentence: str) -> Tuple[np.ndarray, bool]:
-        # tokenized_phrase = self._word_tokenizer.tokenize(phrase)
-        # filtered_phrase = [w for w in tokenized_phrase if w.lower() not in self._stopwords]
+        tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
+        tokens_embs, new_tokens = self._embedding_model.encode([tokens], is_tokenized=True)
 
-        # return self._embedding_model.encode([tokenized_phrase], is_tokenized=True)[0], True
-        # return self._embedding_model.encode([filtered_phrase], is_tokenized=True)[0], True
+        # Update the mapping with the CLS and SEP tag
+        mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in mapping] + [('[SEP]', mapping[-1][1]+2)]
 
         # FIXME: handle max_seq_len=256 cases
-        sentence_embs, sentence_tokens = self._embedding_model.encode([sentence])
-        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_embs[0], sentence_tokens[0])
+        # sentence_embs, sentence_tokens = self._embedding_model.encode([sentence])
+        # phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_embs[0], sentence_tokens[0], is_tokenized=True)
+        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs[0], token_mapping=mapping)
         return phrase_emb, True

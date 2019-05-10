@@ -143,6 +143,7 @@ def convert_lst_to_features(lst_str: Union[List[List[str]], List[str]], max_seq_
     """Loads a data file into a list of `InputBatch`s."""
     examples = _read_tokenized_examples(lst_str) if is_tokenized else _read_examples(lst_str)
 
+    # FIXME: remove the tokenizer from here, only accept already tokenized values
     _tokenize = lambda x: tokenizer.mark_unk_tokens(x) if is_tokenized else tokenizer.tokenize(x)
     all_tokens = [(ex.unique_id, _tokenize(ex.text_a), _tokenize(ex.text_b) if ex.text_b else []) for ex in examples]
 
