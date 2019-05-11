@@ -41,8 +41,8 @@ class TokenLevelEmbeddingClassifier(Classifier):
     def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
         # Some minor refactoring before nearest neighbours are looked  up
         mention = str(mention)
-        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ")
-        suggestions = self._index.get_nns_by_phrase(mention, num_results)
+        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
+        suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=num_results)
         # log.info("%s | %s" % (suggestions, mention))
 
         top_suggestions = {'suggestions': {}}
@@ -60,8 +60,8 @@ class TokenLevelEmbeddingClassifier(Classifier):
     def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float]]:
         # Some minor refactoring before nearest neighbours are looked  up
         mention = str(mention)
-        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ")
-        suggestions = self._index.get_nns_by_phrase(mention, 1)
+        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
+        suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=1)
         min_distance = suggestions[0][1]
 
         # We want all tuples that have the smallest distance of the result (but max. up to 10).

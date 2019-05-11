@@ -121,8 +121,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
         assert self._annoy_mapping is not None, "No annoy mapping has been loaded. Call load_entity_index(file_annoy)"
 
         phrase = str(phrase)
-        refactored_phrase = phrase.replace("_", " ")
-        emb, phrase_found = self._get_embedding(refactored_phrase, sentence=sentence)
+        emb, phrase_found = self._get_embedding(phrase, sentence=sentence)
         # Only continue if the query phrase was found in the embedding model, otherwise return an empty list
         if phrase_found:
             return self.get_nns_by_vector(emb, num_nn)
@@ -259,16 +258,22 @@ class BertIndexer(AnnoyIndexer):
 
     def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
                                   token_mapping: List) -> np.ndarray:
+        # FIXME (?)
+        # The phrase is refactored previously to not contain _ symbols, so this has to be considered here as well
+        # phrase = phrase.replace("_", " ").strip()
+        # sentence = sentence.replace("_", " ").strip()
+
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
 
         # If the strict regex didn't find the phrase, use a more lenient regex
         if phrase_start_index is None:
-            # There is a special case of mentions that are somehow altered by sqlite3 when added to the table,
-            # handle this here(Case: Phrase = .34 will get changed to 0.34 in sqlite3)
-            if self._special_mentions_regex.match(phrase.strip()) is not None:
-                phrase = phrase[1:]
-                print(phrase, phrase[1:])
+            # FIXME: remove this?
+            # # There is a special case of mentions that are somehow altered by sqlite3 when added to the table,
+            # # handle this here(Case: Phrase = .34 will get changed to 0.34 in sqlite3)
+            # if self._special_mentions_regex.match(phrase.strip()) is not None:
+            #     phrase = phrase[1:]
+            #     print(phrase, phrase[1:])
 
             phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
             # print(phrase, sentence, phrase_start_index)
@@ -337,6 +342,7 @@ class BertIndexer(AnnoyIndexer):
         for sentence_data in zip(phrases, sentences, sentences_embeddings, mappings):
             # FIXME: handle max_seq_len=256 cases
             phrase, sentence, tokens_embs, mapping = sentence_data
+            phrase = str(phrase.strip())
             # phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok, is_tokenized=True)
             phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs, token_mapping=mapping)
             phrase_embeddings.append(phrase_emb)
@@ -344,6 +350,8 @@ class BertIndexer(AnnoyIndexer):
         return phrase_embeddings
 
     def _get_embedding(self, phrase: str, sentence: str) -> Tuple[np.ndarray, bool]:
+        phrase = str(phrase.strip())
+
         tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
         tokens_embs, new_tokens = self._embedding_model.encode([tokens], is_tokenized=True)
 
