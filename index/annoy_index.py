@@ -18,6 +18,8 @@ from abc import ABCMeta, abstractmethod
 from utils.utils import split_compounds
 from bert.bert import BertEncoder
 
+# 24 GB Karten: 0, 1
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 log = logging.getLogger(__name__)
 
 
@@ -220,8 +222,8 @@ class BertIndexer(AnnoyIndexer):
                          seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
                          use_one_hot_embeddings=use_one_hot_embeddings, do_lower_case=do_lower_case)
 
-        # self._word_tokenizer = nltk.tokenize.WordPunctTokenizer()
         self._stopwords = set(stopwords.words('german'))
+        self._special_mentions_regex = re.compile("^0\\.\\d+$")
 
         embeddings_vector_size = be.encode([['t']], is_tokenized=True)[0][0].shape[-1]
         super().__init__(be, embeddings_vector_size, metric)
@@ -250,30 +252,27 @@ class BertIndexer(AnnoyIndexer):
                 emb = data[1]
 
                 # Add entity embedding to index
-                # log.info("add item | %s | %s | %s" % (sample_id, entity_title, emb.shape))
                 self._annoy_index.add_item(sample_id, emb)
 
                 # Add ID -> word mapping
                 mapping.put(str(sample_id).encode(), entity_title.encode())
 
-    # FIXME: remove this
-    # @staticmethod
-    # def _find_sub_list(pattern: List[str], sentence: List[str]):
-    #     sll = len(pattern)
-    #     for ind in (i for i, e in enumerate(sentence) if pattern[0] in e):
-    #         if pattern[0] in sentence[ind] and pattern[-1] in sentence[ind+sll- 1] and sentence[ind+1: ind+sll-1] == pattern[1:-1]:
-    #             return ind, ind+sll-1
-    #
-    #     return -1, -1
-
     def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
                                   token_mapping: List) -> np.ndarray:
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
+
         # If the strict regex didn't find the phrase, use a more lenient regex
         if phrase_start_index is None:
+            # There is a special case of mentions that are somehow altered by sqlite3 when added to the table,
+            # handle this here(Case: Phrase = .34 will get changed to 0.34 in sqlite3)
+            if self._special_mentions_regex.match(phrase.strip()) is not None:
+                phrase = phrase[1:]
+                print(phrase, phrase[1:])
+
             phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
-            print(phrase, sentence)
+            # print(phrase, sentence, phrase_start_index)
+
         phrase_start_index = phrase_start_index.start()
 
         # Now the start position without counting spaces
@@ -301,53 +300,20 @@ class BertIndexer(AnnoyIndexer):
                     break
 
                 string_position += 1
-        # if is_tokenized:
-        #     tokenized_phrase = self._word_tokenizer.tokenize(phrase)
-        #     phrase_start_token_index, phrase_end_token_index = self._find_sub_list(tokenized_phrase, sentence)
-        #     assert phrase_end_token_index != -1 and phrase_start_token_index != -1
-        #
-        #     phrase_start_token_index += 1
-        #     phrase_end_token_index += 1
-        # else:
-        #     # It is possible that there are still leading or trailing spaces in the phrase that might cause problems
-        #     phrase = str(phrase.strip())
-        #
-        #     # Find the start position of the phrase in the sentence
-        #     phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
-        #     # If the strict regex didn't find the phrase, use a more lenient regex
-        #     if phrase_start_index is None:
-        #         phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
-        #         print(phrase, sentence)
-        #     phrase_start_index = phrase_start_index.start()
-        #
-        #     # Now the start position without counting spaces
-        #     phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
-        #     # Get the end position as well (without counting spaces)
-        #     phrase_end_index = phrase_start_index + len(phrase.replace(" ", ""))
-        #
-        #     # print(phrase, sentence)
-        #     string_position = 0
-        #     phrase_start_token_index = -1
-        #     phrase_end_token_index = -1
-        #     # Get the index of the corresponding tokens for the phrase
-        #     for token_index, token in enumerate(tokens[1:-1]):
-        #         if phrase_start_index <= string_position < phrase_end_index:
-        #             if string_position == phrase_start_index:
-        #                 phrase_start_token_index = token_index + 1
-        #             else:
-        #                 phrase_end_token_index = token_index + 1
-        #             # print(token_index + 1, token, string_position)
-        #
-        #         if token == '[UNK]':
-        #             string_position += 1
-        #         else:
-        #             string_position += len(token.replace("##", ""))
 
-        # Calculate the average of all token embeddings that belong to the phrase
-        # avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index + 1], axis=0)
-        if len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) == 0:
-            print(phrase_start_token_index, phrase_end_token_index)
-        avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
+        if (phrase_start_token_index >= self._embedding_model._seq_len or
+                phrase_end_token_index >= self._embedding_model._seq_len):
+            log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems to be out of"
+                        "the boundaries in this case. Instead of an avg. phrase embedding, an avg. sentence"
+                        "embedding will be returned.\n"
+                        "Sentence: %s\n"
+                        "Phrase: %s" % (self._embedding_model._seq_len, sentence, phrase))
+            avg_phrase_embedding = np.mean(token_embeddings, axis=0)
+        else:
+            assert len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) > 0, "Something went wrong with the phrase embedding retrieval."
+            # print(phrase, sentence)
+            # print(phrase_start_token_index, phrase_end_token_index)
+            avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
         return avg_phrase_embedding
 
     def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:

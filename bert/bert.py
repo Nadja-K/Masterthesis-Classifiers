@@ -23,7 +23,7 @@ class BertEncoder:
         self._output_layer = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
 
         # FIXME: make this an option in the remote_config
-        gpu_memory_fraction = 0.7
+        gpu_memory_fraction = 1.0
         sess_config = tf.ConfigProto()
         sess_config.gpu_options.allow_growth = True
         sess_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_fraction
@@ -109,19 +109,20 @@ class BertEncoder:
                 raise ValueError(
                     'all elements in the list must be non-empty string, but element %d is %s' % (idx, repr(s)))
 
-    def encode(self, sentences: Union[List[List[str]], List[str]], is_tokenized: bool=True):
-        # FIXME: remove the tokenized stuff, just check that the stuff is tokenized bc thats what I need here with my custom tokenizer anyway
+    def encode(self, sentences: List[List[str]], is_tokenized: bool=True):
+        assert is_tokenized is True, "The input sentence has to be pre-tokenized because otherwise you won't be able" \
+                                     "to create a mapping between the tokens and the original sentence if the inbuilt" \
+                                     "tokenizer is being used."
+
         # Check if the input format is correct
         if is_tokenized:
             self._check_input_lst_lst_str(sentences)
-        else:
-            self._check_input_lst_str(sentences)
 
         # Check if all sentences are shorter than the max seq len
         if not self._check_length(sentences, self._seq_len, is_tokenized):
             log.warning('Some of your sentences have more tokens than "max_seq_len=%d" set,'
                         'as a consequence you may get less-accurate or truncated embeddings or lose the '
-                        'embedding for a specified phrase of a sentence.\n')
+                        'embedding for a specified phrase of a sentence.\n' % self._seq_len)
 
         all_token_embeddings = []
         all_feature_tokens = []
