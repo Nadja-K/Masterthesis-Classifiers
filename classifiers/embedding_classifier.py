@@ -43,7 +43,6 @@ class TokenLevelEmbeddingClassifier(Classifier):
         mention = str(mention)
         mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
         suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=num_results)
-        # log.info("%s | %s" % (suggestions, mention))
 
         top_suggestions = {'suggestions': {}}
         if len(suggestions) > 0:
@@ -111,7 +110,6 @@ class BertEmbeddingClassifier(Classifier):
 
     def _classify(self, mention: str, sentence: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=num_results)
-        # log.info("%s | %s" % (suggestions, mention))
 
         top_suggestions = {'suggestions': {}}
         if len(suggestions) > 0:

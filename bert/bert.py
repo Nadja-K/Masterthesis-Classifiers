@@ -12,6 +12,7 @@ from typing import List, Union
 
 log = logging.getLogger(__name__)
 
+
 class BertEncoder:
     def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int=32,
                  layer_indexes: List[int]=[-1, -2, -3, -4], use_one_hot_embeddings: bool=False,
@@ -32,7 +33,6 @@ class BertEncoder:
         self._sess.run(tf.global_variables_initializer())
 
         # And the tokenizer
-        # FIXME: handle sentences that are too long (see bert-as-service)
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 
     def close_session(self):

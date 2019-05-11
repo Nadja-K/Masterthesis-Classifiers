@@ -5,7 +5,6 @@ import lmdb
 import sent2vec
 import logging
 import numpy as np
-import nltk
 import time
 import os
 import glob
@@ -13,7 +12,7 @@ import re
 
 from nltk.corpus import stopwords
 from pathlib import Path
-from typing import Set, List, Tuple, Union
+from typing import List, Tuple
 from abc import ABCMeta, abstractmethod
 from utils.utils import split_compounds
 from bert.bert import BertEncoder
@@ -89,8 +88,8 @@ class AnnoyIndexer(metaclass=ABCMeta):
         file_lmdb = ".".join(file_annoy.split(".")[:-1]) + ".lmdb"
         assert Path(file_annoy).is_file(), "The annoy file could not be found. Make sure the path is correct."
         assert Path(file_lmdb).is_dir(), "The lmdb mapping could not be found. Make sure it is in the same " \
-                                          "directory as the .ann file and has the same file name except for " \
-                                          "the file extension (.lmdb)."
+                                         "directory as the .ann file and has the same file name except for " \
+                                         "the file extension (.lmdb)."
 
         self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
         self._annoy_index.load(file_annoy)
@@ -154,7 +153,6 @@ class Sent2VecIndexer(AnnoyIndexer):
                 emb, _ = self._get_embedding(refactored_entity)
 
                 # Add entity embedding to index
-                # log.info("add item | %s | %s" % (sample_id, refactored_entity))
                 self._annoy_index.add_item(sample_id, emb)
 
                 # Add ID -> word mapping
@@ -192,7 +190,8 @@ class Sent2VecIndexer(AnnoyIndexer):
     #             # Add ID <-> word mapping
     #             mapping.put(str(entity_id).encode(), entity_title.encode())
 
-    def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float], bool]:
+    def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float],
+                                                                                                       bool]:
         emb = self._embedding_model.embed_sentence(phrase)[0]
         phrase_found = True
         if not np.any(emb):
@@ -201,7 +200,6 @@ class Sent2VecIndexer(AnnoyIndexer):
                     log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
                     phrase_found = False
                 else:
-                    # log.warning("Phrase '%s' not found in sent2vec. Attempting again with compound splitting." % phrase)
                     compound_splitted_phrase = ' '.join(
                         split_compounds(phrase, prop_threshold=self._compound_splitting_threshold))
                     emb, phrase_found = self._get_embedding(compound_splitted_phrase, sentence=sentence,
@@ -258,25 +256,12 @@ class BertIndexer(AnnoyIndexer):
 
     def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
                                   token_mapping: List) -> np.ndarray:
-        # FIXME (?)
-        # The phrase is refactored previously to not contain _ symbols, so this has to be considered here as well
-        # phrase = phrase.replace("_", " ").strip()
-        # sentence = sentence.replace("_", " ").strip()
-
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
 
         # If the strict regex didn't find the phrase, use a more lenient regex
         if phrase_start_index is None:
-            # FIXME: remove this?
-            # # There is a special case of mentions that are somehow altered by sqlite3 when added to the table,
-            # # handle this here(Case: Phrase = .34 will get changed to 0.34 in sqlite3)
-            # if self._special_mentions_regex.match(phrase.strip()) is not None:
-            #     phrase = phrase[1:]
-            #     print(phrase, phrase[1:])
-
             phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
-            # print(phrase, sentence, phrase_start_index)
 
         phrase_start_index = phrase_start_index.start()
 
@@ -308,16 +293,16 @@ class BertIndexer(AnnoyIndexer):
 
         if (phrase_start_token_index >= self._embedding_model._seq_len or
                 phrase_end_token_index >= self._embedding_model._seq_len):
-            log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems to be out of"
-                        "the boundaries in this case. Instead of an avg. phrase embedding, an avg. sentence"
-                        "embedding will be returned.\n"
+            log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems "
+                        "to be out of the boundaries in this case. Instead of an avg. phrase embedding, an avg. "
+                        "sentence embedding will be returned.\n"
                         "Sentence: %s\n"
                         "Phrase: %s" % (self._embedding_model._seq_len, sentence, phrase))
             avg_phrase_embedding = np.mean(token_embeddings, axis=0)
         else:
-            assert len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) > 0, "Something went wrong with the phrase embedding retrieval."
-            # print(phrase, sentence)
-            # print(phrase_start_token_index, phrase_end_token_index)
+            assert len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) > 0, \
+                "Something went wrong with the phrase embedding retrieval."
+
             avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
         return avg_phrase_embedding
 
@@ -329,22 +314,21 @@ class BertIndexer(AnnoyIndexer):
             # FIXME: remove is_tokenized from all methods because the tokenization NEEDS to be done with a custom version of the tokenizer anyway
             tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
             # Update the mapping with the CLS and SEP tag
-            mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in mapping] + [('[SEP]', mapping[-1][1]+2)]
+            mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
+                                        mapping] + [('[SEP]', mapping[-1][1]+2)]
 
             tokenized_sentences.append(tokens)
             mappings.append(mapping)
-        #
-        # sentences = tokenized_sentences
+
         sentences_embeddings, _ = self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
-        # sentences_embeddings, sentences_tokens = self._embedding_model.encode(sentences)
 
         phrase_embeddings = []
         for sentence_data in zip(phrases, sentences, sentences_embeddings, mappings):
-            # FIXME: handle max_seq_len=256 cases
             phrase, sentence, tokens_embs, mapping = sentence_data
             phrase = str(phrase.strip())
-            # phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_emb, sentence_tok, is_tokenized=True)
-            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs, token_mapping=mapping)
+
+            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs,
+                                                        token_mapping=mapping)
             phrase_embeddings.append(phrase_emb)
 
         return phrase_embeddings
@@ -356,10 +340,9 @@ class BertIndexer(AnnoyIndexer):
         tokens_embs, new_tokens = self._embedding_model.encode([tokens], is_tokenized=True)
 
         # Update the mapping with the CLS and SEP tag
-        mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in mapping] + [('[SEP]', mapping[-1][1]+2)]
+        mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
+                                    mapping] + [('[SEP]', mapping[-1][1]+2)]
 
-        # FIXME: handle max_seq_len=256 cases
-        # sentence_embs, sentence_tokens = self._embedding_model.encode([sentence])
-        # phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, sentence_embs[0], sentence_tokens[0], is_tokenized=True)
-        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs[0], token_mapping=mapping)
+        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs[0],
+                                                    token_mapping=mapping)
         return phrase_emb, True

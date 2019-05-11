@@ -172,10 +172,7 @@ class Classifier(metaclass=ABCMeta):
             sentence = sample['sentence']
             mention = sample['mention']
             entity = sample['entity_title']
-            # if eval_sentences:
-            #     suggestions = self._classify(sentence, num_results)
-            # else:
-            #     suggestions = self._classify(mention, num_results)
+
             suggestions = self._classify(mention, sentence=sentence, num_results=num_results)
 
             if 'sentence' not in suggestions:

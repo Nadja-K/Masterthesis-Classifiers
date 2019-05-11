@@ -365,7 +365,6 @@ class WordpieceTokenizer(object):
         return output_tokens
 
 
-
 def _is_whitespace(char):
     """Checks whether `chars` is a whitespace character."""
     # \t, \n, and \r are technically contorl characters but we treat them
