@@ -86,6 +86,18 @@ class Classifier(metaclass=ABCMeta):
         command_skip_trivial_samples = """
             AND LOWER(REPLACE(sentences.mention, '_', ' ')) != LOWER(REPLACE(entity_title, '_', ' '))
         """
+        disjoind_sentences_command = """
+            AND sentence NOT IN (
+                SELECT sentence
+                FROM sentences
+                INNER JOIN %s
+                    ON %s.sample_id = sentences.rowid
+                WHERE %s.data_split = ?
+                AND %s.query_context_split = ?
+                AND LENGTH(trim(sentences.mention)) > 0 
+                AND instr(sentences.sentence, trim(sentences.mention)) > 0 
+            )
+        """ % (split_table_name, split_table_name, split_table_name, split_table_name)
 
         # FIXME: shuffle data
         if load_context:
@@ -95,7 +107,8 @@ class Classifier(metaclass=ABCMeta):
         if skip_trivial_samples:
             command = command + command_skip_trivial_samples
 
-        curs.execute(command, (split, 'query'))
+        # Make sure to remove all samples from the query split that have identical sentences in the context split
+        curs.execute(command + disjoind_sentences_command, (split, 'query', split, 'context'))
         query_data = curs.fetchall()
         curs.execute(command, (split, 'context'))
         context_data = curs.fetchall()
