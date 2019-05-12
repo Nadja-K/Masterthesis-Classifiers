@@ -112,6 +112,8 @@ class Classifier(metaclass=ABCMeta):
         query_data = curs.fetchall()
         curs.execute(command, (split, 'context'))
         context_data = curs.fetchall()
+        for x in context_data:
+            print(x['entity_title'], x['mention'], x['sentence'])
 
         return self._filter_out_empty_entities(query_data, context_data, skip_trivial_samples)
 

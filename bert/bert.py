@@ -25,15 +25,21 @@ class BertEncoder:
 
         # FIXME: make this an option in the remote_config
         gpu_memory_fraction = 1.0
-        sess_config = tf.ConfigProto()
-        sess_config.gpu_options.allow_growth = True
-        sess_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_fraction
-        sess_config.log_device_placement = False
-        self._sess = tf.Session(config=sess_config)
-        self._sess.run(tf.global_variables_initializer())
+        self._sess_config = tf.ConfigProto()
+        self._sess_config.gpu_options.allow_growth = True
+        self._sess_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_fraction
+        self._sess_config.log_device_placement = False
+        self._sess = None
+        self.open_session()
 
         # And the tokenizer
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+    def open_session(self):
+        if self._sess is not None:
+            self.close_session()
+        self._sess = tf.Session(config=self._sess_config)
+        self._sess.run(tf.global_variables_initializer())
 
     def close_session(self):
         self._sess.close()
@@ -142,9 +148,9 @@ class BertEncoder:
 
             all_feature_tokens.append(feature.tokens)
             if sample_index % self._batch_size == 0:
-                batch_toke_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
+                batch_token_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
 
-                for token_embeddings in batch_toke_embeddings:
+                for token_embeddings in batch_token_embeddings:
                     all_token_embeddings.append(token_embeddings)
 
                 # Reset the batch
