@@ -25,7 +25,8 @@ log = logging.getLogger(__name__)
 class AnnoyIndexer(metaclass=ABCMeta):
     def __init__(self, embedding_model, embedding_vector_size, metric):
         self._annoy_index = None
-        self._annoy_mapping = None
+        self._annoy_entity_mapping = None
+        self._annoy_sentence_mapping = None
         self._metric = metric
 
         self._embedding_model = embedding_model
@@ -59,13 +60,15 @@ class AnnoyIndexer(metaclass=ABCMeta):
         # Note: the timestamp is necessary to prevent the lmdb file to be overwritten
         timestamp = str(time.time())
         file_annoy = output_filename + "_" + timestamp + ".ann"
-        file_lmdb = output_filename + "_" + timestamp + ".lmdb"
+        file_entity_lmdb = output_filename + "_entity_" + timestamp + ".lmdb"
+        file_sentence_lmdb = output_filename + "_sentence_" + timestamp + ".lmdb"
 
         # Create AnnoyIndex instance
         self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
 
         # Create mapping instance
-        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
+        self._annoy_entity_mapping = lmdb.open(file_entity_lmdb, map_size=int(1e9))
+        self._annoy_sentence_mapping = lmdb.open(file_sentence_lmdb, map_size=int(1e9))
 
         # Retrieve entity embeddings and add them to the annoy index
         self._create_entity_index(context_data)
@@ -85,30 +88,39 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         :param file_annoy: 'path/filename.ann'
         """
-        file_lmdb = ".".join(file_annoy.split(".")[:-1]) + ".lmdb"
+        file_tmp = (".".join(file_annoy.split(".")[:-1])).split("_") #+ ".lmdb"
+        file_entity_lmdb = "_".join(file_tmp[:-1]) + "_entity_" + file_tmp[-1] + ".lmdb"
+        file_sentence_lmdb = "_".join(file_tmp[:-1]) + "_sentence_" + file_tmp[-1] + ".lmdb"
         assert Path(file_annoy).is_file(), "The annoy file could not be found. Make sure the path is correct."
-        assert Path(file_lmdb).is_dir(), "The lmdb mapping could not be found. Make sure it is in the same " \
-                                         "directory as the .ann file and has the same file name except for " \
-                                         "the file extension (.lmdb)."
+        assert Path(file_entity_lmdb).is_dir(), "The entity lmdb mapping could not be found. Make sure it is in the same " \
+                                                "directory as the .ann file and has the same file name except for " \
+                                                "the file extension (.lmdb)."
+        assert Path(file_sentence_lmdb).is_dir(), "The sentence lmdb mapping could not be found. Make sure it is in the same " \
+                                                  "directory as the .ann file and has the same file name except for " \
+                                                  "the file extension (.lmdb)."
 
         self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
         self._annoy_index.load(file_annoy)
 
-        self._annoy_mapping = lmdb.open(file_lmdb, map_size=int(1e9))
+        self._annoy_entity_mapping = lmdb.open(file_entity_lmdb, map_size=int(1e9))
+        self._annoy_sentence_mapping = lmdb.open(file_sentence_lmdb, map_size=int(1e9))
 
-    def get_nns_by_vector(self, emb_vector: List[float], num_nn: int) -> List[Tuple[str, float]]:
+    def get_nns_by_vector(self, emb_vector: List[float], num_nn: int) -> List[Tuple[str, float, str]]:
         """
         Returns a set of nearest neighbour entities for the given embedding vector.
         """
         assert self._annoy_index is not None, "No annoy index has been loaded. Call load_entity_index(file_annoy)"
-        assert self._annoy_mapping is not None, "No annoy mapping has been loaded. Call load_entity_index(file_annoy)"
+        assert self._annoy_entity_mapping is not None, "No annoy entity mapping has been loaded. Call load_entity_index(file_annoy)"
+        assert self._annoy_sentence_mapping is not None, "No annoy sentence mapping has been loaded. Call load_entity_index(file_annoy)"
 
         nearest_neighbours = self._annoy_index.get_nns_by_vector(emb_vector, num_nn, include_distances=True)
 
         nns_entities = []
-        with self._annoy_mapping.begin() as mapping:
-            for neighbour_id, distance in zip(nearest_neighbours[0], nearest_neighbours[1]):
-                nns_entities.append((mapping.get(str(neighbour_id).encode()).decode(), distance))
+        with self._annoy_entity_mapping.begin() as entity_mapping:
+            with self._annoy_sentence_mapping.begin() as sentence_mapping:
+                for neighbour_id, distance in zip(nearest_neighbours[0], nearest_neighbours[1]):
+                    nns_entities.append((entity_mapping.get(str(neighbour_id).encode()).decode(), distance,
+                                         sentence_mapping.get(str(neighbour_id).encode()).decode()))
 
         return nns_entities
 
@@ -117,7 +129,8 @@ class AnnoyIndexer(metaclass=ABCMeta):
         Returns a set of nearest neighbour entities for the given phrase.
         """
         assert self._annoy_index is not None, "No annoy index has been loaded. Call load_entity_index(file_annoy)"
-        assert self._annoy_mapping is not None, "No annoy mapping has been loaded. Call load_entity_index(file_annoy)"
+        assert self._annoy_entity_mapping is not None, "No annoy entity mapping has been loaded. Call load_entity_index(file_annoy)"
+        assert self._annoy_sentence_mapping is not None, "No annoy sentence mapping has been loaded. Call load_entity_index(file_annoy)"
 
         phrase = str(phrase)
         emb, phrase_found = self._get_embedding(phrase, sentence=sentence)
@@ -141,54 +154,25 @@ class Sent2VecIndexer(AnnoyIndexer):
         super().__init__(embedding_model, embedding_vector_size, metric)
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
-        with self._annoy_mapping.begin(write=True) as mapping:
-            # Collect all entities for the token based sent2vec model
-            entities = set([str(sample['entity_title']) for sample in context_data])
+        with self._annoy_entity_mapping.begin(write=True) as entity_mapping:
+            with self._annoy_sentence_mapping.begin(write=True) as sentence_mapping:
+                # Collect all entities for the token based sent2vec model
+                entities = set([str(sample['entity_title']) for sample in context_data])
 
-            for sample_id, entity in enumerate(entities):
-                # Replace _ symbols with spaces
-                refactored_entity = entity.replace("_", " ")
+                for sample_id, entity in enumerate(entities):
+                    # Replace _ symbols with spaces
+                    refactored_entity = entity.replace("_", " ")
 
-                # Get the entity embedding
-                emb, _ = self._get_embedding(refactored_entity)
+                    # Get the entity embedding
+                    emb, _ = self._get_embedding(refactored_entity)
 
-                # Add entity embedding to index
-                self._annoy_index.add_item(sample_id, emb)
+                    # Add entity embedding to index
+                    self._annoy_index.add_item(sample_id, emb)
 
-                # Add ID -> word mapping
-                mapping.put(str(sample_id).encode(), entity.encode())
-
-    # FIXME: remove this or make a sent2vec classifier that does not work on token level
-    # def _create_entity_index(self, context_data: List[sqlite3.Row]):
-    #     """
-    #     Sent2Vec test for using context sentences as entity reference instead of working on token level.
-    #
-    #     """
-    #     with self._annoy_mapping.begin(write=True) as mapping:
-    #         context_entities = []
-    #         context_sentences = []
-    #
-    #         # Collect all sentences for BERT
-    #         for sample in context_data:
-    #             context_entities.append(
-    #                 {'entity_id': int(sample['entity_id']), 'entity_title': str(sample['entity_title'])})
-    #             context_sentences.append(str(sample['sentence']))
-    #             # context_sentences.append(self._word_tokenizer.tokenize(str(sample['sentence'])))
-    #
-    #         # Get the embeddings for all sentences
-    #         embeddings = self._embedding_model.embed_sentences(context_sentences)
-    #
-    #         # Add the embeddings to the annoy index
-    #         for data in zip(context_entities, embeddings):
-    #             entity_id = data[0]['entity_id']
-    #             entity_title = data[0]['entity_title']
-    #             emb = data[1]
-    #
-    #             # Add entity embedding to index
-    #             self._annoy_index.add_item(entity_id, emb)
-    #
-    #             # Add ID <-> word mapping
-    #             mapping.put(str(entity_id).encode(), entity_title.encode())
+                    # Add ID -> word mapping
+                    entity_mapping.put(str(sample_id).encode(), entity.encode())
+                    # While the sentence mapping is not needed for this model, the code structure needs a dummy.
+                    sentence_mapping.put(str(sample_id).encode(), "".encode())
 
     def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float],
                                                                                                        bool]:
@@ -229,30 +213,33 @@ class BertIndexer(AnnoyIndexer):
         self._embedding_model.close_session()
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
-        with self._annoy_mapping.begin(write=True) as mapping:
-            context_entities = []
-            context_sentences = []
-            context_mentions = []
+        with self._annoy_entity_mapping.begin(write=True) as entity_mapping:
+            with self._annoy_sentence_mapping.begin(write=True) as sentence_mapping:
+                context_entities = []
+                context_sentences = []
+                context_mentions = []
 
-            # Collect all sentences for BERT
-            for sample in context_data:
-                context_entities.append(str(sample['entity_title']))
-                context_sentences.append(str(sample['sentence']))
-                context_mentions.append(str(sample['mention']))
+                # Collect all sentences for BERT
+                for sample in context_data:
+                    context_entities.append(str(sample['entity_title']))
+                    context_sentences.append(str(sample['sentence']))
+                    context_mentions.append(str(sample['mention']))
 
-            # Get the embeddings for all sentences
-            embeddings = self._get_embeddings(context_mentions, context_sentences)
+                # Get the embeddings for all sentences
+                embeddings = self._get_embeddings(context_mentions, context_sentences)
 
-            # Add the embeddings to the annoy index
-            for sample_id, data in enumerate(zip(context_data, embeddings)):
-                entity_title = data[0]['entity_title']
-                emb = data[1]
+                # Add the embeddings to the annoy index
+                for sample_id, data in enumerate(zip(context_data, embeddings)):
+                    entity_title = data[0]['entity_title']
+                    entity_sentence = data[0]['sentence']
+                    emb = data[1]
 
-                # Add entity embedding to index
-                self._annoy_index.add_item(sample_id, emb)
+                    # Add entity embedding to index
+                    self._annoy_index.add_item(sample_id, emb)
 
-                # Add ID -> word mapping
-                mapping.put(str(sample_id).encode(), entity_title.encode())
+                    # Add ID -> word mapping
+                    entity_mapping.put(str(sample_id).encode(), entity_title.encode())
+                    sentence_mapping.put(str(sample_id).encode(), entity_sentence.encode())
 
     def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
                                   token_mapping: List) -> np.ndarray:
@@ -310,9 +297,7 @@ class BertIndexer(AnnoyIndexer):
         tokenized_sentences = []
         mappings = []
         for sentence in sentences:
-            # FIXME: move tokenizer out of embedding model and move it into this class
-            # FIXME: remove is_tokenized from all methods because the tokenization NEEDS to be done with a custom version of the tokenizer anyway
-            tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
+            tokens, mapping = self._embedding_model.tokenize(sentence)
             # Update the mapping with the CLS and SEP tag
             mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
                                         mapping] + [('[SEP]', mapping[-1][1]+2)]

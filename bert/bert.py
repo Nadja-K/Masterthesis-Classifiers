@@ -8,7 +8,7 @@ from bert.extract_features import convert_lst_to_features
 
 import logging
 import tensorflow as tf
-from typing import List, Union
+from typing import List, Union, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -115,6 +115,10 @@ class BertEncoder:
                 raise ValueError(
                     'all elements in the list must be non-empty string, but element %d is %s' % (idx, repr(s)))
 
+    def tokenize(self, sentence: str) -> Tuple[List[str], List[Tuple[str, int]]]:
+        tokens, mapping = self._tokenizer.tokenize(sentence)
+        return tokens, mapping
+
     def encode(self, sentences: List[List[str]], is_tokenized: bool=True):
         assert is_tokenized is True, "The input sentence has to be pre-tokenized because otherwise you won't be able" \
                                      "to create a mapping between the tokens and the original sentence if the inbuilt" \
@@ -145,6 +149,7 @@ class BertEncoder:
             batch[self._input_ids].append(feature.input_ids)
             batch[self._input_mask].append(feature.input_mask)
             batch[self._input_type_ids].append(feature.input_type_ids)
+            # log.info("Sample: %d | Tokens: %s" % (sample_index, feature.tokens))
 
             all_feature_tokens.append(feature.tokens)
             if sample_index % self._batch_size == 0:
