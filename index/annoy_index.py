@@ -88,7 +88,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         :param file_annoy: 'path/filename.ann'
         """
-        file_tmp = (".".join(file_annoy.split(".")[:-1])).split("_") #+ ".lmdb"
+        file_tmp = (".".join(file_annoy.split(".")[:-1])).split("_")
         file_entity_lmdb = "_".join(file_tmp[:-1]) + "_entity_" + file_tmp[-1] + ".lmdb"
         file_sentence_lmdb = "_".join(file_tmp[:-1]) + "_sentence_" + file_tmp[-1] + ".lmdb"
         assert Path(file_annoy).is_file(), "The annoy file could not be found. Make sure the path is correct."
