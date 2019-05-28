@@ -139,12 +139,11 @@ class InputFeatures(object):
 
 
 def convert_lst_to_features(lst_str: Union[List[List[str]], List[str]], max_seq_length: int, tokenizer: tokenization,
-                            is_tokenized: bool = False, mask_cls_sep: bool = False):
+                            mask_cls_sep: bool = False):
     """Loads a data file into a list of `InputBatch`s."""
-    examples = _read_tokenized_examples(lst_str) if is_tokenized else _read_examples(lst_str)
+    examples = _read_tokenized_examples(lst_str)
 
-    # FIXME: remove the tokenizer from here, only accept already tokenized values
-    _tokenize = lambda x: tokenizer.mark_unk_tokens(x) if is_tokenized else tokenizer.tokenize(x)
+    _tokenize = lambda x: tokenizer.mark_unk_tokens(x)
     all_tokens = [(ex.unique_id, _tokenize(ex.text_a), _tokenize(ex.text_b) if ex.text_b else []) for ex in examples]
 
     assert max_seq_length > 0

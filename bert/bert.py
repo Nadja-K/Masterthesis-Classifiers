@@ -8,6 +8,8 @@ from bert.extract_features import convert_lst_to_features
 
 import logging
 import tensorflow as tf
+import re
+import numpy as np
 from typing import List, Union, Tuple
 
 log = logging.getLogger(__name__)
@@ -21,7 +23,8 @@ class BertEncoder:
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
 
-        self._output_layer = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
+        self._output_layer, self._input_ids, self._input_mask, self._input_type_ids, self._mention_mask\
+            = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
 
         # FIXME: make this an option in the remote_config
         gpu_memory_fraction = 1.0
@@ -44,20 +47,23 @@ class BertEncoder:
     def close_session(self):
         self._sess.close()
 
-    def _load_model(self, bert_config_file: str, init_checkpoint: str, use_one_hot_embeddings: bool=False):
+    def _load_model(self, bert_config_file: str, init_checkpoint: str, use_one_hot_embeddings: bool=False,
+                    placeholder_name_add: str="", scope: str=None):
         bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-        self._input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids')
-        self._input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask')
-        self._input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids')
+        _input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids' + placeholder_name_add)
+        _input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask' + placeholder_name_add)
+        _input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids' + placeholder_name_add)
+        _mention_mask = tf.placeholder(tf.float32, shape=(None, None), name='mention_mask' + placeholder_name_add)
 
         # Load the Bert Model
         model = modeling.BertModel(
             config=bert_config,
             is_training=False,
-            input_ids=self._input_ids,
-            input_mask=self._input_mask,
-            token_type_ids=self._input_type_ids,
-            use_one_hot_embeddings=use_one_hot_embeddings
+            input_ids=_input_ids,
+            input_mask=_input_mask,
+            token_type_ids=_input_type_ids,
+            use_one_hot_embeddings=use_one_hot_embeddings,
+            scope=scope
         )
         tvars = tf.trainable_variables()
 
@@ -68,10 +74,15 @@ class BertEncoder:
 
         # Get the defined output layer of the model (or concat multiple layers if specified)
         if len(self._layer_indexes) == 1:
-            return model.get_all_encoder_layers()[self._layer_indexes[0]]
+            output_layer = model.get_all_encoder_layers()[self._layer_indexes[0]]
         else:
             all_layers = [model.get_all_encoder_layers()[l] for l in self._layer_indexes]
-            return tf.concat(all_layers, -1)
+            output_layer = tf.concat(all_layers, -1)
+
+        mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(_mention_mask, -1), axis=1),
+                                         tf.expand_dims(tf.reduce_sum(_mention_mask, axis=1), axis=-1))
+
+        return mention_embedding_layer, _input_ids, _input_mask, _input_type_ids, _mention_mask
 
     @staticmethod
     def _check_length(texts: Union[List[str], List[List[str]]], len_limit: int, tokenized: bool):
@@ -119,36 +130,105 @@ class BertEncoder:
         tokens, mapping = self._tokenizer.tokenize(sentence)
         return tokens, mapping
 
-    def encode(self, sentences: List[List[str]], is_tokenized: bool=True):
-        assert is_tokenized is True, "The input sentence has to be pre-tokenized because otherwise you won't be able" \
-                                     "to create a mapping between the tokens and the original sentence if the inbuilt" \
-                                     "tokenizer is being used."
+    def _get_mention_mask(self, mention: str, sentence: str, token_mapping: List[Tuple[str, int]]) -> np.ndarray:
+        mask = np.zeros(self._seq_len)
 
-        # Check if the input format is correct
-        if is_tokenized:
-            self._check_input_lst_lst_str(sentences)
+        # Find the start position of the phrase in the sentence
+        phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(mention) + ')(?![\\w])', sentence)
+
+        # If the strict regex didn't find the phrase, use a more lenient regex
+        if phrase_start_index is None:
+            phrase_start_index = re.search(r'(' + re.escape(mention) + ')', sentence)
+
+        phrase_start_index = phrase_start_index.start()
+
+        # Now the start position without counting spaces
+        phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
+        # Get the end position as well (without counting spaces)
+        phrase_end_index = phrase_start_index + len(mention.replace(" ", "")) - 1
+
+        string_position = 0
+        phrase_start_token_index = -1
+        phrase_end_token_index = -1
+        for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:]):
+            cur_word_token, cur_word_token_emb_index = current_token
+            next_word_token, next_word_token_emb_index = next_token
+
+            # If the end has already been found, stop
+            if phrase_end_token_index != -1:
+                break
+
+            for t in cur_word_token:
+                if string_position == phrase_start_index:
+                    phrase_start_token_index = cur_word_token_emb_index
+
+                if string_position == phrase_end_index:
+                    phrase_end_token_index = next_word_token_emb_index
+                    break
+
+                string_position += 1
+
+        if (phrase_start_token_index >= self._seq_len or phrase_end_token_index >= self._seq_len):
+            log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems "
+                        "to be out of the boundaries in this case. Instead of an avg. phrase embedding, an avg. "
+                        "sentence embedding will be returned.\n"
+                        "Sentence: %s\n"
+                        "Phrase: %s" % (self._seq_len, sentence, mention))
+            mask = np.ones(self._seq_len)
+        else:
+            assert len(mask[phrase_start_token_index:phrase_end_token_index]) > 0, \
+                "Something went wrong with the phrase embedding retrieval."
+
+            mask[phrase_start_token_index:phrase_end_token_index] = 1
+
+        print(mask)
+        return mask
+
+    def encode(self, mentions: List[str], original_sentences: List[str]):
+        # Tokenize the sentences
+        tokenized_sentences = []
+        tokens_mappings = []
+        for sentence in original_sentences:
+            tokens, mapping = self.tokenize(sentence)
+
+            # Update the mapping with the CLS and SEP tag
+            mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
+                                        mapping] + [('[SEP]', mapping[-1][1]+2)]
+            tokenized_sentences.append(tokens)
+            tokens_mappings.append(mapping)
+
+        # Check if the tokenized input format is correct
+        self._check_input_lst_lst_str(tokenized_sentences)
 
         # Check if all sentences are shorter than the max seq len
-        if not self._check_length(sentences, self._seq_len, is_tokenized):
+        if not self._check_length(tokenized_sentences, self._seq_len, True):
             log.warning('Some of your sentences have more tokens than "max_seq_len=%d" set,'
                         'as a consequence you may get less-accurate or truncated embeddings or lose the '
                         'embedding for a specified phrase of a sentence.\n' % self._seq_len)
 
-        all_token_embeddings = []
+        all_mention_embeddings = []
         all_feature_tokens = []
 
         batch = {
             self._input_ids: [],
             self._input_mask: [],
-            self._input_type_ids: []
+            self._input_type_ids: [],
+            self._mention_mask: []
         }
-        for sample_index, feature in enumerate(convert_lst_to_features(sentences,
-                                                                       max_seq_length=self._seq_len,
-                                                                       tokenizer=self._tokenizer,
-                                                                       is_tokenized=is_tokenized)):
+        # Tokenizer is still needed for mapping and some other stuff that happens in the convert method
+        for sample_index, data in enumerate(zip(convert_lst_to_features(tokenized_sentences,
+                                                                        max_seq_length=self._seq_len,
+                                                                        tokenizer=self._tokenizer),
+                                                mentions, original_sentences, tokens_mappings)):
+            feature, mention, sentence, token_mapping = data
+
+            # Create mention mask
+            mention_mask = self._get_mention_mask(mention, sentence, token_mapping)
+
             batch[self._input_ids].append(feature.input_ids)
             batch[self._input_mask].append(feature.input_mask)
             batch[self._input_type_ids].append(feature.input_type_ids)
+            batch[self._mention_mask].append(mention_mask)
             # log.info("Sample: %d | Tokens: %s" % (sample_index, feature.tokens))
 
             all_feature_tokens.append(feature.tokens)
@@ -156,20 +236,21 @@ class BertEncoder:
                 batch_token_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
 
                 for token_embeddings in batch_token_embeddings:
-                    all_token_embeddings.append(token_embeddings)
+                    all_mention_embeddings.append(token_embeddings)
 
                 # Reset the batch
                 batch = {
                     self._input_ids: [],
                     self._input_mask: [],
-                    self._input_type_ids: []
+                    self._input_type_ids: [],
+                    self._mention_mask: []
                 }
 
         # Handle leftover samples that did not fit in the last batch
         if len(batch[self._input_ids]) > 0:
-            batch_token_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
+            batch_mention_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
 
-            for token_embeddings in batch_token_embeddings:
-                all_token_embeddings.append(token_embeddings)
+            for mention_embedding in batch_mention_embeddings:
+                all_mention_embeddings.append(mention_embedding)
 
-        return all_token_embeddings, all_feature_tokens
+        return all_mention_embeddings, all_feature_tokens

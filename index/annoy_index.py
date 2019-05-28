@@ -124,7 +124,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
 
         return nns_entities
 
-    def get_nns_by_phrase(self, phrase: str, sentence: str, num_nn: int = 1) -> List[Tuple[str, float]]:
+    def get_nns_by_phrase(self, phrase: str, sentence: str, num_nn: int = 1) -> List[Tuple[str, float, str]]:
         """
         Returns a set of nearest neighbour entities for the given phrase.
         """
@@ -206,7 +206,7 @@ class BertIndexer(AnnoyIndexer):
         self._stopwords = set(stopwords.words('german'))
         self._special_mentions_regex = re.compile("^0\\.\\d+$")
 
-        embeddings_vector_size = be.encode([['t']], is_tokenized=True)[0][0].shape[-1]
+        embeddings_vector_size = be.encode(['t'], ['t'])[0][0].shape[-1]
         super().__init__(be, embeddings_vector_size, metric)
 
     def close_session(self):
@@ -241,93 +241,15 @@ class BertIndexer(AnnoyIndexer):
                     entity_mapping.put(str(sample_id).encode(), entity_title.encode())
                     sentence_mapping.put(str(sample_id).encode(), entity_sentence.encode())
 
-    def _get_avg_phrase_embedding(self, phrase: str, sentence: str, token_embeddings: np.ndarray,
-                                  token_mapping: List) -> np.ndarray:
-        # Find the start position of the phrase in the sentence
-        phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(phrase) + ')(?![\\w])', sentence)
-
-        # If the strict regex didn't find the phrase, use a more lenient regex
-        if phrase_start_index is None:
-            phrase_start_index = re.search(r'(' + re.escape(phrase) + ')', sentence)
-
-        phrase_start_index = phrase_start_index.start()
-
-        # Now the start position without counting spaces
-        phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
-        # Get the end position as well (without counting spaces)
-        phrase_end_index = phrase_start_index + len(phrase.replace(" ", "")) - 1
-
-        string_position = 0
-        phrase_start_token_index = -1
-        phrase_end_token_index = -1
-        for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:]):
-            cur_word_token, cur_word_token_emb_index = current_token
-            next_word_token, next_word_token_emb_index = next_token
-
-            # If the end has already been found, stop
-            if phrase_end_token_index != -1:
-                break
-
-            for _ in cur_word_token:
-                if string_position == phrase_start_index:
-                    phrase_start_token_index = cur_word_token_emb_index
-
-                if string_position == phrase_end_index:
-                    phrase_end_token_index = next_word_token_emb_index
-                    break
-
-                string_position += 1
-
-        if (phrase_start_token_index >= self._embedding_model._seq_len or
-                phrase_end_token_index >= self._embedding_model._seq_len):
-            log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems "
-                        "to be out of the boundaries in this case. Instead of an avg. phrase embedding, an avg. "
-                        "sentence embedding will be returned.\n"
-                        "Sentence: %s\n"
-                        "Phrase: %s" % (self._embedding_model._seq_len, sentence, phrase))
-            avg_phrase_embedding = np.mean(token_embeddings, axis=0)
-        else:
-            assert len(token_embeddings[phrase_start_token_index:phrase_end_token_index]) > 0, \
-                "Something went wrong with the phrase embedding retrieval."
-
-            avg_phrase_embedding = np.mean(token_embeddings[phrase_start_token_index:phrase_end_token_index], axis=0)
-        return avg_phrase_embedding
-
     def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:
-        tokenized_sentences = []
-        mappings = []
-        for sentence in sentences:
-            tokens, mapping = self._embedding_model.tokenize(sentence)
-            # Update the mapping with the CLS and SEP tag
-            mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
-                                        mapping] + [('[SEP]', mapping[-1][1]+2)]
+        for i in enumerate(phrases):
+            phrases[i] = str(phrases[i].strip())
 
-            tokenized_sentences.append(tokens)
-            mappings.append(mapping)
-
-        sentences_embeddings, _ = self._embedding_model.encode(tokenized_sentences, is_tokenized=True)
-
-        phrase_embeddings = []
-        for sentence_data in zip(phrases, sentences, sentences_embeddings, mappings):
-            phrase, sentence, tokens_embs, mapping = sentence_data
-            phrase = str(phrase.strip())
-
-            phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs,
-                                                        token_mapping=mapping)
-            phrase_embeddings.append(phrase_emb)
-
-        return phrase_embeddings
+        mentions_embeddings, _ = self._embedding_model.encode(phrases, sentences)
+        return mentions_embeddings
 
     def _get_embedding(self, phrase: str, sentence: str) -> Tuple[np.ndarray, bool]:
         phrase = str(phrase.strip())
 
-        tokens, mapping = self._embedding_model._tokenizer.tokenize(sentence)
-        tokens_embs, new_tokens = self._embedding_model.encode([tokens], is_tokenized=True)
-
-        # Update the mapping with the CLS and SEP tag
-        mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
-                                    mapping] + [('[SEP]', mapping[-1][1]+2)]
-
-        phrase_emb = self._get_avg_phrase_embedding(phrase, sentence, token_embeddings=tokens_embs[0],
-                                                    token_mapping=mapping)
-        return phrase_emb, True
+        mention_embedding, _ = self._embedding_model.encode([phrase], [sentence])
+        return mention_embedding[0], True
