@@ -18,13 +18,14 @@ log = logging.getLogger(__name__)
 class BertEncoder:
     def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int=32,
                  layer_indexes: List[int]=[-1, -2, -3, -4], use_one_hot_embeddings: bool=False,
-                 do_lower_case: bool=True):
+                 do_lower_case: bool=True, load_model: bool=True):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
 
-        self._output_layer, self._input_ids, self._input_mask, self._input_type_ids, self._mention_mask\
-            = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
+        if load_model:
+            self._output_layer, self._input_ids, self._input_mask, self._input_type_ids, self._mention_mask\
+                = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
 
         # FIXME: make this an option in the remote_config
         gpu_memory_fraction = 1.0
