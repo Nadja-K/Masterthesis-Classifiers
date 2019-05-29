@@ -242,7 +242,7 @@ class BertIndexer(AnnoyIndexer):
                     sentence_mapping.put(str(sample_id).encode(), entity_sentence.encode())
 
     def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:
-        for i in enumerate(phrases):
+        for i, _ in enumerate(phrases):
             phrases[i] = str(phrases[i].strip())
 
         mentions_embeddings, _ = self._embedding_model.encode(phrases, sentences)

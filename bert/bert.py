@@ -182,7 +182,6 @@ class BertEncoder:
 
             mask[phrase_start_token_index:phrase_end_token_index] = 1
 
-        print(mask)
         return mask
 
     def encode(self, mentions: List[str], original_sentences: List[str]):
