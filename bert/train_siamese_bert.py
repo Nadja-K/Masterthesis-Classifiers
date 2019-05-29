@@ -57,10 +57,10 @@ def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, 
 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate, num_train_steps,
                      num_warmup_steps):
-    """Returns `model_fn` closure for TPUEstimator."""
+    """Returns `model_fn` closure for Estimator."""
 
     def model_fn(features, labels, mode, params):
-        """The `model_fn` for TPUEstimator."""
+        """The `model_fn` for Estimator."""
         if mode != tf.estimator.ModeKeys.TRAIN:
             raise ValueError("Only TRAIN mode is supported: %s" % mode)
 
@@ -87,23 +87,24 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
                                                scope="bert")
 
         # Create loss
-        # FIXME: set margin in the config file
-        loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
-                                                                  embeddings_anchor=output_layer_left,
-                                                                  embeddings_positive=output_layer_right,
-                                                                  margin=2.0)
-
-        loss = tf.Print(loss, [loss], message="loss values:")
+        with tf.variable_scope("loss"):
+            # FIXME: set margin in the config file
+            loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
+                                                                      embeddings_anchor=output_layer_left,
+                                                                      embeddings_positive=output_layer_right,
+                                                                      margin=2.0)
 
         train_op = optimization.create_optimizer(
             loss, learning_rate, num_train_steps, num_warmup_steps, False
         )
 
-        output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+        # Adds a logging hook for the loss during training
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss}, every_n_iter=1, at_end=True)
+        output_spec = tf.estimator.EstimatorSpec(
             mode=mode,
             loss=loss,
             train_op=train_op,
-            scaffold_fn=None
+            training_hooks=[logging_hook]
         )
         return output_spec
 
@@ -128,8 +129,6 @@ def input_fn_builder(mentions: List[Tuple[str, str]], original_sentences: List[T
 
             mention_mask1 = _get_mention_mask(max_seq_length, m1, s1, mapping1)
             mention_mask2 = _get_mention_mask(max_seq_length, m2, s2, mapping2)
-            print(m1, s1)
-            print(m2, s2)
 
             yield {
                 'input_ids_left': [features[0].input_ids],
@@ -175,6 +174,7 @@ def input_fn_builder(mentions: List[Tuple[str, str]], original_sentences: List[T
 
         d = d.repeat()
         d = d.shuffle(buffer_size=100)
+        #FIXME: batch?
         # d = d.batch(batch_size=batch_size, drop_remainder=drop_remainder)
         return d
 
@@ -251,7 +251,7 @@ class SiameseBert:
         self._save_checkpoints_steps = 1000
         self._iterations_per_loop = 1
         self._num_tpu_cores = 8
-        self._num_train_epochs = 1.0
+        self._num_train_epochs = 10.0
         self._warmup_proportion = 0.1
         self._learning_rate = 2e-5
 
@@ -270,17 +270,11 @@ class SiameseBert:
 
         tf.gfile.MakeDirs(self._output_dir)
 
-        is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-        run_config = tf.contrib.tpu.RunConfig(
-            cluster=None,
-            master=None,
+        # FIXME: make save_summary_steps a config param
+        run_config = tf.estimator.RunConfig(
             model_dir=self._output_dir,
             save_checkpoints_steps=self._save_checkpoints_steps,
-            tpu_config=tf.contrib.tpu.TPUConfig(
-                iterations_per_loop=self._iterations_per_loop,
-                num_shards=self._num_tpu_cores,
-                per_host_input_for_training=is_per_host
-            )
+            save_summary_steps=1
         )
 
         # FIXME: train_examples
@@ -314,13 +308,11 @@ class SiameseBert:
             num_warmup_steps=num_warmup_steps
         )
 
-        estimator = tf.contrib.tpu.TPUEstimator(
-            use_tpu=False,
+        estimator = tf.estimator.Estimator(
             model_fn=model_fn,
+            model_dir=self._output_dir,
             config=run_config,
-            train_batch_size=self._batch_size,
-            eval_batch_size=self._batch_size,
-            predict_batch_size=self._batch_size
+            params={'batch_size': self._batch_size}
         )
 
         tf.logging.info("***** Running training *****")
@@ -329,7 +321,7 @@ class SiameseBert:
         tf.logging.info("   Num steps = %d", num_train_steps)
         # FIXME
         train_input_fn = input_fn_builder(
-            mentions=[('Binärbäume', 'Baum'), ('Binärbäume', 'Baum')],
+            mentions=[('Binärbäume', 'Baum'), ('Binärbäume', 'Baum'), ('Baum', 'Baum'), ('Baum', 'Baum')],
             original_sentences=train_examples,
             tokenizer=self._tokenizer,
             max_seq_length=self._seq_len,
