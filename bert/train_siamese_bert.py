@@ -4,8 +4,9 @@ from bert import modeling
 from bert import optimization
 from bert.extract_features import convert_lst_to_features
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union
 import tensorflow as tf
+from tensorflow.python.ops import math_ops
 import re
 import logging
 import numpy as np
@@ -58,6 +59,37 @@ def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate, num_train_steps,
                      num_warmup_steps):
     """Returns `model_fn` closure for Estimator."""
+    def custom_contrastive_loss(labels, embeddings_anchor, embeddings_positive, margin=2.0):
+        """
+        Computes the angular contrastive loss as opposed to the standard implementation
+        that uses the euclidean distance between two samples.
+
+        Args:
+            labels: 1-D tf.int32 `Tensor` with shape [batch_size] of
+                binary labels indicating positive vs negative pair.
+            embeddings_anchor: 2-D float `Tensor` of embedding vectors for the anchor
+                images. Embeddings should be l2 normalized.
+            embeddings_positive: 2-D float `Tensor` of embedding vectors for the
+                positive images. Embeddings should be l2 normalized.
+            margin: margin term in the loss definition.
+
+        Returns:
+            contrastive_loss: tf.float32 scalar.
+        """
+        # Get per pair distances
+        # Note: the max margin for the cosine distance should be 2
+        distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
+                                                         tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
+                                                         reduction=tf.losses.Reduction.NONE), [-1])
+
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
+        # Add contrastive loss for the siamese network.
+        #   label here is {0,1} for neg, pos.
+        return math_ops.reduce_mean(
+            math_ops.to_float(labels) * math_ops.square(distances) +
+            (1. - math_ops.to_float(labels)) *
+            math_ops.square(math_ops.maximum(margin - distances, 0.)),
+            name='contrastive_loss')
 
     def model_fn(features, labels, mode, params):
         """The `model_fn` for Estimator."""
@@ -88,17 +120,23 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         # Create loss
         with tf.variable_scope("loss"):
-            # FIXME: set margin in the config file
-            loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
-                                                                      embeddings_anchor=output_layer_left,
-                                                                      embeddings_positive=output_layer_right,
-                                                                      margin=2.0)
+            # FIXME: set margin in the config file (for the cosine distance it should be 2)
+            loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
+                                           embeddings_positive=output_layer_right, margin=2.0)
+            # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
+            #                                                           embeddings_anchor=output_layer_left,
+            #                                                           embeddings_positive=output_layer_right,
+            #                                                           margin=20.0)
+
+        loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
+        loss = tf.Print(loss, [loss], message="Loss value:")
 
         train_op = optimization.create_optimizer(
             loss, learning_rate, num_train_steps, num_warmup_steps, False
         )
 
         # Adds a logging hook for the loss during training
+        # FIXME every_n_iter param
         logging_hook = tf.train.LoggingTensorHook({"loss": loss}, every_n_iter=1, at_end=True)
         output_spec = tf.estimator.EstimatorSpec(
             mode=mode,
@@ -111,11 +149,17 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
     return model_fn
 
 
-def input_fn_builder(mentions: List[Tuple[str, str]], original_sentences: List[Tuple[str, str, int]], tokenizer: tokenization.FullTokenizer,
+def input_fn_builder(samples: List[Dict[str, Union[str, int]]], tokenizer: tokenization.FullTokenizer,
                      max_seq_length: int, drop_remainder: bool):
 
     def gen():
-        for (m1, m2), (s1, s2, label) in zip(mentions, original_sentences):
+        for sample in samples:
+            s1 = sample['s1']
+            s2 = sample['s2']
+            m1 = sample['m1']
+            m2 = sample['m2']
+            label = sample['label']
+
             tokens1, mapping1 = tokenizer.tokenize(s1)
             tokens2, mapping2 = tokenizer.tokenize(s2)
 
@@ -174,8 +218,10 @@ def input_fn_builder(mentions: List[Tuple[str, str]], original_sentences: List[T
 
         d = d.repeat()
         d = d.shuffle(buffer_size=100)
-        #FIXME: batch?
-        # d = d.batch(batch_size=batch_size, drop_remainder=drop_remainder)
+
+        # Unbatch before batching is possible (bc of the (None, ...) definition above)
+        d = d.apply(tf.data.experimental.unbatch())
+        d = d.batch(batch_size=batch_size, drop_remainder=drop_remainder)
         return d
 
     return input_fn
@@ -237,23 +283,21 @@ def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: 
 
 class SiameseBert:
     def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int = 32,
-                 layer_indexes: List[int] = [-1, -2, -3, -4], use_one_hot_embeddings: bool = False,
-                 do_lower_case: bool = True):
+                 layer_indexes: List[int] = [-1, -2, -3, -4], do_lower_case: bool = True):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
 
+        self._do_lower_case = do_lower_case
+        self._init_checkpoint = init_checkpoint
+        self._bert_config_file = bert_config_file
         # FIXME: params
-        self._do_lower_case = True
-        self._init_checkpoint = "../bert/models/bert_model.ckpt"
-        self._bert_config_file = "../bert/models/bert_config.json"
         self._output_dir = "../bert/models/finetuned"
         self._save_checkpoints_steps = 1000
-        self._iterations_per_loop = 1
-        self._num_tpu_cores = 8
-        self._num_train_epochs = 10.0
+        self._num_train_epochs = 5.0
         self._warmup_proportion = 0.1
-        self._learning_rate = 2e-5
+        self._learning_rate = 2e-6
+        self._summary_steps = 1
 
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 
@@ -270,33 +314,226 @@ class SiameseBert:
 
         tf.gfile.MakeDirs(self._output_dir)
 
-        # FIXME: make save_summary_steps a config param
         run_config = tf.estimator.RunConfig(
             model_dir=self._output_dir,
             save_checkpoints_steps=self._save_checkpoints_steps,
-            save_summary_steps=1
+            save_summary_steps=self._summary_steps
         )
 
-        # FIXME: train_examples
-        train_examples = None
-        train_examples = [
-                ('Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
-                 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
-                 1),
-                ('Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
-                 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
-                 0
-                ),
-                ('Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
-                 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
-                 0
-                ),
-                ('Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
-                 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
-                 1
-                )
-            ]
-        num_train_steps = int(len(train_examples) / self._batch_size * self._num_train_epochs)
+        # FIXME: train_samples
+        train_samples = [
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'In der Informatik ist ein Baum eine Datenstruktur und ein abstrakter Datentyp, mit dem sich hierarchische Strukturen abbilden lassen. Die durch die Hierarchie vorgegebenen Objekte nennt man Knoten.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Die Darstellung des DNS-Namensraumes erfolgt als Wurzelbaum.',
+                'm2': 'Wurzelbaum',
+                'label': 1
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Diesen Anforderungen werden dagegen die auf einer höheren Komplexitätsstufe stehenden kontextsensitiven Grammatiken (Typ 1) und kontextfreien Grammatiken (Typ 2) gerecht, z. B. Chomskys „Phrasenstrukturgrammatik“, in der die Ableitung eines Satzes als Baumstruktur dargestellt wird.',
+                'm2': 'Baumstruktur',
+                'label': 1
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'In der Informatik ist ein Baum eine Datenstruktur und ein abstrakter Datentyp, mit dem sich hierarchische Strukturen abbilden lassen. Die durch die Hierarchie vorgegebenen Objekte nennt man Knoten.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Die Darstellung des DNS-Namensraumes erfolgt als Wurzelbaum.',
+                'm2': 'Wurzelbaum',
+                'label': 1
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Diesen Anforderungen werden dagegen die auf einer höheren Komplexitätsstufe stehenden kontextsensitiven Grammatiken (Typ 1) und kontextfreien Grammatiken (Typ 2) gerecht, z. B. Chomskys „Phrasenstrukturgrammatik“, in der die Ableitung eines Satzes als Baumstruktur dargestellt wird.',
+                'm2': 'Baumstruktur',
+                'label': 1
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'In der Informatik ist ein Baum eine Datenstruktur und ein abstrakter Datentyp, mit dem sich hierarchische Strukturen abbilden lassen. Die durch die Hierarchie vorgegebenen Objekte nennt man Knoten.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Die Darstellung des DNS-Namensraumes erfolgt als Wurzelbaum.',
+                'm2': 'Wurzelbaum',
+                'label': 1
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Diesen Anforderungen werden dagegen die auf einer höheren Komplexitätsstufe stehenden kontextsensitiven Grammatiken (Typ 1) und kontextfreien Grammatiken (Typ 2) gerecht, z. B. Chomskys „Phrasenstrukturgrammatik“, in der die Ableitung eines Satzes als Baumstruktur dargestellt wird.',
+                'm2': 'Baumstruktur',
+                'label': 1
+            },
+            {
+                's1': 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
+                'm1': 'Baum',
+                's2': 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
+                'm1': 'Baum',
+                's2': 'Nach altem chinesischen Verständnis ist Penjing die Kunst, eine Harmonie zwischen den Naturelementen, der belebten Natur und dem Menschen in miniaturisierter Form darzustellen: Die belebte Natur wird hierbei meist durch einen Baum dargestellt.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Nach altem chinesischen Verständnis ist Penjing die Kunst, eine Harmonie zwischen den Naturelementen, der belebten Natur und dem Menschen in miniaturisierter Form darzustellen: Die belebte Natur wird hierbei meist durch einen Baum dargestellt.',
+                'm1': 'Baum',
+                's2': 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
+                'm2': 'Baum',
+                'label': 1
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Als Baum wird im allgemeinen Sprachgebrauch eine verholzte Pflanze verstanden, die aus einer Wurzel, einem daraus emporsteigenden, hochgewachsenen Stamm und einer belaubten Krone besteht.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Die Pflanzenarten dieser Familie sind meist immergrüne (einige Eucalyptus-Arten sind laubabwerfend) Gehölze: Bäume und Sträucher.',
+                'm2': 'Bäume',
+                'label': 0
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Die Vertreter der Rosengewächse sind Bäume, Sträucher oder krautige Pflanzen, wobei die strauchige Wuchsform als die ursprüngliche innerhalb der Familie angesehen wird.',
+                'm2': 'Bäume',
+                'label': 0
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Nach altem chinesischen Verständnis ist Penjing die Kunst, eine Harmonie zwischen den Naturelementen, der belebten Natur und dem Menschen in miniaturisierter Form darzustellen: Die belebte Natur wird hierbei meist durch einen Baum dargestellt.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Binärbäume sind in der Informatik die am häufigsten verwendete Unterart der Bäume.',
+                'm1': 'Bäume',
+                's2': 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Die Vertreter der Rosengewächse sind Bäume, Sträucher oder krautige Pflanzen, wobei die strauchige Wuchsform als die ursprüngliche innerhalb der Familie angesehen wird.',
+                'm2': 'Bäume',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Die Pflanzenarten dieser Familie sind meist immergrüne (einige Eucalyptus-Arten sind laubabwerfend) Gehölze: Bäume und Sträucher.',
+                'm2': 'Bäume',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Als Baum wird im allgemeinen Sprachgebrauch eine verholzte Pflanze verstanden, die aus einer Wurzel, einem daraus emporsteigenden, hochgewachsenen Stamm und einer belaubten Krone besteht.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Ein solcher Baum lässt sich durch Klassen für die verschiedenen Elemente und Verwendung von Aggregationen gut als Objektstruktur beschreiben.',
+                'm1': 'Baum',
+                's2': 'Nach altem chinesischen Verständnis ist Penjing die Kunst, eine Harmonie zwischen den Naturelementen, der belebten Natur und dem Menschen in miniaturisierter Form darzustellen: Die belebte Natur wird hierbei meist durch einen Baum dargestellt.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Nach altem chinesischen Verständnis ist Penjing die Kunst, eine Harmonie zwischen den Naturelementen, der belebten Natur und dem Menschen in miniaturisierter Form darzustellen: Die belebte Natur wird hierbei meist durch einen Baum dargestellt.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Die Edel-Tanne ist ein immergrüner Baum, der die größten Wuchshöhen unter den Tannen erreicht, es werden Wuchshöhen über 80 Meter und Stammdurchmesser (BHD) über 2 Meter erreicht.',
+                'm2': 'Baum',
+                'label': 0
+            },
+            {
+                's1': 'Im Ergebnis erhält man einen Baum, wie den rechts gezeigten.',
+                'm1': 'Baum',
+                's2': 'Die Korb-Weide wächst als sommergrüner Strauch (nur selten als Baum) mit besonders langen Ruten (Ästen, Zweigen) und erreicht Wuchshöhen von 3 bis 8, im Extremfall 10 Metern.',
+                'm2': 'Baum',
+                'label': 0
+            }
+        ]
+        num_train_steps = int(len(train_samples) / self._batch_size * self._num_train_epochs)
         num_warmup_steps = int(num_train_steps * self._warmup_proportion)
 
         model_fn = model_fn_builder(
@@ -316,13 +553,11 @@ class SiameseBert:
         )
 
         tf.logging.info("***** Running training *****")
-        tf.logging.info("   Num examples = %d", len(train_examples))
+        tf.logging.info("   Num examples = %d", len(train_samples))
         tf.logging.info("   Batch size = %d", self._batch_size)
         tf.logging.info("   Num steps = %d", num_train_steps)
-        # FIXME
         train_input_fn = input_fn_builder(
-            mentions=[('Binärbäume', 'Baum'), ('Binärbäume', 'Baum'), ('Baum', 'Baum'), ('Baum', 'Baum')],
-            original_sentences=train_examples,
+            samples=train_samples,
             tokenizer=self._tokenizer,
             max_seq_length=self._seq_len,
             drop_remainder=True
