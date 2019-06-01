@@ -111,6 +111,12 @@ class BertEmbeddingClassifier(Classifier):
     def _classify(self, mention: str, sentence: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=num_results)
 
+        # FIXME: remove this later, rn only for debugging to see the top nn sentences
+        print(sentence)
+        for suggestion in suggestions:
+            print(suggestion)
+        print("")
+
         top_suggestions = {'suggestions': {}}
         if len(suggestions) > 0:
             min_distance = suggestions[0][1]

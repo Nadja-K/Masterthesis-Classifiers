@@ -4,7 +4,8 @@ from bert import optimization
 from bert.extract_features import convert_lst_to_features
 from classifiers.classifier import Classifier
 
-from typing import List, Tuple, Dict, Union
+from collections import OrderedDict
+from typing import List, Tuple, Dict, Union, Set
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 import re
@@ -121,12 +122,12 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         # Create loss
         with tf.variable_scope("loss"):
-            loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
-                                           embeddings_positive=output_layer_right, margin=margin)
-            # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
-            #                                                           embeddings_anchor=output_layer_left,
-            #                                                           embeddings_positive=output_layer_right,
-            #                                                           margin=margin)
+            # loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
+            #                                embeddings_positive=output_layer_right, margin=margin)
+            loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
+                                                                      embeddings_anchor=output_layer_left,
+                                                                      embeddings_positive=output_layer_right,
+                                                                      margin=margin)
 
         loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
         loss = tf.Print(loss, [loss], message="Loss value:")
@@ -148,16 +149,15 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
     return model_fn
 
 
-def input_fn_builder(samples: List[Dict[str, Union[str, int]]], tokenizer: tokenization.FullTokenizer,
+def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: tokenization.FullTokenizer,
                      max_seq_length: int, drop_remainder: bool):
 
     def gen():
         for sample in samples:
-            s1 = sample['s1']
-            s2 = sample['s2']
-            m1 = sample['m1']
-            m2 = sample['m2']
-            label = sample['label']
+            l_r_sample = list(sample[0])
+            m1, s1 = l_r_sample[0]
+            m2, s2 = l_r_sample[1]
+            label = sample[1]
 
             tokens1, mapping1 = tokenizer.tokenize(s1)
             tokens2, mapping2 = tokenizer.tokenize(s2)
@@ -328,43 +328,44 @@ class SiameseBert:
 
         data_pairs = []
         for left_entity, left_samples in data_dict.items():
-            num_entity_samples = len(left_samples)
+            # FIXME: make the 5 a config parameter (to limit the number of positive samples per sentence
+            num_samples = 5
 
             for left_sample in left_samples:
-                for right_sample in (left_samples - set((left_sample,))):
-                    positive_sample_pair = {
-                        'm1': left_sample[0],
-                        's1': left_sample[1],
-                        'm2': right_sample[0],
-                        's2': right_sample[1],
-                        'label': 1
-                    }
+                # Positive samples
+                right_samples = list(left_samples - {left_sample})
+                random.shuffle(right_samples)
+                right_samples = right_samples[:num_samples]
+                for right_sample in right_samples:
+                    positive_sample_pair = ({left_sample, right_sample}, 1)
                     data_pairs.append(positive_sample_pair)
 
-                num_samples = 0
+                # Negative samples
+                tmp_num_samples = 0
+                attempts = 0
                 while True:
-                    right_entity = random.choices(list(self._entities - set((left_entity,))), k=1)[0]
+                    right_entity = random.choices(list(self._entities - {left_entity}), k=1)[0]
                     right_sample = random.choices(list(data_dict[right_entity]), k=1)[0]
 
-                    # Idea: set((m1, s1), (m2, s2), label)
-                    negative_sample_pair = {
-                        'm1': left_sample[0],
-                        's1': left_sample[1],
-                        'm2': right_sample[0],
-                        's2': right_sample[1],
-                        'label': 0
-                    }
+                    # FIXME: find a better solution here?
+                    negative_sample_pair = ({left_sample, right_sample}, 0)
                     if negative_sample_pair not in data_pairs:
                         data_pairs.append(negative_sample_pair)
-                        num_samples += 1
+                        tmp_num_samples += 1
+                        attempts = 0
+                    else:
+                        attempts += 1
 
                     # Stop if enough negative samples have been created
-                    if num_samples >= num_entity_samples - 1:
+                    if tmp_num_samples >= num_samples or attempts >= 3:
                         break
 
-        # for data_pair in data_pairs:
-        #     print(data_pair)
-        # FIXME: remove (left, right) <-> (right, left) duplicates
+        for data_pair in data_pairs:
+            print(list(data_pair[0])[0])
+            print(list(data_pair[0])[1])
+            print(data_pair[1])
+            print("")
+
         print("Generated %s training pairs." % (len(data_pairs)))
         return data_pairs
 
@@ -418,4 +419,5 @@ class SiameseBert:
             max_seq_length=self._seq_len,
             drop_remainder=True
         )
+        # FIXME: train and evaluate
         estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
