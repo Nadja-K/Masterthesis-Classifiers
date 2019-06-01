@@ -33,8 +33,8 @@ class RuleClassifier(Classifier):
             if self._loaded_datasplit != dataset_split:
                 print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
                       "data." % dataset_split)
-                self._load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
-                                     skip_trivial_samples=True, load_context=False)
+                self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
+                                    skip_trivial_samples=True, load_context=False)
             print("The symspell dictionaries have not been filled with the %s data. Doing this now. This might take "
                   "a while." % dataset_split)
 

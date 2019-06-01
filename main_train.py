@@ -11,6 +11,13 @@ config.read("configs/bert_train_config.ini")
 
 
 def main():
+    # Global config settings that are used for all classifiers
+    dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
+    skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
+    dataset_split = config['DATASET'].get('SPLIT', 'val')
+    split_table_name = config['DATASET'].get('SPLIT_TABLE_NAME', 'splits')
+    print(dataset_db_name)
+
     bert_config_file = config['TRAINING'].get('BERT_CONFIG_FILE', '')
     vocab_file = config['TRAINING'].get('VOCAB_FILE', '')
     init_checkpoint = config['TRAINING'].get('INIT_CHECKPOINT', '')
@@ -34,7 +41,9 @@ def main():
                      output_dir=output_dir, seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
                      do_lower_case=do_lower_case, num_train_epochs=num_train_epochs, summary_steps=summary_steps,
                      warmup_proportion=warmup_proportion, save_checkpoints_steps=save_checkpoints_steps,
-                     learning_rate=learning_rate, margin=margin)
+                     learning_rate=learning_rate, margin=margin, dataset_db_name=dataset_db_name,
+                     dataset_split=dataset_split, skip_trivial_samples=skip_trivial_samples,
+                     split_table_name=split_table_name)
     be.train()
 
 

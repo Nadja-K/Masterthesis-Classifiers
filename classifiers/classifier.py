@@ -19,35 +19,39 @@ class Classifier(metaclass=ABCMeta):
 
         # Load the specified datasplit
         assert dataset_split in ['train', 'test', 'val']
-        self._load_datasplit(dataset_db_name, dataset_split, split_table_name=split_table_name,
-                             skip_trivial_samples=skip_trivial_samples,
-                             load_context=load_context)
+        self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
+            dataset_db_name, dataset_split, split_table_name=split_table_name,
+            skip_trivial_samples=skip_trivial_samples, load_context=load_context)
 
-    def _load_datasplit(self, dataset_db_name: str, dataset_split: str, split_table_name: str = 'splits',
-                        skip_trivial_samples: bool = False, load_context: bool = False):
+    @staticmethod
+    def load_datasplit(dataset_db_name: str, dataset_split: str, split_table_name: str = 'splits',
+                       skip_trivial_samples: bool = False, load_context: bool = False):
         assert dataset_split in ['train', 'test', 'val']
 
-        curs, connection = self._connect_db(dataset_db_name)
+        curs, connection = Classifier._connect_db(dataset_db_name)
         if skip_trivial_samples:
             print("Trivial samples will be skipped.")
 
         if load_context:
             print("Context sentences will be loaded. This can take a while.")
 
-        self._query_data, self._context_data = self._retrieve_datasplit(curs, split=dataset_split,
-                                                                        split_table_name=split_table_name,
-                                                                        skip_trivial_samples=skip_trivial_samples,
-                                                                        load_context=load_context)
-        self._entities = set([x['entity_title'] for x in self._query_data])
-        self._loaded_datasplit = dataset_split
+        _query_data, _context_data = Classifier._retrieve_datasplit(curs, split=dataset_split,
+                                                                    split_table_name=split_table_name,
+                                                                    skip_trivial_samples=skip_trivial_samples,
+                                                                    load_context=load_context)
+        _entities = set([x['entity_title'] for x in _query_data])
+        _loaded_datasplit = dataset_split
 
         # Some statistical information
         print("Found %s query sentences, %s context sentences and %s entities for the %s split of "
-              "the %s table." % (len(self._query_data), len(self._context_data), len(self._entities),
+              "the %s table." % (len(_query_data), len(_context_data), len(_entities),
                                  dataset_split, split_table_name))
-        self._close_db(connection)
+        Classifier._close_db(connection)
 
-    def _retrieve_datasplit(self, curs: sqlite3.Cursor, split: str = 'train', split_table_name: str='splits',
+        return _query_data, _context_data, _entities, _loaded_datasplit
+
+    @staticmethod
+    def _retrieve_datasplit(curs: sqlite3.Cursor, split: str = 'train', split_table_name: str='splits',
                             skip_trivial_samples: bool = False,
                             load_context: bool = False) -> Tuple[List[sqlite3.Row], List[sqlite3.Row]]:
         """
@@ -113,9 +117,10 @@ class Classifier(metaclass=ABCMeta):
         curs.execute(command, (split, 'context'))
         context_data = curs.fetchall()
 
-        return self._filter_out_empty_entities(query_data, context_data)
+        return Classifier._filter_out_empty_entities(query_data, context_data)
 
-    def _filter_out_empty_entities(self, query_data: List[sqlite3.Row], context_data: List[sqlite3.Row]
+    @staticmethod
+    def _filter_out_empty_entities(query_data: List[sqlite3.Row], context_data: List[sqlite3.Row]
                                    ) -> Tuple[List[sqlite3.Row], List[sqlite3.Row]]:
         """
         Due to additional filtering of trivial samples (optional) or the ensuring that the query and context split only
@@ -137,7 +142,8 @@ class Classifier(metaclass=ABCMeta):
 
         return filtered_query_data, filtered_context_data
 
-    def _connect_db(self, db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
+    @staticmethod
+    def _connect_db(db_name: str, timeout: float = 300.0) -> Tuple[sqlite3.Cursor, sqlite3.Connection]:
         connection = sqlite3.connect(db_name, timeout=timeout)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA synchronous = OFF")
@@ -147,7 +153,8 @@ class Classifier(metaclass=ABCMeta):
 
         return curs, connection
 
-    def _close_db(self, connection: sqlite3.Connection):
+    @staticmethod
+    def _close_db(connection: sqlite3.Connection):
         connection.commit()
         connection.close()
 

@@ -1,8 +1,8 @@
-from bert.bert import BertEncoder
 from bert import tokenization
 from bert import modeling
 from bert import optimization
 from bert.extract_features import convert_lst_to_features
+from classifiers.classifier import Classifier
 
 from typing import List, Tuple, Dict, Union
 import tensorflow as tf
@@ -280,8 +280,9 @@ def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: 
 
 
 class SiameseBert:
-    def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, output_dir: str,
-                 seq_len: int, batch_size: int = 32, layer_indexes: List[int] = [-1, -2, -3, -4],
+    def __init__(self, bert_config_file: str, init_checkpoint: str, dataset_db_name: str, dataset_split: str,
+                 vocab_file: str, output_dir: str, split_table_name: str, skip_trivial_samples: bool = False,
+                 seq_len: int = 256, batch_size: int = 32, layer_indexes: List[int] = [-1, -2, -3, -4],
                  learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
                  do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
                  margin: float = 2.0):
@@ -303,6 +304,13 @@ class SiameseBert:
         self._margin = margin
 
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+        assert dataset_split in ['train', 'test', 'val']
+        self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
+            dataset_db_name=dataset_db_name, dataset_split=dataset_split, split_table_name=split_table_name,
+            skip_trivial_samples=skip_trivial_samples, load_context=False
+        )
+        print(self._query_data)
 
     def train(self):
         tf.logging.set_verbosity(tf.logging.INFO)
