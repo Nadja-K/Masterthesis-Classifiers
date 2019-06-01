@@ -57,7 +57,7 @@ def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, 
 
 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate, num_train_steps,
-                     num_warmup_steps):
+                     num_warmup_steps, summary_steps, margin):
     """Returns `model_fn` closure for Estimator."""
     def custom_contrastive_loss(labels, embeddings_anchor, embeddings_positive, margin=2.0):
         """
@@ -120,13 +120,12 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         # Create loss
         with tf.variable_scope("loss"):
-            # FIXME: set margin in the config file (for the cosine distance it should be 2)
             loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
-                                           embeddings_positive=output_layer_right, margin=2.0)
+                                           embeddings_positive=output_layer_right, margin=margin)
             # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
             #                                                           embeddings_anchor=output_layer_left,
             #                                                           embeddings_positive=output_layer_right,
-            #                                                           margin=20.0)
+            #                                                           margin=margin)
 
         loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
         loss = tf.Print(loss, [loss], message="Loss value:")
@@ -136,8 +135,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         )
 
         # Adds a logging hook for the loss during training
-        # FIXME every_n_iter param
-        logging_hook = tf.train.LoggingTensorHook({"loss": loss}, every_n_iter=1, at_end=True)
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss}, every_n_iter=summary_steps, at_end=True)
         output_spec = tf.estimator.EstimatorSpec(
             mode=mode,
             loss=loss,
@@ -282,8 +280,11 @@ def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: 
 
 
 class SiameseBert:
-    def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int = 32,
-                 layer_indexes: List[int] = [-1, -2, -3, -4], do_lower_case: bool = True):
+    def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, output_dir: str,
+                 seq_len: int, batch_size: int = 32, layer_indexes: List[int] = [-1, -2, -3, -4],
+                 learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
+                 do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
+                 margin: float = 2.0):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
@@ -291,13 +292,15 @@ class SiameseBert:
         self._do_lower_case = do_lower_case
         self._init_checkpoint = init_checkpoint
         self._bert_config_file = bert_config_file
-        # FIXME: params
-        self._output_dir = "../bert/models/finetuned"
-        self._save_checkpoints_steps = 1000
-        self._num_train_epochs = 5.0
-        self._warmup_proportion = 0.1
-        self._learning_rate = 2e-6
-        self._summary_steps = 1
+
+        self._output_dir = output_dir
+        self._save_checkpoints_steps = save_checkpoints_steps
+        self._summary_steps = summary_steps
+
+        self._num_train_epochs = num_train_epochs
+        self._warmup_proportion = warmup_proportion
+        self._learning_rate = learning_rate
+        self._margin = margin
 
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 
@@ -542,7 +545,9 @@ class SiameseBert:
             layer_indexes=self._layer_indexes,
             learning_rate=self._learning_rate,
             num_train_steps=num_train_steps,
-            num_warmup_steps=num_warmup_steps
+            num_warmup_steps=num_warmup_steps,
+            summary_steps=self._summary_steps,
+            margin=self._margin
         )
 
         estimator = tf.estimator.Estimator(
