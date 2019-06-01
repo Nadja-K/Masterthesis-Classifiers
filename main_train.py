@@ -26,7 +26,7 @@ def main():
     do_lower_case = config['TRAINING'].getboolean('DO_LOWER_CASE', True)
 
     layer_indexes = json.loads(config['TRAINING'].get('LAYER_INDEXES', '[-1]'))
-    batch_size = config['TRAINING'].getint('BATCH_SIZE', 32)
+    batch_size = config['TRAINING'].getint('BATCH_SIZE', 30)
     seq_len = config['TRAINING'].getint('SEQ_LEN', 256)
 
     save_checkpoints_steps = config['TRAINING'].getint('SAVE_CHECKPOINTS_STEPS', 1000)
