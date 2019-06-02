@@ -123,6 +123,10 @@ def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: toke
             l_r_sample = list(sample[0])
             m1, s1 = l_r_sample[0]
             m2, s2 = l_r_sample[1]
+            m1 = str(m1)
+            m2 = str(m2)
+            s1 = str(s1)
+            s2 = str(s2)
             label = sample[1]
 
             tokens1, mapping1 = tokenizer.tokenize(s1)
@@ -297,7 +301,7 @@ class SiameseBert:
         # FIXME: rework this .... ????
         for left_entity, entity_samples in data_dict.items():
             # FIXME: make the number a config parameter (to limit the number of pairwise samples per entity)
-            num_query_sentences = min(1, int(len(entity_samples) / 2))
+            num_query_sentences = min(2, int(len(entity_samples) / 2))
             num_pairs_per_query_sentence = 1
             positive_sample_pairs = []
             negative_sample_pairs = []
@@ -362,11 +366,11 @@ class SiameseBert:
             # FIXME: assert that at least 1 positive and 1 negative pairwise sample has been generated per entity
 
         # FIXME: remove this again later
-        for data_pair in data_pairs:
-            print(list(data_pair[0])[0])
-            print(list(data_pair[0])[1])
-            print(data_pair[1])
-            print("")
+        # for data_pair in data_pairs:
+        #     print(list(data_pair[0])[0])
+        #     print(list(data_pair[0])[1])
+        #     print(data_pair[1])
+        #     print("")
 
         print("Generated %s training pairs." % (len(data_pairs)))
         return data_pairs

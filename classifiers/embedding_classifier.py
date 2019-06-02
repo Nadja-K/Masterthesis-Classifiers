@@ -112,10 +112,10 @@ class BertEmbeddingClassifier(Classifier):
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=num_results)
 
         # FIXME: remove this later, rn only for debugging to see the top nn sentences
-        print(sentence)
-        for suggestion in suggestions:
-            print(suggestion)
-        print("")
+        # print(sentence)
+        # for suggestion in suggestions:
+        #     print(suggestion)
+        # print("")
 
         top_suggestions = {'suggestions': {}}
         if len(suggestions) > 0:
