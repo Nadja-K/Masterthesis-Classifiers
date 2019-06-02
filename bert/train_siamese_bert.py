@@ -2,9 +2,9 @@ from bert import tokenization
 from bert import modeling
 from bert import optimization
 from bert.extract_features import convert_lst_to_features
+from bert.bert import BertEncoder
 from classifiers.classifier import Classifier
 
-from collections import OrderedDict
 from typing import List, Tuple, Dict, Union, Set
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
@@ -14,51 +14,6 @@ import numpy as np
 import random
 
 log = logging.getLogger(__name__)
-
-
-# FIXME: get this method from somehwere else bc now it's declared twice?
-def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, _input_mask, _input_type_ids,
-                  _mention_mask, scope: str = None, is_training: bool=False):
-    # Load the Bert Model
-    model = modeling.BertModel(
-        config=bert_config,
-        is_training=is_training,
-        input_ids=_input_ids,
-        input_mask=_input_mask,
-        token_type_ids=_input_type_ids,
-        use_one_hot_embeddings=False,
-        scope=scope
-    )
-    tvars = tf.trainable_variables()
-    initialized_variable_names = {}
-
-    # Load the checkpoint
-    (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(tvars,
-                                                                                               init_checkpoint)
-    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-
-    # Get the defined output layer of the model (or concat multiple layers if specified)
-    if len(layer_indexes) == 1:
-        output_layer = model.get_all_encoder_layers()[layer_indexes[0]]
-    else:
-        all_layers = [model.get_all_encoder_layers()[l] for l in layer_indexes]
-        output_layer = tf.concat(all_layers, -1)
-
-    # Just some prints to make sure the ckpt init worked
-    tf.logging.info(init_checkpoint)
-    tf.logging.info(assignment_map)
-    tf.logging.info(initialized_variable_names)
-    tf.logging.info("*** Trainable Variables ***")
-    for var in tvars:
-        init_string = ""
-        if var.name in initialized_variable_names:
-            init_string = ", *INIT_FROM_CKPT*"
-        tf.logging.info("   name = %s, shape = %s%s", var.name, var.shape, init_string)
-
-    mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(_mention_mask, -1), axis=1),
-                                     tf.expand_dims(tf.reduce_sum(_mention_mask, axis=1), axis=-1))
-
-    return mention_embedding_layer
 
 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate, num_train_steps,
@@ -120,22 +75,25 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         # Create siamese Bert Model
         # Note: ONLY USE AN EMPTY SCOPE HERE! EVERYTHING ELSE WILL BREAK CHECKPOINT RELOADING!!!
         with tf.variable_scope("") as scope:
-            output_layer_left = _create_model(bert_config, init_checkpoint, layer_indexes, input_ids_left,
-                                              input_mask_left, input_type_ids_left, mention_mask_left,
-                                              scope="bert", is_training=True)
+            output_layer_left = BertEncoder.load_model(bert_config=bert_config, init_checkpoint=init_checkpoint,
+                                                       layer_indexes=layer_indexes, input_ids=input_ids_left,
+                                                       input_mask=input_mask_left, input_type_ids=input_type_ids_left,
+                                                       mention_mask=mention_mask_left, scope="bert", is_training=True)
             scope.reuse_variables()
-            output_layer_right = _create_model(bert_config, init_checkpoint, layer_indexes, input_ids_right,
-                                               input_mask_right, input_type_ids_right, mention_mask_right,
-                                               scope="bert", is_training=True)
+            # FIXME: make sure that NOT loading the checkpoint for the 2nd network is 'fine'
+            output_layer_right = BertEncoder.load_model(bert_config=bert_config, init_checkpoint=None,
+                                                        layer_indexes=layer_indexes, input_ids=input_ids_right,
+                                                        input_mask=input_mask_right, input_type_ids=input_type_ids_right,
+                                                        mention_mask=mention_mask_right, scope="bert", is_training=True)
 
         # Create loss
         with tf.variable_scope("loss"):
-            # loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
-            #                                embeddings_positive=output_layer_right, margin=margin)
-            loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
-                                                                      embeddings_anchor=output_layer_left,
-                                                                      embeddings_positive=output_layer_right,
-                                                                      margin=margin)
+            loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
+                                           embeddings_positive=output_layer_right, margin=margin)
+            # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
+            #                                                           embeddings_anchor=output_layer_left,
+            #                                                           embeddings_positive=output_layer_right,
+            #                                                           margin=margin)
 
         loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
         loss = tf.Print(loss, [loss], message="Loss value:")
@@ -330,44 +288,80 @@ class SiameseBert:
                     data_dict[sample['entity_title']] = set()
                 data_dict[sample['entity_title']].add((sample['mention'], sample['sentence']))
 
-        # FIXME: really on both?
+        # Note: yes really on both because if a entity only has 2 samples in total and I would only use one of it I would
+        # be unable to generate a positive pair sample
         create_data_dict(self._query_data, data_dict)
         create_data_dict(self._context_data, data_dict)
 
         data_pairs = []
-        for left_entity, left_samples in data_dict.items():
-            # FIXME: make the 5 a config parameter (to limit the number of positive samples per sentence
-            num_samples = 5
+        # FIXME: rework this .... ????
+        for left_entity, entity_samples in data_dict.items():
+            # FIXME: make the number a config parameter (to limit the number of pairwise samples per entity)
+            num_query_sentences = min(1, int(len(entity_samples) / 2))
+            num_pairs_per_query_sentence = 1
+            positive_sample_pairs = []
+            negative_sample_pairs = []
+
+            # Pick a few query sentences, then pick a few positive and negative pair sentences for each query sentence
+            while True:
+                left_samples = random.sample(entity_samples, k=min(num_query_sentences, len(entity_samples)))
+                for left_sample in left_samples:
+                    # Positive samples
+                    right_samples = list(entity_samples - set(left_samples))
+                    right_samples = random.sample(right_samples, k=min(num_pairs_per_query_sentence, len(right_samples)))
+                    for right_sample in right_samples:
+                        positive_sample_pair = ({left_sample, right_sample}, 1)
+                        # FIXME: make sure this is correct
+                        # if positive_sample_pair not in positive_sample_pairs:
+                        assert positive_sample_pair not in data_pairs
+                        positive_sample_pairs.append(positive_sample_pair)
+
+                # If at least one positive sample pair has been found for this entity, stop. Otherwise redo.
+                if len(positive_sample_pairs) > 0:
+                    break
+                else:
+                    # FIXME: check if this ever happens, otherwise just do an assert >= 1 positive sample pair
+                    print("Redoing positive sampling for entity: %s" % left_entity)
+
+            print("Found %s positive pairwise sample(s) for the entity '%s'." %
+                  (len(positive_sample_pairs), left_entity))
 
             for left_sample in left_samples:
-                # Positive samples
-                right_samples = list(left_samples - {left_sample})
-                random.shuffle(right_samples)
-                right_samples = right_samples[:num_samples]
-                for right_sample in right_samples:
-                    positive_sample_pair = ({left_sample, right_sample}, 1)
-                    data_pairs.append(positive_sample_pair)
-
                 # Negative samples
-                tmp_num_samples = 0
-                attempts = 0
-                while True:
-                    right_entity = random.choices(list(self._entities - {left_entity}), k=1)[0]
-                    right_sample = random.choices(list(data_dict[right_entity]), k=1)[0]
+                seen_sentences = set()
+                seen_entities = set()
 
-                    # FIXME: find a better solution here?
+                while True:
+                    # pick a random negative sentence
+                    while True:
+                        # Get a random entity and a sample sentence for that random entity
+                        right_entity = random.choices(list(self._entities - {left_entity}), k=1)[0]
+                        possible_right_samples = data_dict[right_entity] - seen_sentences
+                        seen_entities.add(right_entity)
+                        if len(possible_right_samples) > 0 or ((len(seen_entities) - len(self._entities) + 1) == 0):
+                            break
+                    if len(possible_right_samples) == 0:
+                        break
+                    right_sample = random.choices(list(possible_right_samples), k=1)[0]
+
+                    # If the sample is new, add it.
                     negative_sample_pair = ({left_sample, right_sample}, 0)
                     if negative_sample_pair not in data_pairs:
-                        data_pairs.append(negative_sample_pair)
-                        tmp_num_samples += 1
-                        attempts = 0
-                    else:
-                        attempts += 1
+                        negative_sample_pairs.append(negative_sample_pair)
+                    seen_sentences.add(right_sample)
 
-                    # Stop if enough negative samples have been created
-                    if tmp_num_samples >= num_samples or attempts >= 3:
+                    # Stop if enough negative samples have been created or after 3 attempts of sampling a new sample
+                    if len(seen_sentences) >= (len(positive_sample_pairs) / len(left_samples)):
                         break
 
+            print("Found %s negative pairwise sample(s) for the entity '%s'." %
+                  (len(negative_sample_pairs), left_entity))
+
+            data_pairs.extend(positive_sample_pairs)
+            data_pairs.extend(negative_sample_pairs)
+            # FIXME: assert that at least 1 positive and 1 negative pairwise sample has been generated per entity
+
+        # FIXME: remove this again later
         for data_pair in data_pairs:
             print(list(data_pair[0])[0])
             print(list(data_pair[0])[1])

@@ -24,8 +24,17 @@ class BertEncoder:
         self._layer_indexes = layer_indexes
 
         if load_model:
-            self._output_layer, self._input_ids, self._input_mask, self._input_type_ids, self._mention_mask\
-                = self._load_model(bert_config_file, init_checkpoint, use_one_hot_embeddings)
+            bert_config = modeling.BertConfig.from_json_file(bert_config_file)
+            self._input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids')
+            self._input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask')
+            self._input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids')
+            self._mention_mask = tf.placeholder(tf.float32, shape=(None, None), name='mention_mask')
+
+            self._output_layer = self.load_model(bert_config=bert_config, init_checkpoint=init_checkpoint,
+                                                 layer_indexes=layer_indexes, input_ids=self._input_ids,
+                                                 input_mask=self._input_mask, input_type_ids=self._input_type_ids,
+                                                 mention_mask=self._mention_mask, is_training=False,
+                                                 use_one_hot_embeddings=use_one_hot_embeddings)
 
         # FIXME: make this an option in the remote_config
         gpu_memory_fraction = 1.0
@@ -48,42 +57,50 @@ class BertEncoder:
     def close_session(self):
         self._sess.close()
 
-    def _load_model(self, bert_config_file: str, init_checkpoint: str, use_one_hot_embeddings: bool=False,
-                    placeholder_name_add: str="", scope: str=None):
-        bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-        _input_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_ids' + placeholder_name_add)
-        _input_mask = tf.placeholder(tf.int32, shape=(None, None), name='input_mask' + placeholder_name_add)
-        _input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids' + placeholder_name_add)
-        _mention_mask = tf.placeholder(tf.float32, shape=(None, None), name='mention_mask' + placeholder_name_add)
-
+    @staticmethod
+    def load_model(bert_config, init_checkpoint: str, layer_indexes: List[int], input_ids, input_mask, input_type_ids,
+                   mention_mask, is_training: bool=False, use_one_hot_embeddings: bool=False, scope: str=None):
         # Load the Bert Model
         model = modeling.BertModel(
             config=bert_config,
-            is_training=False,
-            input_ids=_input_ids,
-            input_mask=_input_mask,
-            token_type_ids=_input_type_ids,
+            is_training=is_training,
+            input_ids=input_ids,
+            input_mask=input_mask,
+            token_type_ids=input_type_ids,
             use_one_hot_embeddings=use_one_hot_embeddings,
             scope=scope
         )
         tvars = tf.trainable_variables()
+        initialized_variable_names = {}
 
         # Load the checkpoint
-        (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(tvars,
-                                                                                                   init_checkpoint)
-        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+        if init_checkpoint is None:
+            tf.logging.info("No checkpoint was loaded.")
+        else:
+            (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(tvars,
+                                                                                                       init_checkpoint)
+            tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
         # Get the defined output layer of the model (or concat multiple layers if specified)
-        if len(self._layer_indexes) == 1:
-            output_layer = model.get_all_encoder_layers()[self._layer_indexes[0]]
+        if len(layer_indexes) == 1:
+            output_layer = model.get_all_encoder_layers()[layer_indexes[0]]
         else:
-            all_layers = [model.get_all_encoder_layers()[l] for l in self._layer_indexes]
+            all_layers = [model.get_all_encoder_layers()[l] for l in layer_indexes]
             output_layer = tf.concat(all_layers, -1)
 
-        mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(_mention_mask, -1), axis=1),
-                                         tf.expand_dims(tf.reduce_sum(_mention_mask, axis=1), axis=-1))
+        # Just some prints to make sure the ckpt init worked
+        if init_checkpoint is not None:
+            tf.logging.info("*** Trainable Variables ***")
+            for var in tvars:
+                init_string = ""
+                if var.name in initialized_variable_names:
+                    init_string = ", *INIT_FROM_CKPT*"
+                tf.logging.info("   name = %s, shape = %s%s", var.name, var.shape, init_string)
 
-        return mention_embedding_layer, _input_ids, _input_mask, _input_type_ids, _mention_mask
+        mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(mention_mask, -1), axis=1),
+                                         tf.expand_dims(tf.reduce_sum(mention_mask, axis=1), axis=-1))
+
+        return mention_embedding_layer
 
     @staticmethod
     def _check_length(texts: Union[List[str], List[List[str]]], len_limit: int, tokenized: bool):
