@@ -16,12 +16,13 @@ import random
 log = logging.getLogger(__name__)
 
 
+# FIXME: get this method from somehwere else bc now it's declared twice?
 def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, _input_mask, _input_type_ids,
-                  _mention_mask, scope: str = None):
+                  _mention_mask, scope: str = None, is_training: bool=False):
     # Load the Bert Model
     model = modeling.BertModel(
         config=bert_config,
-        is_training=False,
+        is_training=is_training,
         input_ids=_input_ids,
         input_mask=_input_mask,
         token_type_ids=_input_type_ids,
@@ -29,6 +30,7 @@ def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, 
         scope=scope
     )
     tvars = tf.trainable_variables()
+    initialized_variable_names = {}
 
     # Load the checkpoint
     (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(tvars,
@@ -43,7 +45,8 @@ def _create_model(bert_config, init_checkpoint: str, layer_indexes, _input_ids, 
         output_layer = tf.concat(all_layers, -1)
 
     # Just some prints to make sure the ckpt init worked
-    tvars = tf.trainable_variables()
+    tf.logging.info(init_checkpoint)
+    tf.logging.info(assignment_map)
     tf.logging.info(initialized_variable_names)
     tf.logging.info("*** Trainable Variables ***")
     for var in tvars:
@@ -98,6 +101,10 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         if mode != tf.estimator.ModeKeys.TRAIN:
             raise ValueError("Only TRAIN mode is supported: %s" % mode)
 
+        tf.logging.info("*** Features ***")
+        for name in sorted(features.keys()):
+            tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
+
         input_ids_left = features["input_ids_left"]
         input_mask_left = features["input_mask_left"]
         input_type_ids_left = features["input_type_ids_left"]
@@ -111,14 +118,15 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         label = features["label"]
 
         # Create siamese Bert Model
-        with tf.variable_scope("siamese") as scope:
+        # Note: ONLY USE AN EMPTY SCOPE HERE! EVERYTHING ELSE WILL BREAK CHECKPOINT RELOADING!!!
+        with tf.variable_scope("") as scope:
             output_layer_left = _create_model(bert_config, init_checkpoint, layer_indexes, input_ids_left,
                                               input_mask_left, input_type_ids_left, mention_mask_left,
-                                              scope="bert")
+                                              scope="bert", is_training=True)
             scope.reuse_variables()
             output_layer_right = _create_model(bert_config, init_checkpoint, layer_indexes, input_ids_right,
                                                input_mask_right, input_type_ids_right, mention_mask_right,
-                                               scope="bert")
+                                               scope="bert", is_training=True)
 
         # Create loss
         with tf.variable_scope("loss"):
