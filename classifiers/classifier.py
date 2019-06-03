@@ -75,22 +75,29 @@ class Classifier(metaclass=ABCMeta):
             , backlink_articles.text as backlink_text
         """
         command_body = """
-            FROM sentences 
-            INNER JOIN (articles) entity_articles 
+            FROM sentences
+            INNER JOIN (articles) entity_articles
               ON entity_articles.id = sentences.entity_id
-            INNER JOIN (articles) backlink_articles 
-              ON backlink_articles.id = sentences.backlink_id 
-            INNER JOIN %s 
-              ON %s.sample_id = sentences.rowid 
+            INNER JOIN (articles) backlink_articles
+              ON backlink_articles.id = sentences.backlink_id
+            INNER JOIN %s
+              ON %s.sample_id = sentences.rowid
             WHERE %s.data_split = ?
-            AND %s.query_context_split = ? 
-            AND LENGTH(trim(sentences.mention)) > 0 
-            AND instr(sentences.sentence, trim(sentences.mention)) > 0            
-        """ % (split_table_name, split_table_name, split_table_name, split_table_name)
+            AND %s.query_context_split = ?
+            AND LENGTH(trim(sentences.mention)) > 0
+            AND instr(sentences.sentence, trim(sentences.mention)) > 0
+            AND sentences.sentence NOT IN (
+                SELECT tmp.sentence
+                FROM sentences as tmp
+                INNER JOIN %s
+                    ON %s.sample_id = tmp.rowid
+                WHERE (%s.data_split = ? or %s.data_split = ?)
+            )
+        """ % (split_table_name, split_table_name, split_table_name, split_table_name, split_table_name, split_table_name, split_table_name, split_table_name)
         command_skip_trivial_samples = """
             AND LOWER(REPLACE(sentences.mention, '_', ' ')) != LOWER(REPLACE(entity_title, '_', ' '))
         """
-        disjoind_sentences_command = """
+        disjoint_sentences_command = """
             AND sentence NOT IN (
                 SELECT sentence
                 FROM sentences
@@ -103,7 +110,6 @@ class Classifier(metaclass=ABCMeta):
             )
         """ % (split_table_name, split_table_name, split_table_name, split_table_name)
 
-        # FIXME: shuffle data
         if load_context:
             command = command_head + command_context + command_body
         else:
@@ -112,9 +118,10 @@ class Classifier(metaclass=ABCMeta):
             command = command + command_skip_trivial_samples
 
         # Make sure to remove all samples from the query split that have identical sentences in the context split
-        curs.execute(command + disjoind_sentences_command, (split, 'query', split, 'context'))
+        other_splits = list(set(['train', 'test', 'val']) - {split})
+        curs.execute(command + disjoint_sentences_command, (split, 'query', other_splits[0], other_splits[1], split, 'context'))
         query_data = curs.fetchall()
-        curs.execute(command, (split, 'context'))
+        curs.execute(command, (split, 'context', other_splits[0], other_splits[1]))
         context_data = curs.fetchall()
 
         return Classifier._filter_out_empty_entities(query_data, context_data)
