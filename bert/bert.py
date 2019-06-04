@@ -58,7 +58,7 @@ class BertEncoder:
         self._sess.close()
 
     @staticmethod
-    def load_model(bert_config, init_checkpoint: str, layer_indexes: List[int], input_ids, input_mask, input_type_ids,
+    def load_model(bert_config, init_checkpoint: Union[str, None], layer_indexes: List[int], input_ids, input_mask, input_type_ids,
                    mention_mask, is_training: bool=False, use_one_hot_embeddings: bool=False, scope: str=None):
         # Load the Bert Model
         model = modeling.BertModel(

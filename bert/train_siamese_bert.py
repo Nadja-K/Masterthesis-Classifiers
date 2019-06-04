@@ -42,6 +42,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
 
+        # FIXME: tf.log.info?
         distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
         # Add contrastive loss for the siamese network.
         #   label here is {0,1} for neg, pos.
@@ -51,11 +52,29 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
             math_ops.square(math_ops.maximum(margin - distances, 0.)),
             name='contrastive_loss')
 
+    def custom_cross_entropy_loss(labels, embeddings_anchor, embeddings_positive):
+        # Get per pair distances
+        distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
+                                                         tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
+                                                         reduction=tf.losses.Reduction.NONE), [-1])
+
+        # FIXME: tf.log.info?
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
+        # return math_ops.reduce_mean(
+        #     math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
+        #     (1. - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
+        # )
+        return -1 * math_ops.reduce_mean(
+            math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
+            (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
+        )
+
     def model_fn(features, labels, mode, params):
         """The `model_fn` for Estimator."""
-        tf.logging.info("*** Features ***")
-        for name in sorted(features.keys()):
-            tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            tf.logging.info("*** Features ***")
+            for name in sorted(features.keys()):
+                tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
 
         input_ids_left = features["input_ids_left"]
         input_mask_left = features["input_mask_left"]
@@ -77,7 +96,6 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
                                                        input_mask=input_mask_left, input_type_ids=input_type_ids_left,
                                                        mention_mask=mention_mask_left, scope="bert", is_training=True)
             scope.reuse_variables()
-            # FIXME: make sure that NOT loading the checkpoint for the 2nd network is 'fine'
             output_layer_right = BertEncoder.load_model(bert_config=bert_config, init_checkpoint=None,
                                                         layer_indexes=layer_indexes, input_ids=input_ids_right,
                                                         input_mask=input_mask_right, input_type_ids=input_type_ids_right,
@@ -85,6 +103,9 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         # Create loss
         with tf.variable_scope("loss"):
+            # FIXME: Switch between losses based on a config parameter
+            # loss = custom_cross_entropy_loss(labels=label, embeddings_anchor=output_layer_left,
+            #                                embeddings_positive=output_layer_right)
             loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
                                            embeddings_positive=output_layer_right, margin=margin)
             # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
@@ -94,8 +115,6 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         if mode == tf.estimator.ModeKeys.TRAIN:
             loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
-            loss = tf.Print(loss, [loss], message="Loss value:")
-
             train_op = optimization.create_optimizer(
                 loss, learning_rate, num_train_steps, num_warmup_steps, False
             )
@@ -109,12 +128,9 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
                 training_hooks=[logging_hook]
             )
         elif mode == tf.estimator.ModeKeys.EVAL:
-            mean_loss = tf.metrics.mean(loss)
-            metrics = {'eval_loss': mean_loss}
             output_spec = tf.estimator.EstimatorSpec(
                 mode=mode,
-                loss=loss,
-                eval_metric_ops=metrics
+                loss=loss
             )
         else:
             raise ValueError("Only TRAIN and EVAL mode are supported: %s" % mode)
