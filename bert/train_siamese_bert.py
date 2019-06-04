@@ -53,9 +53,6 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
     def model_fn(features, labels, mode, params):
         """The `model_fn` for Estimator."""
-        if mode != tf.estimator.ModeKeys.TRAIN:
-            raise ValueError("Only TRAIN mode is supported: %s" % mode)
-
         tf.logging.info("*** Features ***")
         for name in sorted(features.keys()):
             tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
@@ -95,21 +92,33 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
             #                                                           embeddings_positive=output_layer_right,
             #                                                           margin=margin)
 
-        loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
-        loss = tf.Print(loss, [loss], message="Loss value:")
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
+            loss = tf.Print(loss, [loss], message="Loss value:")
 
-        train_op = optimization.create_optimizer(
-            loss, learning_rate, num_train_steps, num_warmup_steps, False
-        )
+            train_op = optimization.create_optimizer(
+                loss, learning_rate, num_train_steps, num_warmup_steps, False
+            )
 
-        # Adds a logging hook for the loss during training
-        logging_hook = tf.train.LoggingTensorHook({"loss": loss}, every_n_iter=summary_steps, at_end=True)
-        output_spec = tf.estimator.EstimatorSpec(
-            mode=mode,
-            loss=loss,
-            train_op=train_op,
-            training_hooks=[logging_hook]
-        )
+            # Adds a logging hook for the loss during training
+            logging_hook = tf.train.LoggingTensorHook({"train_loss": loss}, every_n_iter=summary_steps, at_end=True)
+            output_spec = tf.estimator.EstimatorSpec(
+                mode=mode,
+                loss=loss,
+                train_op=train_op,
+                training_hooks=[logging_hook]
+            )
+        elif mode == tf.estimator.ModeKeys.EVAL:
+            mean_loss = tf.metrics.mean(loss)
+            metrics = {'eval_loss': mean_loss}
+            output_spec = tf.estimator.EstimatorSpec(
+                mode=mode,
+                loss=loss,
+                eval_metric_ops=metrics
+            )
+        else:
+            raise ValueError("Only TRAIN and EVAL mode are supported: %s" % mode)
+
         return output_spec
 
     return model_fn
@@ -256,7 +265,7 @@ class SiameseBert:
                  seq_len: int = 256, batch_size: int = 32, layer_indexes: List[int] = [-1, -2, -3, -4],
                  learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
                  do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
-                 margin: float = 2.0):
+                 margin: float = 2.0, steps_per_eval_iter: int = 10):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
@@ -274,16 +283,27 @@ class SiameseBert:
         self._learning_rate = learning_rate
         self._margin = margin
 
+        self._steps_per_eval_iter = steps_per_eval_iter
+
         self._tokenizer = tokenization.FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 
         assert dataset_split in ['train', 'test', 'val']
-        self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
+        train_query_data, train_context_data, train_entities, _ = Classifier.load_datasplit(
             dataset_db_name=dataset_db_name, dataset_split=dataset_split, split_table_name=split_table_name,
             skip_trivial_samples=skip_trivial_samples, load_context=False
         )
-        self._training_data = self.generate_data_pairs()
+        self._training_data = self.generate_data_pairs(train_query_data, train_context_data, train_entities)
 
-    def generate_data_pairs(self):
+        # Only load the validation split if the training split has been specified
+        self._validation_data = None
+        if dataset_split == 'train':
+            val_query_data, val_context_data, val_entities, _ = Classifier.load_datasplit(
+                dataset_db_name=dataset_db_name, dataset_split='val', split_table_name=split_table_name,
+                skip_trivial_samples=skip_trivial_samples, load_context=False
+            )
+            self._validation_data = self.generate_data_pairs(val_query_data, val_context_data, val_entities)
+
+    def generate_data_pairs(self, query_data, context_data, entities):
         data_dict = {}
 
         def create_data_dict(data, data_dict):
@@ -292,10 +312,10 @@ class SiameseBert:
                     data_dict[sample['entity_title']] = set()
                 data_dict[sample['entity_title']].add((sample['mention'], sample['sentence']))
 
-        # Note: yes really on both because if a entity only has 2 samples in total and I would only use one of it I would
-        # be unable to generate a positive pair sample
-        create_data_dict(self._query_data, data_dict)
-        create_data_dict(self._context_data, data_dict)
+        # Note: yes really on both because if a entity only has 2 samples in total and I would only use one of it I
+        # would be unable to generate a positive pair sample
+        create_data_dict(query_data, data_dict)
+        create_data_dict(context_data, data_dict)
 
         data_pairs = []
         # FIXME: rework this .... ????
@@ -339,10 +359,10 @@ class SiameseBert:
                     # pick a random negative sentence
                     while True:
                         # Get a random entity and a sample sentence for that random entity
-                        right_entity = random.choices(list(self._entities - {left_entity}), k=1)[0]
+                        right_entity = random.choices(list(entities - {left_entity}), k=1)[0]
                         possible_right_samples = data_dict[right_entity] - seen_sentences
                         seen_entities.add(right_entity)
-                        if len(possible_right_samples) > 0 or ((len(seen_entities) - len(self._entities) + 1) == 0):
+                        if len(possible_right_samples) > 0 or ((len(seen_entities) - len(entities) + 1) == 0):
                             break
                     if len(possible_right_samples) == 0:
                         break
@@ -419,11 +439,24 @@ class SiameseBert:
         tf.logging.info("   Num examples = %d", len(self._training_data))
         tf.logging.info("   Batch size = %d", self._batch_size)
         tf.logging.info("   Num steps = %d", num_train_steps)
+
         train_input_fn = input_fn_builder(
             samples=self._training_data,
             tokenizer=self._tokenizer,
             max_seq_length=self._seq_len,
             drop_remainder=True
         )
-        # FIXME: train and evaluate
-        estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+        if self._validation_data is None:
+            estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+        else:
+            validation_input_fn = input_fn_builder(
+                samples=self._validation_data,
+                tokenizer=self._tokenizer,
+                max_seq_length=self._seq_len,
+                drop_remainder=True
+            )
+            train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=num_train_steps)
+            eval_spec = tf.estimator.EvalSpec(input_fn=validation_input_fn, steps=self._steps_per_eval_iter,
+                                              start_delay_secs=0, throttle_secs=0)
+
+            tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)

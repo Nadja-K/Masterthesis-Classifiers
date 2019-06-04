@@ -41,13 +41,15 @@ def main():
     learning_rate = config['TRAINING'].getfloat('LEARNING_RATE', 2e-6)
     margin = config['TRAINING'].getfloat('MARGIN', 2.0)
 
+    steps_per_eval_iter = config['EVALUATION'].getint('STEPS_PER_EVAL_ITER', 10)
+
     be = SiameseBert(bert_config_file=bert_config_file, init_checkpoint=init_checkpoint, vocab_file=vocab_file,
                      output_dir=output_dir, seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
                      do_lower_case=do_lower_case, num_train_epochs=num_train_epochs, summary_steps=summary_steps,
                      warmup_proportion=warmup_proportion, save_checkpoints_steps=save_checkpoints_steps,
                      learning_rate=learning_rate, margin=margin, dataset_db_name=dataset_db_name,
                      dataset_split=dataset_split, skip_trivial_samples=skip_trivial_samples,
-                     split_table_name=split_table_name)
+                     split_table_name=split_table_name, steps_per_eval_iter=steps_per_eval_iter)
     be.train()
 
 
