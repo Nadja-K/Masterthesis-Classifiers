@@ -4,6 +4,7 @@ import json
 import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "7"
 
 # Config
 config = configparser.ConfigParser()
@@ -40,6 +41,8 @@ def main():
     warmup_proportion = config['TRAINING'].getfloat('WARMUP_PROPORTION', 0.1)
     learning_rate = config['TRAINING'].getfloat('LEARNING_RATE', 2e-6)
     margin = config['TRAINING'].getfloat('MARGIN', 2.0)
+    loss = config['TRAINING'].get('LOSS', 'cosine_contrastive')
+    beta = config['TRAINING'].get('BETA', 1.0)
 
     steps_per_eval_iter = config['EVALUATION'].getint('STEPS_PER_EVAL_ITER', 10)
 
@@ -49,7 +52,8 @@ def main():
                      warmup_proportion=warmup_proportion, save_checkpoints_steps=save_checkpoints_steps,
                      learning_rate=learning_rate, margin=margin, dataset_db_name=dataset_db_name,
                      dataset_split=dataset_split, skip_trivial_samples=skip_trivial_samples,
-                     split_table_name=split_table_name, steps_per_eval_iter=steps_per_eval_iter)
+                     split_table_name=split_table_name, steps_per_eval_iter=steps_per_eval_iter,
+                     loss=loss, beta=beta)
     be.train()
 
 

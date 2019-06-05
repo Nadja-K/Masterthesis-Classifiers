@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate, num_train_steps,
-                     num_warmup_steps, summary_steps, margin):
+                     num_warmup_steps, summary_steps, margin=2.0, loss_name='cosine_contrastive', beta=1.0):
     """Returns `model_fn` closure for Estimator."""
     def custom_contrastive_loss(labels, embeddings_anchor, embeddings_positive, margin=2.0):
         """
@@ -64,10 +64,29 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         #     math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
         #     (1. - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
         # )
-        return -1 * math_ops.reduce_mean(
-            math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
-            (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
+        return math_ops.reduce_mean(
+            (-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
+            (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)),
+            name='cross_entropy_loss'
         )
+
+    def improved_contrastive_loss(labels, embeddings_anchor, embeddings_positive, margin=2.0, beta=1.0):
+        # Idea: file:///E:/Eigene%20Dateien/Downloads/sensors-19-01858.pdf
+        # Get per pair distances
+        distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
+                                                         tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
+                                                         reduction=tf.losses.Reduction.NONE), [-1])
+
+        # FIXME: tf.log.info?
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
+
+        cross_entropy_loss = ((-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
+                              (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)))
+        contrastive_loss = (math_ops.to_float(labels) * math_ops.square(distances) +
+                            (1. - math_ops.to_float(labels)) * math_ops.square(math_ops.maximum(margin - distances, 0.)))
+
+        return math_ops.reduce_mean(cross_entropy_loss + beta * contrastive_loss,
+                                    name='improved_contrastive_loss')
 
     def model_fn(features, labels, mode, params):
         """The `model_fn` for Estimator."""
@@ -103,15 +122,22 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
 
         # Create loss
         with tf.variable_scope("loss"):
-            # FIXME: Switch between losses based on a config parameter
-            # loss = custom_cross_entropy_loss(labels=label, embeddings_anchor=output_layer_left,
-            #                                embeddings_positive=output_layer_right)
-            loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
-                                           embeddings_positive=output_layer_right, margin=margin)
-            # loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
-            #                                                           embeddings_anchor=output_layer_left,
-            #                                                           embeddings_positive=output_layer_right,
-            #                                                           margin=margin)
+            assert loss_name in ['cosine_contrastive', 'cosine_cross_entropy', 'improved_contrastive', 'euclidean_contrastive']
+
+            if loss_name == 'cosine_contrastive':
+                loss = custom_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
+                                               embeddings_positive=output_layer_right, margin=margin)
+            elif loss_name == 'cosine_cross_entropy':
+                loss = custom_cross_entropy_loss(labels=label, embeddings_anchor=output_layer_left,
+                                                 embeddings_positive=output_layer_right)
+            elif loss_name == 'improved_contrastive':
+                loss = improved_contrastive_loss(labels=label, embeddings_anchor=output_layer_left,
+                                                 embeddings_positive=output_layer_right, margin=margin, beta=beta)
+            elif loss_name == 'euclidean_contrastive':
+                loss = tf.contrib.losses.metric_learning.contrastive_loss(labels=label,
+                                                                          embeddings_anchor=output_layer_left,
+                                                                          embeddings_positive=output_layer_right,
+                                                                          margin=margin)
 
         if mode == tf.estimator.ModeKeys.TRAIN:
             loss = tf.Print(loss, [features["label"]], message="Label:", summarize=10)
@@ -281,7 +307,8 @@ class SiameseBert:
                  seq_len: int = 256, batch_size: int = 32, layer_indexes: List[int] = [-1, -2, -3, -4],
                  learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
                  do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
-                 margin: float = 2.0, steps_per_eval_iter: int = 10):
+                 margin: float = 2.0, steps_per_eval_iter: int = 10, loss: str='cosine_contrastive',
+                 beta: float=1.0):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
@@ -298,6 +325,8 @@ class SiameseBert:
         self._warmup_proportion = warmup_proportion
         self._learning_rate = learning_rate
         self._margin = margin
+        self._loss_name = loss
+        self._beta = beta
 
         self._steps_per_eval_iter = steps_per_eval_iter
 
@@ -441,7 +470,9 @@ class SiameseBert:
             num_train_steps=num_train_steps,
             num_warmup_steps=num_warmup_steps,
             summary_steps=self._summary_steps,
-            margin=self._margin
+            margin=self._margin,
+            loss_name=self._loss_name,
+            beta=self._beta
         )
 
         estimator = tf.estimator.Estimator(
