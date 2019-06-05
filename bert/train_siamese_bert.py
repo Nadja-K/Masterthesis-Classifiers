@@ -308,7 +308,7 @@ class SiameseBert:
                  learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
                  do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
                  margin: float = 2.0, steps_per_eval_iter: int = 10, loss: str='cosine_contrastive',
-                 beta: float=1.0):
+                 beta: float=1.0, num_train_steps: int = None):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
@@ -322,6 +322,7 @@ class SiameseBert:
         self._summary_steps = summary_steps
 
         self._num_train_epochs = num_train_epochs
+        self._num_train_steps = num_train_steps
         self._warmup_proportion = warmup_proportion
         self._learning_rate = learning_rate
         self._margin = margin
@@ -456,18 +457,20 @@ class SiameseBert:
         run_config = tf.estimator.RunConfig(
             model_dir=self._output_dir,
             save_checkpoints_steps=self._save_checkpoints_steps,
-            save_summary_steps=self._summary_steps
+            save_summary_steps=self._summary_steps,
+            keep_checkpoint_max=10
         )
 
-        num_train_steps = int(len(self._training_data) / self._batch_size * self._num_train_epochs)
-        num_warmup_steps = int(num_train_steps * self._warmup_proportion)
+        if self._num_train_steps is None:
+            self._num_train_steps = int(len(self._training_data) / self._batch_size * self._num_train_epochs)
+        num_warmup_steps = int(self._num_train_steps * self._warmup_proportion)
 
         model_fn = model_fn_builder(
             bert_config=bert_config,
             init_checkpoint=self._init_checkpoint,
             layer_indexes=self._layer_indexes,
             learning_rate=self._learning_rate,
-            num_train_steps=num_train_steps,
+            num_train_steps=self._num_train_steps,
             num_warmup_steps=num_warmup_steps,
             summary_steps=self._summary_steps,
             margin=self._margin,
@@ -485,7 +488,7 @@ class SiameseBert:
         tf.logging.info("***** Running training *****")
         tf.logging.info("   Num examples = %d", len(self._training_data))
         tf.logging.info("   Batch size = %d", self._batch_size)
-        tf.logging.info("   Num steps = %d", num_train_steps)
+        tf.logging.info("   Num steps = %d", self._num_train_steps)
 
         train_input_fn = input_fn_builder(
             samples=self._training_data,
@@ -494,7 +497,7 @@ class SiameseBert:
             drop_remainder=True
         )
         if self._validation_data is None:
-            estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+            estimator.train(input_fn=train_input_fn, max_steps=self._num_train_steps)
         else:
             validation_input_fn = input_fn_builder(
                 samples=self._validation_data,
@@ -502,7 +505,7 @@ class SiameseBert:
                 max_seq_length=self._seq_len,
                 drop_remainder=True
             )
-            train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=num_train_steps)
+            train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=self._num_train_steps)
             eval_spec = tf.estimator.EvalSpec(input_fn=validation_input_fn, steps=self._steps_per_eval_iter,
                                               start_delay_secs=0, throttle_secs=0)
 

@@ -38,6 +38,7 @@ def main():
     summary_steps = config['TRAINING'].getint('SUMMARY_STEPS', 1)
 
     num_train_epochs = config['TRAINING'].getfloat('NUM_TRAIN_EPOCHS', 1.0)
+    num_train_steps = config['TRAINING'].getfloat('NUM_TRAIN_STEPS', None)
     warmup_proportion = config['TRAINING'].getfloat('WARMUP_PROPORTION', 0.1)
     learning_rate = config['TRAINING'].getfloat('LEARNING_RATE', 2e-6)
     margin = config['TRAINING'].getfloat('MARGIN', 2.0)
@@ -53,7 +54,7 @@ def main():
                      learning_rate=learning_rate, margin=margin, dataset_db_name=dataset_db_name,
                      dataset_split=dataset_split, skip_trivial_samples=skip_trivial_samples,
                      split_table_name=split_table_name, steps_per_eval_iter=steps_per_eval_iter,
-                     loss=loss, beta=beta)
+                     loss=loss, beta=beta, num_train_steps=num_train_steps)
     be.train()
 
 
