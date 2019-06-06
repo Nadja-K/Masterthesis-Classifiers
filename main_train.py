@@ -4,6 +4,7 @@ import json
 import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 # os.environ['CUDA_VISIBLE_DEVICES'] = "7"
 
 # Config
@@ -43,7 +44,7 @@ def main():
     learning_rate = config['TRAINING'].getfloat('LEARNING_RATE', 2e-6)
     margin = config['TRAINING'].getfloat('MARGIN', 2.0)
     loss = config['TRAINING'].get('LOSS', 'cosine_contrastive')
-    beta = config['TRAINING'].get('BETA', 1.0)
+    beta = config['TRAINING'].getfloat('BETA', 1.0)
 
     steps_per_eval_iter = config['EVALUATION'].getint('STEPS_PER_EVAL_ITER', 10)
 

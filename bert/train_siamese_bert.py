@@ -458,7 +458,7 @@ class SiameseBert:
             model_dir=self._output_dir,
             save_checkpoints_steps=self._save_checkpoints_steps,
             save_summary_steps=self._summary_steps,
-            keep_checkpoint_max=10
+            keep_checkpoint_max=20
         )
 
         if self._num_train_steps is None:
