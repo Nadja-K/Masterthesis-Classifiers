@@ -148,7 +148,12 @@ class BertEncoder:
         tokens, mapping = self._tokenizer.tokenize(sentence)
         return tokens, mapping
 
+    def clean_text(self, text: str) -> str:
+        return self._tokenizer.clean_text(text)
+
     def _get_mention_mask(self, mention: str, sentence: str, token_mapping: List[Tuple[str, int]]) -> np.ndarray:
+        mention = self.clean_text(mention)
+        sentence = self.clean_text(sentence)
         mask = np.zeros(self._seq_len)
 
         # Find the start position of the phrase in the sentence

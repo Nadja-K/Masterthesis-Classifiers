@@ -174,11 +174,13 @@ def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: toke
             l_r_sample = list(sample[0])
             m1, s1 = l_r_sample[0]
             m2, s2 = l_r_sample[1]
-            m1 = str(m1)
-            m2 = str(m2)
-            s1 = str(s1)
-            s2 = str(s2)
             label = sample[1]
+
+            # Make sure all text is cleaned and in string format
+            m1 = tokenizer.clean_text(str(m1))
+            m2 = tokenizer.clean_text(str(m2))
+            s1 = tokenizer.clean_text(str(s1))
+            s2 = tokenizer.clean_text(str(s2))
 
             tokens1, mapping1 = tokenizer.tokenize(s1)
             tokens2, mapping2 = tokenizer.tokenize(s2)
@@ -257,6 +259,7 @@ def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: 
     if phrase_start_index is None:
         phrase_start_index = re.search(r'(' + re.escape(mention) + ')', sentence)
 
+    assert phrase_start_index is not None, "Something went wrong with the sentence '%s' and mention '%s'" % (sentence, mention)
     phrase_start_index = phrase_start_index.start()
 
     # Now the start position without counting spaces
@@ -294,7 +297,7 @@ def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: 
         mask = np.ones(seq_len)
     else:
         assert len(mask[phrase_start_token_index:phrase_end_token_index]) > 0, \
-            "Something went wrong with the phrase embedding retrieval."
+            "Something went wrong with the phrase embedding retrieval for sentence '%s' and mention '%s'." % (sentence, mention)
 
         mask[phrase_start_token_index:phrase_end_token_index] = 1
 
@@ -393,8 +396,8 @@ class SiameseBert:
                     # FIXME: check if this ever happens, otherwise just do an assert >= 1 positive sample pair
                     print("Redoing positive sampling for entity: %s" % left_entity)
 
-            print("Found %s positive pairwise sample(s) for the entity '%s'." %
-                  (len(positive_sample_pairs), left_entity))
+            # print("Found %s positive pairwise sample(s) for the entity '%s'." %
+            #       (len(positive_sample_pairs), left_entity))
 
             for left_sample in left_samples:
                 # Negative samples
@@ -424,8 +427,8 @@ class SiameseBert:
                     if len(seen_sentences) >= (len(positive_sample_pairs) / len(left_samples)):
                         break
 
-            print("Found %s negative pairwise sample(s) for the entity '%s'." %
-                  (len(negative_sample_pairs), left_entity))
+            # print("Found %s negative pairwise sample(s) for the entity '%s'." %
+            #       (len(negative_sample_pairs), left_entity))
 
             data_pairs.extend(positive_sample_pairs)
             data_pairs.extend(negative_sample_pairs)
