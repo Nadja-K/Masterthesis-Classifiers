@@ -148,13 +148,9 @@ class BertEncoder:
         tokens, mapping = self._tokenizer.tokenize(sentence)
         return tokens, mapping
 
-    def clean_text(self, text: str) -> str:
-        return self._tokenizer.clean_text(text)
-
-    def _get_mention_mask(self, mention: str, sentence: str, token_mapping: List[Tuple[str, int]]) -> np.ndarray:
-        mention = self.clean_text(mention)
-        sentence = self.clean_text(sentence)
-        mask = np.zeros(self._seq_len)
+    @staticmethod
+    def get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: List[Tuple[str, int]]) -> np.ndarray:
+        mask = np.zeros(seq_len)
 
         # Find the start position of the phrase in the sentence
         phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(mention) + ')(?![\\w])', sentence)
@@ -163,6 +159,8 @@ class BertEncoder:
         if phrase_start_index is None:
             phrase_start_index = re.search(r'(' + re.escape(mention) + ')', sentence)
 
+        assert phrase_start_index is not None, "Something went wrong with the sentence '%s' and mention '%s'" % \
+                                               (sentence, mention)
         phrase_start_index = phrase_start_index.start()
 
         # Now the start position without counting spaces
@@ -181,7 +179,7 @@ class BertEncoder:
             if phrase_end_token_index != -1:
                 break
 
-            for t in cur_word_token:
+            for _ in cur_word_token:
                 if string_position == phrase_start_index:
                     phrase_start_token_index = cur_word_token_emb_index
 
@@ -191,13 +189,13 @@ class BertEncoder:
 
                 string_position += 1
 
-        if (phrase_start_token_index >= self._seq_len or phrase_end_token_index >= self._seq_len):
+        if (phrase_start_token_index >= seq_len or phrase_end_token_index >= seq_len):
             log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems "
                         "to be out of the boundaries in this case. Instead of an avg. phrase embedding, an avg. "
                         "sentence embedding will be returned.\n"
                         "Sentence: %s\n"
-                        "Phrase: %s" % (self._seq_len, sentence, mention))
-            mask = np.ones(self._seq_len)
+                        "Phrase: %s" % (seq_len, sentence, mention))
+            mask = np.ones(seq_len)
         else:
             assert len(mask[phrase_start_token_index:phrase_end_token_index]) > 0, \
                 "Something went wrong with the phrase embedding retrieval."
@@ -244,8 +242,12 @@ class BertEncoder:
                                                 mentions, original_sentences, tokens_mappings)):
             feature, mention, sentence, token_mapping = data
 
+            # Make sure the mention and sentence are cleaned to avoid any possible encoding issues
+            mention = self._tokenizer.clean_text(mention)
+            sentence = self._tokenizer.clean_text(sentence)
+
             # Create mention mask
-            mention_mask = self._get_mention_mask(mention, sentence, token_mapping)
+            mention_mask = self.get_mention_mask(self._seq_len, mention, sentence, token_mapping)
 
             batch[self._input_ids].append(feature.input_ids)
             batch[self._input_mask].append(feature.input_mask)

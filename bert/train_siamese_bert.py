@@ -12,6 +12,8 @@ import re
 import logging
 import numpy as np
 import random
+from scipy import special
+import itertools
 
 log = logging.getLogger(__name__)
 
@@ -176,14 +178,8 @@ def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: toke
             m2, s2 = l_r_sample[1]
             label = sample[1]
 
-            # Make sure all text is cleaned and in string format
-            m1 = tokenizer.clean_text(str(m1))
-            m2 = tokenizer.clean_text(str(m2))
-            s1 = tokenizer.clean_text(str(s1))
-            s2 = tokenizer.clean_text(str(s2))
-
-            tokens1, mapping1 = tokenizer.tokenize(s1)
-            tokens2, mapping2 = tokenizer.tokenize(s2)
+            tokens1, mapping1 = tokenizer.tokenize(str(s1))
+            tokens2, mapping2 = tokenizer.tokenize(str(s2))
 
             # Update the mapping with the CLS and SEP tag
             mapping1 = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
@@ -193,8 +189,15 @@ def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: toke
 
             features = list(convert_lst_to_features([tokens1, tokens2], max_seq_length=max_seq_length, tokenizer=tokenizer))
 
-            mention_mask1 = _get_mention_mask(max_seq_length, m1, s1, mapping1)
-            mention_mask2 = _get_mention_mask(max_seq_length, m2, s2, mapping2)
+            # Make sure all text is cleaned and in string format to avoid any encoding issues
+            m1 = tokenizer.clean_text(m1)
+            m2 = tokenizer.clean_text(m2)
+            s1 = tokenizer.clean_text(s1)
+            s2 = tokenizer.clean_text(s2)
+
+            # Get the mention masks
+            mention_mask1 = BertEncoder.get_mention_mask(max_seq_length, m1, s1, mapping1)
+            mention_mask2 = BertEncoder.get_mention_mask(max_seq_length, m2, s2, mapping2)
 
             yield {
                 'input_ids_left': [features[0].input_ids],
@@ -249,61 +252,6 @@ def input_fn_builder(samples: List[Union[Tuple[Set[str], int]]], tokenizer: toke
     return input_fn
 
 
-def _get_mention_mask(seq_len: int, mention: str, sentence: str, token_mapping: List[Tuple[str, int]]) -> np.ndarray:
-    mask = np.zeros(seq_len)
-
-    # Find the start position of the phrase in the sentence
-    phrase_start_index = re.search(r'((?<=[^\\w])|(^))(' + re.escape(mention) + ')(?![\\w])', sentence)
-
-    # If the strict regex didn't find the phrase, use a more lenient regex
-    if phrase_start_index is None:
-        phrase_start_index = re.search(r'(' + re.escape(mention) + ')', sentence)
-
-    assert phrase_start_index is not None, "Something went wrong with the sentence '%s' and mention '%s'" % (sentence, mention)
-    phrase_start_index = phrase_start_index.start()
-
-    # Now the start position without counting spaces
-    phrase_start_index = phrase_start_index - sentence[:phrase_start_index].count(" ")
-    # Get the end position as well (without counting spaces)
-    phrase_end_index = phrase_start_index + len(mention.replace(" ", "")) - 1
-
-    string_position = 0
-    phrase_start_token_index = -1
-    phrase_end_token_index = -1
-    for current_token, next_token in zip(token_mapping[1:-1], token_mapping[2:]):
-        cur_word_token, cur_word_token_emb_index = current_token
-        next_word_token, next_word_token_emb_index = next_token
-
-        # If the end has already been found, stop
-        if phrase_end_token_index != -1:
-            break
-
-        for t in cur_word_token:
-            if string_position == phrase_start_index:
-                phrase_start_token_index = cur_word_token_emb_index
-
-            if string_position == phrase_end_index:
-                phrase_end_token_index = next_word_token_emb_index
-                break
-
-            string_position += 1
-
-    if (phrase_start_token_index >= seq_len or phrase_end_token_index >= seq_len):
-        log.warning("The current sample has more tokens than max_seq_len=%d allows and the mention seems "
-                    "to be out of the boundaries in this case. Instead of an avg. phrase embedding, an avg. "
-                    "sentence embedding will be returned.\n"
-                    "Sentence: %s\n"
-                    "Phrase: %s" % (seq_len, sentence, mention))
-        mask = np.ones(seq_len)
-    else:
-        assert len(mask[phrase_start_token_index:phrase_end_token_index]) > 0, \
-            "Something went wrong with the phrase embedding retrieval for sentence '%s' and mention '%s'." % (sentence, mention)
-
-        mask[phrase_start_token_index:phrase_end_token_index] = 1
-
-    return mask
-
-
 class SiameseBert:
     def __init__(self, bert_config_file: str, init_checkpoint: str, dataset_db_name: str, dataset_split: str,
                  vocab_file: str, output_dir: str, split_table_name: str, skip_trivial_samples: bool = False,
@@ -341,7 +289,8 @@ class SiameseBert:
             dataset_db_name=dataset_db_name, dataset_split=dataset_split, split_table_name=split_table_name,
             skip_trivial_samples=skip_trivial_samples, load_context=False
         )
-        self._training_data = self.generate_data_pairs(train_query_data, train_context_data, train_entities)
+        # self._training_data = self.generate_data_pairs(train_query_data, train_context_data, train_entities)
+        self._training_data = self.new_generate_data_pairs(train_query_data, train_context_data, train_entities)
 
         # Only load the validation split if the training split has been specified
         self._validation_data = None
@@ -351,6 +300,70 @@ class SiameseBert:
                 skip_trivial_samples=skip_trivial_samples, load_context=False
             )
             self._validation_data = self.generate_data_pairs(val_query_data, val_context_data, val_entities)
+
+    def new_generate_data_pairs(self, query_data, context_data, entities, num_query_sentences_per_entity=2):
+        data_dict = {}
+
+        def create_data_dict(data, data_dict):
+            for sample in data:
+                if sample['entity_title'] not in data_dict:
+                    data_dict[sample['entity_title']] = set()
+                data_dict[sample['entity_title']].add((sample['mention'], sample['sentence']))
+
+        def get_all_combinations(sentences):
+            pairs = [set(x) for x in itertools.combinations(sentences, 2)]
+            random.shuffle(pairs)
+
+            return pairs
+
+        # Note: yes really on both because if a entity only has 2 samples in total and I would only use one of it I
+        # would be unable to generate a positive pair sample
+        create_data_dict(query_data, data_dict)
+        create_data_dict(context_data, data_dict)
+
+        data_pairs = []
+        positive_sample_pairs = []
+        negative_sample_pairs = []
+
+        # We want positive and negative sample pairs for all entities of the dataset
+        for left_entity, entity_samples in data_dict.items():
+            num_query_sentences = min(num_query_sentences_per_entity, special.comb(len(entity_samples), 2))
+
+            # Pick (random) positive sample pairs
+            for positive_sample_pair in get_all_combinations(entity_samples)[:num_query_sentences]:
+                positive_sample_pairs.append((positive_sample_pair, 1))
+
+            # Pick a few query sentences from the positive sample pairs (it is possible that there will be duplicate queries)
+            query_sentences = random.sample(list(itertools.chain.from_iterable(
+                [pair[0] for pair in positive_sample_pairs])), k=num_query_sentences)
+
+            # Pick (random) negative sample pairs for the query sentences
+            for query_sentence in query_sentences:
+                attempts = 0
+                # pick a random negative sentence which hasn't been used for this query sentence yet
+                while True:
+                    # Get a random entity and a random sample sentence for that random entity
+                    right_entity = random.sample(list(entities - {left_entity}), k=1)
+                    negative_sentence = random.sample(data_dict[right_entity])
+                    negative_pair = ({query_sentence, negative_sentence}, 0)
+                    attempts += 1
+
+                    # Ensure the negative sample is new, otherwise redo
+                    if negative_pair not in negative_sample_pairs:
+                        negative_sample_pairs.append(negative_pair)
+                        break
+
+                    # If for some reason after 5 attempts still no new negative pair has been found, abort
+                    if attempts >= 5:
+                        log.info("No negative pair was generated for query sentence: '%s' of entity: '%s'" %
+                                 (query_sentence, left_entity))
+                        break
+
+        data_pairs.extend(positive_sample_pairs)
+        data_pairs.extend(negative_sample_pairs)
+        random.shuffle(data_pairs)
+
+        return data_pairs
 
     def generate_data_pairs(self, query_data, context_data, entities):
         data_dict = {}

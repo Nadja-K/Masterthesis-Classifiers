@@ -297,13 +297,13 @@ class BasicTokenizer(object):
         return False
 
     def _clean_text(self, text):
-        """Performs invalid character removal and whitespace cleanup on text."""
+        """Performs invalid character removal and RTL + whitespace cleanup on text."""
         output = []
         for char in text:
             cp = ord(char)
             if cp == 0 or cp == 0xfffd or _is_control(char):
                 continue
-            if _is_whitespace(char):
+            if _is_whitespace(char) or _is_rtl_char(char):
                 output.append(" ")
             else:
                 output.append(char)
@@ -366,6 +366,11 @@ class WordpieceTokenizer(object):
             else:
                 output_tokens.extend(sub_tokens)
         return output_tokens
+
+
+def _is_rtl_char(char):
+    """Check for RTL characters that might cause issues."""
+    return (ord(char) >= 0x590) & (ord(char) <= 0x6ff)
 
 
 def _is_whitespace(char):
