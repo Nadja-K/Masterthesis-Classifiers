@@ -145,7 +145,7 @@ class BertEncoder:
                     'all elements in the list must be non-empty string, but element %d is %s' % (idx, repr(s)))
 
     def tokenize(self, sentence: str) -> Tuple[List[str], List[Tuple[str, int]]]:
-        tokens, mapping = self._tokenizer.tokenize(sentence)
+        tokens, mapping = self._tokenizer.tokenize(str(sentence))
         return tokens, mapping
 
     @staticmethod
@@ -196,10 +196,12 @@ class BertEncoder:
                         "Sentence: %s\n"
                         "Phrase: %s" % (seq_len, sentence, mention))
             mask = np.ones(seq_len)
+        elif len(mask[phrase_start_token_index:phrase_end_token_index]) <= 0:
+            log.warning("The mention '%s' could not be found in the sentence '%s'. This might be due to encoding "
+                        "related issues that removed the original mention. Instead of an avg. phrase embedding, an "
+                        "avg. sentence embedding will be returned." % (sentence, mention))
+            mask = np.ones(seq_len)
         else:
-            assert len(mask[phrase_start_token_index:phrase_end_token_index]) > 0, \
-                "Something went wrong with the phrase embedding retrieval."
-
             mask[phrase_start_token_index:phrase_end_token_index] = 1
 
         return mask
@@ -243,11 +245,19 @@ class BertEncoder:
             feature, mention, sentence, token_mapping = data
 
             # Make sure the mention and sentence are cleaned to avoid any possible encoding issues
+            orig_m = mention + ""
+            orig_s = sentence + ""
             mention = self._tokenizer.clean_text(mention)
             sentence = self._tokenizer.clean_text(sentence)
 
             # Create mention mask
             mention_mask = self.get_mention_mask(self._seq_len, mention, sentence, token_mapping)
+            if mention != orig_m or sentence != orig_s:
+                print(sentence, mention)
+                print(orig_s, orig_m)
+                print(mention_mask)
+                print(token_mapping)
+                print("")
 
             batch[self._input_ids].append(feature.input_ids)
             batch[self._input_mask].append(feature.input_mask)
