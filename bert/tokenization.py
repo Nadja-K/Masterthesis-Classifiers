@@ -182,7 +182,7 @@ class FullTokenizer(object):
         return split_tokens, basic_token_mapping
 
     def clean_text(self, text):
-        return self.basic_tokenizer._clean_text(text)
+        return self.basic_tokenizer._clean_text(str(text)).strip()
 
     def convert_tokens_to_ids(self, tokens):
         return convert_by_vocab(self.vocab, tokens)
