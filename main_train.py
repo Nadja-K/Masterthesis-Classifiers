@@ -22,6 +22,7 @@ def main():
     skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
     dataset_split = config['DATASET'].get('SPLIT', 'val')
     split_table_name = config['DATASET'].get('SPLIT_TABLE_NAME', 'splits')
+    num_query_sentences_per_entity = config['DATASET'].getint('NUM_QUERY_SENTENCES_PER_ENTITY', 2)
     print(dataset_db_name)
 
     bert_config_file = config['TRAINING'].get('BERT_CONFIG_FILE', '')
@@ -55,7 +56,8 @@ def main():
                      learning_rate=learning_rate, margin=margin, dataset_db_name=dataset_db_name,
                      dataset_split=dataset_split, skip_trivial_samples=skip_trivial_samples,
                      split_table_name=split_table_name, steps_per_eval_iter=steps_per_eval_iter,
-                     loss=loss, beta=beta, num_train_steps=num_train_steps)
+                     loss=loss, beta=beta, num_train_steps=num_train_steps,
+                     num_query_sentences_per_entity=num_query_sentences_per_entity)
     be.train()
 
 

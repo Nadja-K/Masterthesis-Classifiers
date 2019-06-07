@@ -252,12 +252,6 @@ class BertEncoder:
 
             # Create mention mask
             mention_mask = self.get_mention_mask(self._seq_len, mention, sentence, token_mapping)
-            if mention != orig_m or sentence != orig_s:
-                print(sentence, mention)
-                print(orig_s, orig_m)
-                print(mention_mask)
-                print(token_mapping)
-                print("")
 
             batch[self._input_ids].append(feature.input_ids)
             batch[self._input_mask].append(feature.input_mask)

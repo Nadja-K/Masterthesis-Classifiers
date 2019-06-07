@@ -43,9 +43,8 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
+        tf.logging.info("Cosine distances: %s" % distances)
 
-        # FIXME: tf.log.info?
-        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
         # Add contrastive loss for the siamese network.
         #   label here is {0,1} for neg, pos.
         return math_ops.reduce_mean(
@@ -59,9 +58,8 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
+        tf.logging.info("Cosine distances: %s" % distances)
 
-        # FIXME: tf.log.info?
-        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
         # return math_ops.reduce_mean(
         #     math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
         #     (1. - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
@@ -78,9 +76,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
-
-        # FIXME: tf.log.info?
-        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
+        tf.logging.info("Cosine distances: %s" % distances)
 
         cross_entropy_loss = ((-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
                               (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)))
@@ -259,7 +255,7 @@ class SiameseBert:
                  learning_rate: float = 2e-6, num_train_epochs: float = 1.0, warmup_proportion: float = 0.1,
                  do_lower_case: bool = True, save_checkpoints_steps: int = 1000, summary_steps: int = 1,
                  margin: float = 2.0, steps_per_eval_iter: int = 10, loss: str='cosine_contrastive',
-                 beta: float=1.0, num_train_steps: int = None):
+                 beta: float=1.0, num_train_steps: int = None, num_query_sentences_per_entity: int = 2):
         self._seq_len = seq_len
         self._batch_size = batch_size
         self._layer_indexes = layer_indexes
@@ -289,8 +285,8 @@ class SiameseBert:
             dataset_db_name=dataset_db_name, dataset_split=dataset_split, split_table_name=split_table_name,
             skip_trivial_samples=skip_trivial_samples, load_context=False
         )
-        # self._training_data = self.generate_data_pairs(train_query_data, train_context_data, train_entities)
-        self._training_data = self.new_generate_data_pairs(train_query_data, train_context_data, train_entities)
+        self._training_data = self.generate_data_pairs(train_query_data, train_context_data, train_entities,
+                                                       num_query_sentences_per_entity=num_query_sentences_per_entity)
 
         # Only load the validation split if the training split has been specified
         self._validation_data = None
@@ -299,9 +295,10 @@ class SiameseBert:
                 dataset_db_name=dataset_db_name, dataset_split='val', split_table_name=split_table_name,
                 skip_trivial_samples=skip_trivial_samples, load_context=False
             )
-            self._validation_data = self.generate_data_pairs(val_query_data, val_context_data, val_entities)
+            self._validation_data = self.generate_data_pairs(val_query_data, val_context_data, val_entities,
+                                                             num_query_sentences_per_entity=num_query_sentences_per_entity)
 
-    def new_generate_data_pairs(self, query_data, context_data, entities, num_query_sentences_per_entity=2):
+    def generate_data_pairs(self, query_data, context_data, entities, num_query_sentences_per_entity=2):
         data_dict = {}
 
         def create_data_dict(data, data_dict):
@@ -322,18 +319,18 @@ class SiameseBert:
         create_data_dict(context_data, data_dict)
 
         data_pairs = []
-        positive_sample_pairs = []
-        negative_sample_pairs = []
-
         # We want positive and negative sample pairs for all entities of the dataset
         for left_entity, entity_samples in data_dict.items():
-            num_query_sentences = min(num_query_sentences_per_entity, special.comb(len(entity_samples), 2))
+            positive_sample_pairs = []
+            negative_sample_pairs = []
+            num_query_sentences = int(min(num_query_sentences_per_entity, special.comb(len(entity_samples), 2)))
 
             # Pick (random) positive sample pairs
             for positive_sample_pair in get_all_combinations(entity_samples)[:num_query_sentences]:
                 positive_sample_pairs.append((positive_sample_pair, 1))
 
-            # Pick a few query sentences from the positive sample pairs (it is possible that there will be duplicate queries)
+            # Pick a few query sentences from the positive sample pairs (it is possible that there will be
+            # duplicate queries)
             query_sentences = random.sample(list(itertools.chain.from_iterable(
                 [pair[0] for pair in positive_sample_pairs])), k=num_query_sentences)
 
@@ -343,8 +340,8 @@ class SiameseBert:
                 # pick a random negative sentence which hasn't been used for this query sentence yet
                 while True:
                     # Get a random entity and a random sample sentence for that random entity
-                    right_entity = random.sample(list(entities - {left_entity}), k=1)
-                    negative_sentence = random.sample(data_dict[right_entity])
+                    right_entity = random.sample(list(entities - {left_entity}), k=1)[0]
+                    negative_sentence = random.sample(data_dict[right_entity], k=1)[0]
                     negative_pair = ({query_sentence, negative_sentence}, 0)
                     attempts += 1
 
@@ -359,102 +356,14 @@ class SiameseBert:
                                  (query_sentence, left_entity))
                         break
 
-        data_pairs.extend(positive_sample_pairs)
-        data_pairs.extend(negative_sample_pairs)
-        random.shuffle(data_pairs)
-
-        return data_pairs
-
-    def generate_data_pairs(self, query_data, context_data, entities):
-        data_dict = {}
-
-        def create_data_dict(data, data_dict):
-            for sample in data:
-                if sample['entity_title'] not in data_dict:
-                    data_dict[sample['entity_title']] = set()
-                data_dict[sample['entity_title']].add((sample['mention'], sample['sentence']))
-
-        # Note: yes really on both because if a entity only has 2 samples in total and I would only use one of it I
-        # would be unable to generate a positive pair sample
-        create_data_dict(query_data, data_dict)
-        create_data_dict(context_data, data_dict)
-
-        data_pairs = []
-        # FIXME: rework this .... ????
-        for left_entity, entity_samples in data_dict.items():
-            # FIXME: make the number a config parameter (to limit the number of pairwise samples per entity)
-            num_query_sentences = min(2, int(len(entity_samples) / 2))
-            num_pairs_per_query_sentence = 1
-            positive_sample_pairs = []
-            negative_sample_pairs = []
-
-            # Pick a few query sentences, then pick a few positive and negative pair sentences for each query sentence
-            while True:
-                left_samples = random.sample(entity_samples, k=min(num_query_sentences, len(entity_samples)))
-                for left_sample in left_samples:
-                    # Positive samples
-                    right_samples = list(entity_samples - set(left_samples))
-                    right_samples = random.sample(right_samples, k=min(num_pairs_per_query_sentence, len(right_samples)))
-                    for right_sample in right_samples:
-                        positive_sample_pair = ({left_sample, right_sample}, 1)
-                        # FIXME: make sure this is correct
-                        # if positive_sample_pair not in positive_sample_pairs:
-                        assert positive_sample_pair not in data_pairs
-                        positive_sample_pairs.append(positive_sample_pair)
-
-                # If at least one positive sample pair has been found for this entity, stop. Otherwise redo.
-                if len(positive_sample_pairs) > 0:
-                    break
-                else:
-                    # FIXME: check if this ever happens, otherwise just do an assert >= 1 positive sample pair
-                    print("Redoing positive sampling for entity: %s" % left_entity)
-
-            # print("Found %s positive pairwise sample(s) for the entity '%s'." %
-            #       (len(positive_sample_pairs), left_entity))
-
-            for left_sample in left_samples:
-                # Negative samples
-                seen_sentences = set()
-                seen_entities = set()
-
-                while True:
-                    # pick a random negative sentence
-                    while True:
-                        # Get a random entity and a sample sentence for that random entity
-                        right_entity = random.choices(list(entities - {left_entity}), k=1)[0]
-                        possible_right_samples = data_dict[right_entity] - seen_sentences
-                        seen_entities.add(right_entity)
-                        if len(possible_right_samples) > 0 or ((len(seen_entities) - len(entities) + 1) == 0):
-                            break
-                    if len(possible_right_samples) == 0:
-                        break
-                    right_sample = random.choices(list(possible_right_samples), k=1)[0]
-
-                    # If the sample is new, add it.
-                    negative_sample_pair = ({left_sample, right_sample}, 0)
-                    if negative_sample_pair not in data_pairs:
-                        negative_sample_pairs.append(negative_sample_pair)
-                    seen_sentences.add(right_sample)
-
-                    # Stop if enough negative samples have been created or after 3 attempts of sampling a new sample
-                    if len(seen_sentences) >= (len(positive_sample_pairs) / len(left_samples)):
-                        break
-
-            # print("Found %s negative pairwise sample(s) for the entity '%s'." %
-            #       (len(negative_sample_pairs), left_entity))
-
+            tf.logging.info("Generated %s positive and %s negative samples for the entity '%s'." %
+                            (len(positive_sample_pairs), len(negative_sample_pairs), left_entity))
             data_pairs.extend(positive_sample_pairs)
             data_pairs.extend(negative_sample_pairs)
-            # FIXME: assert that at least 1 positive and 1 negative pairwise sample has been generated per entity
 
-        # FIXME: remove this again later
-        # for data_pair in data_pairs:
-        #     print(list(data_pair[0])[0])
-        #     print(list(data_pair[0])[1])
-        #     print(data_pair[1])
-        #     print("")
+        random.shuffle(data_pairs)
+        tf.loggging.info("Generated %s sentence pairs in total." % len(data_pairs))
 
-        print("Generated %s training pairs." % (len(data_pairs)))
         return data_pairs
 
     def train(self):
