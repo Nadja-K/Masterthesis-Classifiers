@@ -3,7 +3,7 @@ from bert import tokenization
 import numpy as np
 
 
-db = '../data/databases/dataset_full_wikipedia.db'
+db = '../data/databases/dataset_geraete_small.db'
 t_q, t_c, t_e, _ = Classifier.load_datasplit(db, 'train')
 e_q, e_c, e_e, _ = Classifier.load_datasplit(db, 'test')
 v_q, v_c, v_e, _ = Classifier.load_datasplit(db, 'val')
