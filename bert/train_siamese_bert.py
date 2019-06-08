@@ -43,7 +43,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
-        tf.logging.info("Cosine distances: %s" % distances)
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
 
         # Add contrastive loss for the siamese network.
         #   label here is {0,1} for neg, pos.
@@ -58,7 +58,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
-        tf.logging.info("Cosine distances: %s" % distances)
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
 
         # return math_ops.reduce_mean(
         #     math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
@@ -76,7 +76,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
-        tf.logging.info("Cosine distances: %s" % distances)
+        distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
 
         cross_entropy_loss = ((-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
                               (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)))
@@ -356,13 +356,13 @@ class SiameseBert:
                                  (query_sentence, left_entity))
                         break
 
-            tf.logging.info("Generated %s positive and %s negative samples for the entity '%s'." %
-                            (len(positive_sample_pairs), len(negative_sample_pairs), left_entity))
+            log.info("Generated %s positive and %s negative samples for the entity '%s'." %
+                     (len(positive_sample_pairs), len(negative_sample_pairs), left_entity))
             data_pairs.extend(positive_sample_pairs)
             data_pairs.extend(negative_sample_pairs)
 
         random.shuffle(data_pairs)
-        tf.loggging.info("Generated %s sentence pairs in total." % len(data_pairs))
+        print("Generated %s sentence pairs in total." % len(data_pairs))
 
         return data_pairs
 

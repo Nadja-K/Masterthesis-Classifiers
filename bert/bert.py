@@ -199,7 +199,7 @@ class BertEncoder:
         elif len(mask[phrase_start_token_index:phrase_end_token_index]) <= 0:
             log.warning("The mention '%s' could not be found in the sentence '%s'. This might be due to encoding "
                         "related issues that removed the original mention. Instead of an avg. phrase embedding, an "
-                        "avg. sentence embedding will be returned." % (sentence, mention))
+                        "avg. sentence embedding will be returned." % (mention, sentence))
             mask = np.ones(seq_len)
         else:
             mask[phrase_start_token_index:phrase_end_token_index] = 1
