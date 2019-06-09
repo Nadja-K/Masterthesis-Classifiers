@@ -151,3 +151,5 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+# Custom directories
+!/experiment_results/*.log
