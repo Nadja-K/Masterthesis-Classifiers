@@ -150,6 +150,3 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
-
-# Custom directories
-!/experiment_results/*.log
