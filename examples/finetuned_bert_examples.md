@@ -8,46 +8,147 @@
 ## General notes and remarks to the results of the experiments
 * It is logical that the (finetuned/original) bert model fails for some of the samples that the rule-based and token-level classifier classified successfully. The reason for this are the context-sentences that are used for the annoy nearest neighbor search. It is entirely possible that the context sentences of an entity simply did not contain any sentence that was remotely similar to a query sentence, leading to a FN classification because a context-sentence of a different entity might me more similar.
 * Quite a few of new FN samples seem to be rather trivial cases that should easily be covered by the rule-based classifier
-
-
+* All experiments were done with the following settings:
+  * SKIP_TRIVIAL_SAMPLES: False
+  * SPLIT: val
+  * SPLIT_TABLE_NAME: splits
+  * MAX_EDIT_DISTANCE_DICTIONARY = 2
+  * PREFIX_LENGTH = 4
+  * ANNOY_METRIC: angular
+  * NUM_TREES: 20
+  * LAYER_INDEXES: [-1, -12]
+  * SEQ_LEN: 256
+  * NUM_RESULTS: 1
+  * DO_LOWER_CASE: True
+* The finetuned Bert models were all trained with the following settings on their respective dataset:
+  * SKIP_TRIVIAL_SAMPLES: False
+  * SPLIT: train
+  * SPLIT_TABLE_NAME: splits
+  * LAYER_IDNEXES: [-1]
+  * SEQ_LEN: 256
+  * DO_LOWER_CASE: True
+  * LEARNING_RATE: 2e-6
+  * NUM_STEPS: 9k/15k (depending on the dataset)
+  * LOSS: cosine_contrastive
+  * MARGIN: 2
+  * NUM_QUERY_SENTENCES_PER_ENTITY: 2
 
 ## Comparison to the unfinetuned Bert model
 ### (leftover) false negatives
 -> Note: only FN that were FN in the original Bert
 
 #### Mixed small
+Samples, that both models failed for: 222
+
 ``` 
 Label      |Mention                                            |GT entity                                          |Sentence                             
 ------     |--------------------------------                   |------------------------------                     |---------------------------------------------------------------------------------
-
+...
+FN         |Ricardo (Unternehmen)                              |Ricardo_(Unternehmen)                              |Ricardo (Unternehmen), britischer Entwicklungsdienstleister.                                                                                                                                                                                                    
+FN         |RWE (Rheinisch-Westfälische Elektrizitätswerk AG)  |RWE                                                |Nach dem Tod von Herrmann Bachstein 1908 übernahm der Großindustrielle Hugo Stinnes die SEG mit dem Ziel, über die von ihm kontrollierte RWE (Rheinisch-Westfälische Elektrizitätswerk AG) die elektrischen Straßenbahnen des Ruhrgebiets und anderer Großstädte sowie damit verbunden die gesamte westdeutsche Stromversorgung in die Hand zu bekommen.
+FN         |Schneeflöckchen (Ostrowski)                        |Schneeflöckchen_(Ostrowski)                        |Schneeflöckchen (Ostrowski), ein Märchendrama (1873) von Alexander Nikolajewitsch Ostrowski .                                                                                                                                                                   
+FN         |Schönheitswettbewerb                               |Concours_d’Elegance                                |Der Pebble Beach Concours d’Elegance ist der weltweit berühmteste Schönheitswettbewerb für hochwertige klassische Automobile.                                                                                                                                   
+FN         |Signatur                                           |Signet                                             |Signatur, Datum und historische Dokumente fehlen.                                                                                                                                                                                                               
+FN         |Sigrid Kupetz                                      |Sigrid_Kupetz                                      |In seiner Generation entsprangen dieser Familie mehrere Künstler, so sein Cousin, der Maler Jochen Seidel und seine Schwester Sigrid Kupetz, die als Designerin der WMF und als Professorin für Design an der Gesamthochschule Kassel wirkte.                   
+FN         |Snegurotschka                                      |Schneeflöckchen_(Ostrowski)                        |Im Märchendrama Snegurotschka von Alexander Ostrowski (1873) ist Snegurotschka die Tochter von Väterchen Frost und der Frühlingsgöttin.                                                                                                                         
+FN         |Sonderbericht des Weltklimarats                    |Sonderbericht_1,5_°C_globale_Erwärmung             |Die im Sonderbericht des Weltklimarats aus dem Jahre 2018 einbezogenen Klima-Szenarien berücksichtigten neben der Aufforstung hauptsächlich negative CO2-Emissionen durch BECCS, um das 1,5-Grad-Ziel einzuhalten.                                              
+FN         |Sonnenbahn                                         |Erdbahn                                            |Al-Battânî unterwarf die (scheinbare) Exzentrizität der Sonnenbahn einer neuen genauen Untersuchung und bemerkte dabei zuerst die Bewegung des Apogäums und berechnete die Bewegung der Planeten sehr genau.                                                    
+FN         |sowjetischen Machtbereich                          |Ostblock                                           |Ihre Wurzeln gehen auf ein starkes Engagement gegen Menschenrechtsverletzungen im damaligen sowjetischen Machtbereich zurück.                                                                                                                                   
+FN         |sozialistisch bezeichnenden Staaten                |Sozialistische_Bruderländer                        |Das Attribut „Staat“ wird vor allem verwendet, um die sich als sozialistisch bezeichnenden Staaten des ehemaligen Warschauer Pakt, der Volksrepublik China und anderen von demokratischen, anti-autoritären oder staatskritischen sozialistischen Bewegungen und Theorien zu unterscheiden.
+FN         |spanischen Eisenbahn                               |Renfe                                              |Südlich der Altstadt liegt der Bahnhof der spanischen Eisenbahn.                                                                                                                                                                                                
+FN         |Spielhallenautomaten                               |Arcade-Automat                                     |Das Spiel wurde 1995 in Form eines Spielhallenautomaten veröffentlicht.                                                                                                                                                                                         
+FN         |Stanley Tigerman                                   |Stanley_Tigerman                                   |Schon vor dem Bau des Studio Weil enthielt das Werk von Barbara Weil Bezüge zur Architektur der Gegenwart: Ab 1979 begann sie eine Serie von Fiberglas-Skulpturen, die zu einer Zusammenarbeit mit dem fortschrittlichen Architekten und Architekturtheoretiker Stanley Tigerman führte.
+FN         |stark musischen Ausrichtung                        |Theaterhalle_der_Schule_am_Meer                    |Nach der Gleichschaltung der Lichtwarkschule durch die Nationalsozialisten wechselte sie zu Martin Luserkes „Schule am Meer“ auf Juist, wo sie von Eduard Zuckmayer gefördert wurde und von der stark musischen Ausrichtung des Landschulheims profitierte.     
+FN         |Steiof, Franziska                                  |Franziska_Steiof                                   |Steiof, Franziska (1962–2014), deutsche Theaterregisseurin und -autorin.                                                                                                                                                                                        
+...
 ``` 
 
 #### Mixed large
+Samples, that both models failed for: 1044
+
 ``` 
 Label      |Mention                                            |GT entity                                          |Sentence                             
 ------     |--------------------------------                   |------------------------------                     |---------------------------------------------------------------------------------
-
+...
+FN         |Wiegold, Alexander                                 |Alexander_Wiegold                                  |Wiegold, Alexander (* 1979), deutscher Regisseur.                                                                                                                                                                                                               
+FN         |Wilhelm-Karmann-Stiftung                           |Wilhelm_Karmann                                    |Weitere Erweiterungen folgten 1968 mit der Antilopenanlage, 1973 wurde die Seelöwenanlage erbaut und 1975 wurde das Südamerikaareal, gefördert von der Wilhelm-Karmann-Stiftung, eröffnet.                                                                      
+FN         |William Arthur Smith Benson                        |William_Arthur_Smith_Benson                        |Ihre jüngere Schwester Venetia heiratete 1886 den Designer William Arthur Smith Benson.                                                                                                                                                                         
+FN         |Wincanton GmbH                                     |Wincanton_(Unternehmen)                            |Zuvor war er bei der Rhenus AG, der SCI Verkehr GmbH und ISA Consult sowie zuletzt der Wincanton GmbH in Weinheim tätig.                                                                                                                                        
+FN         |Wirtschaftssanktionen                              |UN-Sanktion                                        |Im Völkerrecht bezeichnet man mit Sanktion eine Zwangsmaßnahme gegen ein Völkerrechtssubjekt, insbesondere zur Durchsetzung von Beschlüssen  des UN-Sicherheitsrats durch Wirtschaftssanktionen.                                                                
+FN         |Wolfgang Luthe                                     |Tonträger_58                                       |Am 1. Juni 1982 traten Mau Mau in der Berliner Music Hall als Begleitband des Performance-Künstlers Wolfgang Luthe auf.                                                                                                                                         
+FN         |Wsewolod Wischnewski                               |Wsewolod_Witaljewitsch_Wischnewski                 |Wsewolod Wischnewski (1900–1951), Schriftsteller.                                                                                                                                                                                                               
+FN         |Wunschbaum                                         |Coin_tree                                          |An einen Wunschbaum hängt Melike den Wunsch, Mustafa möge bald zurückkehren, um sie zu heiraten.                                                                                                                                                                
+FN         |Wu Yi Fang                                         |Wu_Yi_Fang                                         |Wu Yi Fang (1893–1985), chinesische Biologin, Politikerin und Diplomatin.                                                                                                                                                                                       
+FN         |Wu, Yi Fang                                        |Wu_Yi_Fang                                         |Wu, Yi Fang (1893–1985), chinesische Wissenschaftlerin, Politikerin und Diplomatin.                                                                                                                                                                             
+FN         |wXw                                                |Westside_Xtreme_Wrestling                          |Ab 2005 wurde die Tätigkeit auch auf das Ruhrgebiet ausgeweitet, wobei die Liga nun in bewusster Konkurrenz zur wXw trat.                                                                                                                                       
+...
 ``` 
 
 #### Geraete small
+Samples, that both models failed for: 210
+
 ``` 
 Label      |Mention                                            |GT entity                                          |Sentence                             
 ------     |--------------------------------                   |------------------------------                     |---------------------------------------------------------------------------------
-
+...
+FN         |Technische Dienst                                  |ECE-Homologation                                   |Der Technische Dienst der GTÜ ist seit 2009 vom Kraftfahrt-Bundesamt (KBA) als Prüflaboratorium nach DIN EN ISO/IEC 17025 und 17020 für Fahrzeuge, Systeme, Bauteile und selbständige technische Einheiten benannt.                                             
+FN         |Teletypes                                          |Fernschreiber                                      |Waren die ersten UARTs für Datenübertragungsraten weniger hundert Bit/s und den Anschluss an Teletypes mit Stromschnittstelle oder Modems vorgesehen, so erreichten sie in späteren Jahren als eigenständige Chips mehrere Megabit pro Sekunde.                 
+FN         |Tragestruktur                                      |Starrluftschiff                                    |Der Heißluftballon besitzt keine Tragestruktur – der Korb hängt (über Seile) an der Hülle oder diese wird von Seilen umspannt, an denen der Korb hängt.                                                                                                         
+FN         |Treiberschaltkreisen                               |Gate-Treiber                                       |Ladungspumpen sind in vielen Schaltungen enthalten, in denen höhere Spannungen als die Eingangsspannung benötigt werden oder diese Spannungen ein veränderliches Bezugspotential haben müssen, z.b. in Treiberschaltkreisen zur Ansteuerung von Leistungshalbleiter-Schaltern (Stichworte level shifter, high side switches).
+FN         |Treiberschaltungen                                 |Gate-Treiber                                       |Um die elektromagnetische Verträglichkeit sicherzustellen, werden deshalb die Ausgänge von Digital- und Treiberschaltungen so ausgelegt, dass die Anstiegs- und Abfallzeiten nur so kurz wie unbedingt nötig sind.                                              
+FN         |Tri-                                               |Triband                                            |Die Geräte sind Tri- oder Quadband-fähig und damit international nutzbar.                                                                                                                                                                                       
+FN         |Turbomeca                                          |Safran_Helicopter_Engines                          |Als Antrieb waren anfangs Triebwerke von Turbomeca geplant, was jedoch später zugunsten der gedrosselten, mit einem digitalen Steuersystem (FADEC-Full Authority Digital Engine Control) ausgestatteten Pratt & Whitney PW206A aufgegeben wurde.                
+FN         |Türschienen                                        |Schienenführung                                    |Glasbeschlagtechnik: Ganzglaskonstruktionen, Beschläge, Türschienen, Schlösser.                                                                                                                                                                                 
+FN         |Typ                                                |Newton-Teleskop                                    |Der von ihm vorgeschlagene (und später nach ihm benannte) Typ wurde für viele Generationen das Standardgerät für Astronomen.                                                                                                                                    
+FN         |UHP E-Ofen                                         |Lichtbogenofen                                     |Der Standort Höntrop wurde laufend modernisiert und erweitert, so wurde z.b. ein UHP E-Ofen für die Sauerstoffkonverter eingerichtet, die 1972 auf das AOD-Verfahren (Argon-Oxygen-Decarburization) umgerüstet wurden, eine Stranggussanlage in Betrieb genommen, 1966 ein Warmbreitbandwalzwerk und 1971 das Kaltwalzwerk sowie zwei Verzinkungsanlagen für galvanische Verzinkung (1987) und Feuerverzinkung (1992) nebst einer neuen Schubbeizanlage (2001) aufgebaut.
+FN         |Uhrenplatinen                                      |Werkplatte_(Uhr)                                   |Durch Auftragen eines sehr dünnen Stearinsäure-Films z.b. auf Uhrenplatinen in der Umgebung von Schmierstellen, um das Ausspreizen (Spreitung) des Uhrenöls zu verhindern.                                                                                      
+FN         |UV-Lichter                                         |Leuchtstab                                         |Auch die, an der Technokultur der 1990er Jahre orientierte, jugendkulturelle Modeströmung der Cyber entwickelte sich nach dem Jahr 2000 im Club-Geschehen der Schwarzen Szene und brachte Stilelemente wie weit fallende Schlaghosen, UV-Lichter, Nylon-Shirts, enge Nylon-Steppwesten, Neopren-Jacken und Haarverlängerungen aus Plastik und Schaumstoff in die Szene ein.
+...
 ``` 
 
 #### Geraete large
+Samples, that both models failed for: 2465
+
 ``` 
 Label      |Mention                                            |GT entity                                          |Sentence                             
 ------     |--------------------------------                   |------------------------------                     |---------------------------------------------------------------------------------
-
+...
+FN         |Wurftauben                                         |Wurfscheibenschießen                               |Hierbei sind die Standorte der Wurfmaschinen und die Flugbahnen der Wurftauben, im Gegensatz zu den Sportarten Skeet und Trap, nicht in einem verbindlichen Regelwerk eines Schießsportverbandes vorgegeben.                                                    
+FN         |Ximo Tebar                                         |Ximo_Tebar                                         |Mitte der 1990er Jahre arbeitete er viel im Trio mit John McLaughlin, später im Trio mit Ximo Tebar .                                                                                                                                                           
+FN         |XJ 13                                              |Jaguar_XJ_13                                       |Ursprünglich war der V12 für den Mittelmotor-Sportwagen XJ 13 entwickelt worden, mit dem Jaguar Mitte der sechziger Jahre in Le Mans wieder mitzumischen gedachte.                                                                                              
+FN         |XJ 13                                              |Jaguar_XJ_13                                       |XJ 13 (1966): Rennwagen-Prototyp mit V12-Mittelmotor (4 obenliegende Nockenwellen) und ZF Fünfganggetriebe.                                                                                                                                                     
+FN         |Yannik Tiemann                                     |Yannik_Tiemann                                     |Yannik Tiemann (* 1990), deutscher Jazzmusiker.                                                                                                                                                                                                                 
+FN         |Yannik Tiemann                                     |Yannik_Tiemann                                     |Yannik Tiemann (* 1990), deutscher Jazzmusiker.                                                                                                                                                                                                                 
+FN         |Yannik Tiemann                                     |Yannik_Tiemann                                     |Yannik Tiemann (* 1990), Jazzmusiker.                                                                                                                                                                                                                           
+FN         |Yo-Yos                                             |Jo-Jo                                              |Der Verein hat die Spitznamen  Binos (Beanos) (abgeleitet von Albion) und Yo-Yos, Yo-Yos, weil Stirling nach einem Aufstieg meistens in der Folgesaison wieder abstieg.                                                                                         
+FN         |YSL Beauté                                         |Gucci                                              |Der Parfüm-Lizenznehmer war von 2003 an zunächst YSL Beauté und ab 2011 Estée Lauder.                                                                                                                                                                           
+FN         |Yuneec                                             |Yuneec                                             |Yuneec, z.b. Hexacopter Typhoon H Plus.                                                                                                                                                                                                                         
+FN         |Yuri Honings´                                      |Yuri_Honing                                        |Er war Mitglied der Formationen „Erdmann 3000“ (formerly knows as Erdmann 2000) „Yuri Honings´“ „Wired Paradise“, Paul van Kemenade-international 5tett, Dejan Terzic „Underground“ und der Soulband „Spank You“.                                               
+FN         |Yu                                                 |Schraptiger                                        |Den Beginn und das Ende eines Musikstücks markieren etwa das Zhu (柷) und das Yu (敔), hölzerne Klangkörper, die mit einem Stab angeschlagen werden.                                                                                                              
+FN         |Z8-Nachbau                                         |Zilog_Z8                                           |U88x (mit x = 1,2,3,4,6) – Z8-Nachbau, „Einchipmikrorechner“.                                                                                                                                                                                                   
+FN         |Zeiss-Werken                                       |Carl_Zeiss_(Unternehmen)                           |Um diese Gebiete auszuloten, wandte er sich an Ernst Abbe von den Zeiss-Werken in Jena.                                                                                                                                                                         
+...
 ``` 
 
 #### Excellent
+Samples, that both models failed for: 59
+
 ``` 
 Label      |Mention                                            |GT entity                                          |Sentence                             
 ------     |--------------------------------                   |------------------------------                     |---------------------------------------------------------------------------------
-
+...
+FN         |Münster                                            |Konstanzer_Münster                                 |Die Städtische Wessenberg-Galerie befindet sich im Kulturzentrum am Münster und zeigt Kunst des 19. und 20. Jahrhunderts.                                                                                                                                       
+FN         |Münsters                                           |Konstanzer_Münster                                 |Neben der Pfarrei des Münsters entstanden im Laufe der Geschichte mehrere katholische Gemeinden, die teilweise auch auf frühere Klöster zurückgehen.                                                                                                            
+FN         |neuen Pyramide                                     |Knickpyramide                                      |Obwohl fertiggestellt, gab Snofru das Bauwerk als Grabmal auf und begann nach der Verlegung seiner Residenz mit dem Bau einer neuen Pyramide in Dahschur, womit die Meidum-Pyramide nun eine Funktion als Kenotaph erfüllen sollte.                             
+FN         |Niederlage Frankreichs                             |Schlacht_um_Điện_Biên_Phủ                          |In die Zeit der Vierten Republik fielen der Indochinakrieg, mit dem durch die Niederlage Frankreichs 1954 das Ende des französischen Kolonialreichs eingeleitet wurde, und die ersten Jahre des Algerienkriegs (1954 bis 1962).                                 
+FN         |Nord 1110                                          |Messerschmitt_Bf_108                               |Für Flugversuche erhielten auch einzelne Flugzeuge Nord 1110 und Dornier Do 27 Astazou-Triebwerke.                                                                                                                                                              
+FN         |nordenglischen Hochmoor                            |North_York_Moors                                   |Im nordenglischen Hochmoor geraten sie in das einsam gelegene Dorf East Proctor, dessen Einwohner offenbar ein Geheimnis hüten.                                                                                                                                 
+FN         |Osmabenzol                                         |Osmium                                             |Als erste Verbindung dieser Klasse konnte drei Jahre später ein Osmabenzol dargestellt werden.                                                                                                                                                                  
+FN         |PALS-AHA                                           |Herz-Lungen-Wiederbelebung                         |Erfolgreiche bestandene Kurse in ACLS-AHA und PALS-AHA .                                                                                                                                                                                                        
+FN         |Präsidentschaftswahl 1916                          |Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916 |Bei der Präsidentschaftswahl 1916 sprach er sich für den republikanischen Kandidaten Charles Evans Hughes aus, der jedoch Amtsinhaber Wilson in einer äußerst knappen Entscheidung unterlag.                                                                    
+FN         |regulieren                                         |Salzpflanze                                        |Sie dienen dazu, den Salzgehalt der Pflanze zu regulieren.                                                                                                                                                                                                      
+FN         |römischer Zeit                                     |Heidelberg_in_römischer_Zeit                       |Die ersten Brücken im Gebiet des heutigen Heidelberg waren bereits in römischer Zeit gebaut worden: Im 1. Jahrhundert n. Chr. errichteten die Römer eine Holzbrücke über den Neckar, die um das Jahr 200 durch eine Steinpfeilerbrücke ersetzt wurde.           
+...
 ``` 
 
 
