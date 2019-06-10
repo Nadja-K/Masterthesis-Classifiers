@@ -117,7 +117,7 @@ class BertEmbeddingClassifier(Classifier):
         #     print(suggestion)
         # print("")
 
-        top_suggestions = {'suggestions': {}, 'nn_sentences': suggestions}
+        top_suggestions = {'suggestions': {}, 'nn_sentences': suggestions, 'query_sentence': sentence}
         if len(suggestions) > 0:
             min_distance = suggestions[0][1]
             for tuple in suggestions:

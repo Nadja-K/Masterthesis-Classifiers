@@ -34,6 +34,42 @@
   * NUM_QUERY_SENTENCES_PER_ENTITY: 2
 
 ## Comparison to the unfinetuned Bert model
+
+## FN nearest neighbor examples (excellent dataset)
+```
+Geschichte_der_Demokratischen_Republik_Kongo | Denis Mukengere Mukwege (* 1. März 1955 in Bukavu, Belgisch-Kongo) ist ein kongolesischer Gynäkologe, Menschenrechtsaktivist, Gründer und leitender Chirurg des Panzi-Hospitals in Bukavu sowie Friedensnobelpreisträger.
+('Geschichte_der_Demokratischen_Republik_Kongo', 0.34584492444992065, 'Alan Rupert Tyrrell QC (* 27. Juni 1933 in Bolobo, Belgisch-Kongo; † 23. Oktober 2014) war ein britischer Jurist und Politiker der Conservative Party, der als Anwalt unter anderem Strafverteidiger der Bestie von Islington sowie zwischen 1979 und 1984 Mitglied des Europäischen Parlaments war und sich anschließend als Jurist überwiegend mit Fragen des Europarechts beschäftigte.')
+('Geschichte_der_Demokratischen_Republik_Kongo', 0.43917983770370483, 'In der damaligen Kolonie Belgisch-Kongo beobachteten und fotografierten sie unter anderem Gorillas .')
+('Geschichte_der_Demokratischen_Republik_Kongo', 0.6093013286590576, 'Die Élisabethville (I) war ein 1911 in Dienst gestelltes Passagierschiff der belgischen Reederei Compagnie Maritime Belge (CMB), das im Passagier- und Frachtverkehr von Antwerpen nach Belgisch-Kongo eingesetzt wurde.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9062690138816833, 'Die Gebäude, die Anlagen und die Gewächse im Garten wurden durch den Krieg in Afghanistan nach 1992 stark zerstört.')
+('Spanisch-Portugiesischer_Krieg_(1735–1737)', 0.9166758060455322, 'Ein letzter offener militärischer Konflikt war der Spanisch-Portugiesische Krieg von 1735 bis 1737.')
+```
+```
+Afghanischer_Bürgerkrieg_(1989–2001) | In den Machtkämpfen der 1990er Jahre verlor er sein Amt, konnte es aber 1996 noch einmal für wenige Wochen zurückgewinnen.
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7008225917816162, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, bei der der Demokrat Woodrow Wilson wiedergewählt wurde.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.7008232474327087, 'Durch den Bürgerkrieg in den 1990er Jahren wurde der Zoo wesentlich beschädigt, die Tiere wurden weitgehend getötet.')
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7139281630516052, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, die der demokratische Amtsinhaber Woodrow Wilson gewann.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.8051326870918274, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.8390297293663025, 'Der Demokrat Wilson hatte die Präsidentschaftswahl von 1916 mit einer „Friedensplattform“ und dem Versprechen sozialdemokratischer Arbeitsgesetze sowie strikter Neutralität zum europäischen Krieg gewonnen; sein republikanischer Kontrahent Charles Evans Hughes war für Mobilmachung und militärische Vorbereitungen eingetreten.')
+
+```
+```
+Ahmose-Pyramide | Im Komplex der Ahmose-Pyramide befindet sich eine Gedächtniskapelle und die kleine, ihr gewidmete (Kenotaph-)Pyramide der Tetischeri .
+('Ahmose-Pyramide', 0.3117927312850952, 'Im Totentempel der Ahmose-Pyramide in Abydos fanden sich schließlich gestempelte Siegel des Neferperet, der vielleicht die Bauleitung an dem Tempel innehatte.')
+('Sahure-Pyramide', 0.5788346529006958, 'Der Unterbau war nach dem seit der Sahure-Pyramide einheitlich verwendeten Schema aufgebaut.')
+('Sahure-Pyramide', 0.6356656551361084, 'Stattdessen wählte er ein Areal nordwestlich der Sahure-Pyramide auf halbem Weg zum Sonnenheiligtum des Userkaf als Bauplatz.')
+('Sahure-Pyramide', 0.639440655708313, 'Von einem Feldzug gegen Libyen berichten Reliefs im Totentempel der Sahure-Pyramide (5.')
+('Rote_Pyramide', 0.6442857384681702, 'Im Inneren der roten Pyramide in Dahschur sind von Perring angebrachte Besuchergraffiti noch heute lesbar.')
+```
+``` 
+Messerschmitt_Bf_108 | Für Flugversuche erhielten auch einzelne Flugzeuge Nord 1110 und Dornier Do 27 Astazou-Triebwerke.
+('Zweite_Kamtschatkaexpedition', 0.973088264465332, 'Die meisten Erkenntnisse stammen aus den Aufzeichnungen des Historikers Gerhard Friedrich Müller, der die Geschichten über Pjanda rund 100 Jahre später während seiner Teilnahme an der Großen Nordischen Expedition in den Regionen von Jenissei und Lena gesammelt hat.')
+('Zweite_Kamtschatkaexpedition', 1.0000261068344116, 'Plasn de la Ville de St. Petersbourg avec ses principales Vües“, Petersburg), auch seine Details zum Anwesen des Grafen Scheremetjew (1713–1788) in Kuskowo (1779), sowie andere Ansichten von Sankt Petersburg und Moskau, auch vom anderen russischen Städten und von sibirischen Städten (siehe auch die Illustrationen zur Großen Nordische Expedition, 1733–1743).')
+('Südafrika', 1.0169963836669922, 'Cherry Wainer (* 2. März 1935 in Südafrika; † 14. November 2014 in Las Vegas; geboren als Cherry Rachel Wainer) war eine südafrikanische Musikerin, die durch ihre auf der Hammond-Orgel gespielten Evergreens bekannt wurde.')
+('Sojus_(Raumschiff)', 1.0179438591003418, 'Flüge zur ISS sollen weiterhin mit dem Sojus-MS-Raumschiff durchgeführt werden.')
+('Südafrika', 1.0198795795440674, 'Während der gemeinsamen Zeit in Südafrika empfanden die Beiden sofortige Sympathie für dem jeweils anderen, woraus eine Freundschaft entstand.')
+``` 
+
 ### (leftover) false negatives
 -> Note: only FN that were FN in the original Bert
 
