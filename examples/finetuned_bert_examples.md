@@ -8,6 +8,9 @@
 ## General notes and remarks to the results of the experiments
 * It is logical that the (finetuned/original) bert model fails for some of the samples that the rule-based and token-level classifier classified successfully. The reason for this are the context-sentences that are used for the annoy nearest neighbor search. It is entirely possible that the context sentences of an entity simply did not contain any sentence that was remotely similar to a query sentence, leading to a FN classification because a context-sentence of a different entity might me more similar.
 * Quite a few of new FN samples seem to be rather trivial cases that should easily be covered by the rule-based classifier
+* For most FN samples it seems like the suggested neares neighbor sentences are more similar to the query sentence in terms of length than context.
+  * Short query sentences usually get short neares neighbor sentences if no true similar sentence has been found.
+  * Note: this is not always the case
 * All experiments were done with the following settings:
   * SKIP_TRIVIAL_SAMPLES: False
   * SPLIT: val
@@ -36,6 +39,7 @@
 ## Comparison to the unfinetuned Bert model
 
 ## FN nearest neighbor examples (excellent dataset)
+Note: ?
 ```
 Geschichte_der_Demokratischen_Republik_Kongo | Das Streckennetz der SNCC umfasst theoretisch 5.033 km mit verschiedenen Spurweiten, die alle noch aus der Kolonialzeit stammen und zumeist in desolatem Zustand oder zum Teil gar nicht mehr befahrbar sind.
 ('Vom_Nutzen_und_Nachteil_der_Historie_für_das_Leben', 0.9491801857948303, 'Seine Kritik an den deutschen Zuständen ist deutlich geprägt von der Nietzsches in dessen Unzeitgemäßen Betrachtungen.')
@@ -44,6 +48,7 @@ Geschichte_der_Demokratischen_Republik_Kongo | Das Streckennetz der SNCC umfasst
 ('Seekrieg_während_der_Operation_Overlord', 0.979102611541748, 'Die Konvois für Utah und Omaha Beach bestanden aus insgesamt 16 Angriffstruppentransportern (→ Seekrieg während der Operation Overlord).')
 ('Österreichische_Filmgeschichte', 0.9804499745368958, 'Der Film zeichnet sich weniger durch seine oft undurchsichtigen Handlungsstränge aus, als dadurch, dass er die größte und teuerste Filmproduktion der österreichischen Filmgeschichte darstellt.')
 ```
+Note: ?
 ```
 Tierseuche | Die Geflügelcholera ist eine durch Pasteurella multocida hervorgerufene seuchenartige bakterielle Infektionskrankheit der Vögel.
 ('Flechte', 0.7402814626693726, 'Nach Meylan wurde die Meylania, eine Zeitschrift für Bryologie und Lichenologie, benannt.')
@@ -52,6 +57,7 @@ Tierseuche | Die Geflügelcholera ist eine durch Pasteurella multocida hervorger
 ('Vibrio_cholerae', 0.8160889744758606, 'In Kalkutta konnte Koch schließlich Anfang 1884 das für die Cholera verantwortliche Bakterium Vibrio cholerae finden, isolieren und züchten.')
 ('Globale_Erwärmung', 0.8288146257400513, 'Ein Straßenlampeneffekt wird von David Victor auch bei der Erforschung der globalen Erwärmung unterstellt.')
 ```
+Note: Some of the nn sentences mention a close date that is being mentioned in the query sentence as well.
 ```
 Dali’s_Mustache | Halsman und Dalí veröffentlichten als Ergebnis ihrer Zusammenarbeit 1954 das Buch Dali’s Mustache, das 28 unterschiedliche Fotos seines Schnurrbarts zeigt.
 ('Pinguine', 0.9791246652603149, 'Ein Bericht des United States Hydrographic Office aus dem Jahr 1943 berichtet über zahlreiche Pinguin-Kolonien an den Hängen der Inseln und einen reichen Robben-Bestand.')
@@ -60,6 +66,7 @@ Dali’s_Mustache | Halsman und Dalí veröffentlichten als Ergebnis ihrer Zusam
 ('Schermützelsee', 0.9967182874679565, 'Der Film beginnt vor Käthe Reichels Haus in Buckow am Schermützelsee, welches sie von Bertolt Brecht, an den sie sich früh verloren hat, 1952 gekauft bekam.')
 ('Herz-Lungen-Wiederbelebung', 1.0032650232315063, 'Im selben Zeitraum begann Wiseman immer häufiger Vorträge zu den Themen Herz-Lungen-Wiederbelebung, Bondage und Themen aus dem Umfeld des Kampfsports Taekwondo zu halten in dem er eine Dan-Graduierung innehat.')
 ```
+Note: ?
 ```
 Auge_für_Auge | Die Talion ist ein gängiges Strafprinzip im Alten Testament und galt in der christlichen Deutung als Prinzip göttlicher Vergeltung schlechthin.
 ('Tapeverband', 0.822422444820404, 'Er beschäftigt sich mit der Taping-Therapie am Bewegungsapparat.')
@@ -68,6 +75,7 @@ Auge_für_Auge | Die Talion ist ein gängiges Strafprinzip im Alten Testament un
 ('Herz-Lungen-Wiederbelebung', 0.8982336521148682, 'Dort sollte er ihn so lange reanimieren, bis die Rettungssanitäter eintreffen.')
 ('Episches_Theater', 0.8999769687652588, 'Erste Elemente des später von Brecht entwickelten Theaterkonzepts werden sichtbar, wenn sich die Darsteller ans Publikum wenden, Songs die Handlung unterbrechen oder der halbhohe Vorhang die Umbauten nur unvollständig verbirgt.')
 ```
+Note: ?
 ```
 Keltische_Religion | Eine nachträgliche Beeinflussung könnte sich durch den kulturellen und wirtschaftlichen Kontakt mit den Kelten, Balten, Slawen und (spät) auch den Römern ergeben haben.
 ('Eifelwasserleitung', 1.1014353036880493, 'Das Dorf Hermülheim entstand an der früheren von der Eifel nach Köln führenden römischen Wasserleitung und des späteren künstlichen Wasserlaufs des Duffesbachs .')
@@ -76,7 +84,107 @@ Keltische_Religion | Eine nachträgliche Beeinflussung könnte sich durch den ku
 ('Fürstenenteignung', 1.1249500513076782, 'Erst 1926 wurde an ihn im Zusammenhang mit dem Volksbegehren zur Fürstenenteignung im Vorwärts wieder erinnert.')
 ('Brühl_(Leipzig)', 1.1269341707229614, 'Nach wenigen Jahren kaufte er bereits selbst auf dem Pelzzentrum des Leipziger Brühls in großer Menge Felle ein und besetzte die Mäntel mit eigener Ware.')
 ```
+...
 
+Note: in this case the nn sentences all seem to be around the same theme 'health'
+``` 
+Erythropoetin | Allerdings konnte in der Dopingkontrolle bei ihr die Verwendung von Darbepoetin nachgewiesen werden.
+('Herz-Lungen-Wiederbelebung', 0.6715161800384521, 'Er wurde schnellstmöglich in das Konkuk Universitätskrankenhaus eingeliefert, in welchem er einen Herzstillstand erlitt und eine Herz-Lungen-Wiederbelebung durchgeführt worden ist.')
+('Erythropoetin', 0.6762504577636719, 'Ein weiterer Schwerpunkt ist die neuroprotektive und kognitive Wirkung von Erythropoietin bei menschlichen Hirnkrankheiten.')
+('Endokrine_Orbitopathie', 0.6824612617492676, 'In einer Studie wurde ein positiver Effekt einer Selentherapie bei endokriner Orbitopathie berichtet.')
+('Endokrine_Orbitopathie', 0.6950027346611023, 'Dies ist insbesondere beim Krankheitsbild der endokrinen Orbitopathie eine notwendige diagnostische Maßnahme.')
+('Endokrine_Orbitopathie', 0.6995312571525574, 'Bei Patienten mit Morbus Basedow werden Beschwerden der endokrinen Orbitopathie erfragt: Druckgefühl hinter den Augen und Kopfschmerzen, Lichtempfindlichkeit, Fremdkörpergefühl, Tränen der Augen, Doppelbilder.')
+```
+Note: ?
+``` 
+Gallium | Zum Beispiel wandelt sich 71Ga durch Einfang eines Elektron-Neutrinos in 71Ge unter Emission eines Elektrons um.
+('M1_Abrams', 0.9235720634460449, 'Die Stärke der Panzerung entspricht in etwa der des M1A2 Abrams.')
+('Erythropoetin', 0.9516376852989197, 'Ende April 2009 bestätigte das Nationale Olympische Komitee Italiens (CONI), dass der Zweite Rebellin bei Nachkontrollen von Dopingproben positiv auf das EPO-Mittel CERA getestet wurde.')
+('USS_Thresher_(SSN-593)', 0.9594923853874207, 'Die lange Wartezeit ist durch den Untergang der USS Thresher (SSN-593) im April 1963 zu erklären.')
+('Herz-Lungen-Wiederbelebung', 0.9616435170173645, 'Hörnblad führte dabei eine Herz-Lungen-Wiederbelebung durch, bis der Rettungshelikopter an der Bergstation eintraf.')
+('Erythropoetin', 0.9692546129226685, 'Am 4. April 2008 wurde er bei einer Dopingkontrolle positiv auf rh-EPO getestet.')
+```
+Note: here the nn sentences and the query sentence share the same theme 'war'
+``` 
+Schlacht_um_Điện_Biên_Phủ | In die Zeit der Vierten Republik fielen der Indochinakrieg, mit dem durch die Niederlage Frankreichs 1954 das Ende des französischen Kolonialreichs eingeleitet wurde, und die ersten Jahre des Algerienkriegs (1954 bis 1962).
+('Spanisch-Portugiesischer_Krieg_(1735–1737)', 0.8215863704681396, 'Ein letzter offener militärischer Konflikt war der Spanisch-Portugiesische Krieg von 1735 bis 1737.')
+('Deutsches_Kaiserreich', 0.8536784052848816, 'Nach Beendigung des Ersten Weltkriegs und dem Ende des Kaiserreichs gingen die diplomatischen Beziehungen zu Brasilien ab 1920 weiter.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.8673692345619202, 'Fahim war ein ehemaliger Kommandeur der Nordallianz und kämpfte in der Zeit des Afghanischen Bürgerkrieges (1989–2001) gegen die Taliban und fremde Islamisten (Al Qaida).')
+('Deutsches_Kaiserreich', 0.8806178569793701, 'Als Architekt tritt Alfred Martens in der späten Gründerzeit des Deutschen Kaiserreichs in Erscheinung, als 1910 unter seiner Leitung im Stadtbauamt der seinerzeit selbständigen Industriestadt Linden vor Hannover eine städtische Hochbauabteilung entstand.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.8869706392288208, 'Nazri Mohammad war ein Kommandant der Nordallianz und kämpfte in der Zeit des Afghanischen Bürgerkriegs (1989–2001) unter Ahmed Schah Massud gegen die Taliban .')
+```
+Note: here the nn sentences and the query sentences are both very short and seem to describe a person.
+``` 
+Kasberger_Linde | Kunigundenlinde bei Kasberg (Nähe Gräfenberg).
+('Alfred_Wegener', 1.03531014919281, 'Alfred Wegener (1880–1930), Meteorologe, Polarforscher, entwickelte die Theorie von der Kontinentalverschiebung.')
+('Alfred_Wegener', 1.0453283786773682, 'Alfred Wegener: Meteorologe, Polar- und Geowissenschaftler; wichtigster Beitrag zur Wissenschaft gilt seine erst posthum anerkannte Theorie der Kontinentalverschiebung, die zu einer wesentlichen Grundlage für das heutige Modell der Plattentektonik geworden ist.')
+('Eugen_Ritter_von_Schobert', 1.048684000968933, 'Eugen Ritter von Schobert 4. Februar 1938 bis 26. August 1939.')
+('Friedhof_der_Märzgefallenen', 1.0532022714614868, 'Friedhof der Märzgefallenen in Berlin (Ereignisse März 1848).')
+('Alfred_Wegener', 1.0535414218902588, 'Alfred Wegener war mehr an der Wechselwirkung mit der Erdatmosphäre interessiert.')
+```
+Note: ?
+``` 
+Goldenes_Zeitalter | Auch die Schilderung der Aurea Aetas in Vergils 4.
+('Ahmose-Pyramide', 0.9687299132347107, 'Im Totentempel der Ahmose-Pyramide in Abydos fanden sich schließlich gestempelte Siegel des Neferperet, der vielleicht die Bauleitung an dem Tempel innehatte.')
+('Chorda_dorsalis', 0.9786140322685242, 'Nachdem unter dem Einfluss der Chorda dorsalis aus dem Ektoderm die (kranial breitere) Neuralplatte entstanden ist, bilden sich noch im Verlauf der dritten Woche aus den Rändern der Neuralplatte die Neuralfalten, zwischen denen jetzt eine Neuralrinne liegt.')
+('Vibrio_cholerae', 0.9812917709350586, 'Choleratoxin von Vibrio cholerae verursacht die wässrigen Durchfälle bei Cholera .')
+('Vibrio_cholerae', 0.9892188310623169, 'Das Vibrio cholerae Cytolysin ist ebenfalls heptamer.')
+('Endokrine_Orbitopathie', 0.9907060265541077, 'Bei endokriner Orbitopathie lassen sich die Strukturen der Orbita mit Ultraschall oder Computertomografie beurteilen; Verfahren der ersten Wahl ist allerdings die Kernspintomografie .')
+```
+Note: the TP entity is part of the nn sentences but not the top1 candidate.
+``` 
+Afghanischer_Bürgerkrieg_(1989–2001) | In den Machtkämpfen der 1990er Jahre verlor er sein Amt, konnte es aber 1996 noch einmal für wenige Wochen zurückgewinnen.
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7008225917816162, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, bei der der Demokrat Woodrow Wilson wiedergewählt wurde.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.7008232474327087, 'Durch den Bürgerkrieg in den 1990er Jahren wurde der Zoo wesentlich beschädigt, die Tiere wurden weitgehend getötet.')
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7139281630516052, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, die der demokratische Amtsinhaber Woodrow Wilson gewann.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.8051326870918274, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
+('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.8390297293663025, 'Der Demokrat Wilson hatte die Präsidentschaftswahl von 1916 mit einer „Friedensplattform“ und dem Versprechen sozialdemokratischer Arbeitsgesetze sowie strikter Neutralität zum europäischen Krieg gewonnen; sein republikanischer Kontrahent Charles Evans Hughes war für Mobilmachung und militärische Vorbereitungen eingetreten.')
+```
+Note: ? (one of the nn sentences shares the same theme as the query sentence 'flying')
+``` 
+Messerschmitt_Bf_108 | Für Flugversuche erhielten auch einzelne Flugzeuge Nord 1110 und Dornier Do 27 Astazou-Triebwerke.
+('Zweite_Kamtschatkaexpedition', 0.973088264465332, 'Die meisten Erkenntnisse stammen aus den Aufzeichnungen des Historikers Gerhard Friedrich Müller, der die Geschichten über Pjanda rund 100 Jahre später während seiner Teilnahme an der Großen Nordischen Expedition in den Regionen von Jenissei und Lena gesammelt hat.')
+('Zweite_Kamtschatkaexpedition', 1.0000261068344116, 'Plasn de la Ville de St. Petersbourg avec ses principales Vües“, Petersburg), auch seine Details zum Anwesen des Grafen Scheremetjew (1713–1788) in Kuskowo (1779), sowie andere Ansichten von Sankt Petersburg und Moskau, auch vom anderen russischen Städten und von sibirischen Städten (siehe auch die Illustrationen zur Großen Nordische Expedition, 1733–1743).')
+('Südafrika', 1.0169963836669922, 'Cherry Wainer (* 2. März 1935 in Südafrika; † 14. November 2014 in Las Vegas; geboren als Cherry Rachel Wainer) war eine südafrikanische Musikerin, die durch ihre auf der Hammond-Orgel gespielten Evergreens bekannt wurde.')
+('Sojus_(Raumschiff)', 1.0179438591003418, 'Flüge zur ISS sollen weiterhin mit dem Sojus-MS-Raumschiff durchgeführt werden.')
+('Südafrika', 1.0198795795440674, 'Während der gemeinsamen Zeit in Südafrika empfanden die Beiden sofortige Sympathie für dem jeweils anderen, woraus eine Freundschaft entstand.')
+```
+Note: Chili con Carne and Globale Erwärmung ... both are related to CO2
+``` 
+Chili_con_Carne | In Mexiko wird damit nur die Frucht bezeichnet; auf Deutsch ist dagegen nicht immer klar, ob damit die Pflanze, die Frucht oder ein Gericht, das die Früchte verwendet, gemeint ist.
+('Globale_Erwärmung', 0.9923188090324402, 'Der Anstieg der Konzentration verschiedener Treibhausgase, insbesondere von Kohlenstoffdioxid (CO2), verstärkt den Treibhauseffekt und führt zur globalen Erwärmung, die ihrerseits mit zahlreichen Folgen verbunden ist.')
+('Globale_Erwärmung', 1.0005863904953003, 'Der Mensch erhöht indirekt den Wasserdampfgehalt in der Atmosphäre, weil durch die globale Erwärmung die Lufttemperatur und damit die Verdunstungsrate steigen.')
+('Salzpflanze', 1.002034068107605, 'Da es im Oderbruch keine Solequellen gab, wird vermutet, dass das in jener Zeit äußerst wertvolle Salz aus Pflanzen gewonnen wurde.')
+('Globale_Erwärmung', 1.0023928880691528, 'Die Wahl der ersten Libelle des Jahres, der Feuerlibelle, wird beispielsweise damit begründet, dass die Art als Indikator für Klimaveränderungen gelten kann.')
+('Zwerchfell', 1.0027729272842407, 'Uddiyanabandha (Sanskrit, उड्डीयानबन्ध uḍḍīyānabandha, der Verschluss des Auffliegens) oder „Hochflugverschluss“: Der Bauch wird stark eingezogen und das Zwerchfell angehoben.')
+```
+Note: most nn are the correct entity.
+```
+ Herz-Lungen-Wiederbelebung | Nach einem Auftritt am 26. September 2015 erlitt Gruber einen Herzstillstand, den er dank prompter Herzmassage durch seinen Kollegen Puntigam und rasch abfolgender Rettungskette überlebte.
+('Tapeverband', 0.8526206612586975, 'Er beschäftigt sich mit der Taping-Therapie am Bewegungsapparat.')
+('Herz-Lungen-Wiederbelebung', 0.8978623747825623, 'Für diese Tätigkeit braucht der Schwimminstruktor neben den eigenen schwimmerischen Fertigkeiten (Technik Schwimmen, Tauchen, Wasserspringen, Rettungsschwimmen, Wasserball, Synchronschwimmen) und theoretischem Wissen (Trainingslehre, etc.) und einer Ausbildung in Erste Hilfe und in Herz-Lungen-Wiederbelebung und einem Brevet II in Rettungsschwimmen, vor allem Begeisterungsfähigkeit, Einfühlungsvermögen und pädagogisches Geschick, sowie entsprechende methodisch-didaktische Fähigkeiten und Fertigkeiten.')
+('Herz-Lungen-Wiederbelebung', 0.9233009815216064, 'Moderne Betten haben häufig ein Bedienelement, das für den Fall einer Herz-Lungen-Wiederbelebung ermöglicht, das Bett sehr schnell in flache Grundstellung zu bringen.')
+('Herz-Lungen-Wiederbelebung', 0.9260762929916382, 'Der klinikeigene Prototyp eines Defibrillators und die direkte Herz-Lungen-Wiederbelebung versagten.')
+('Herz-Lungen-Wiederbelebung', 0.9285234212875366, 'Er wurde schnellstmöglich in das Konkuk Universitätskrankenhaus eingeliefert, in welchem er einen Herzstillstand erlitt und eine Herz-Lungen-Wiederbelebung durchgeführt worden ist.')
+```
+Note: all nn sentences as well as the query sentence refer to Münster, although a different one (samples for this entity seem to be often wrongly suggested to be the other Münster)
+``` 
+Konstanzer_Münster | Neben der Pfarrei des Münsters entstanden im Laufe der Geschichte mehrere katholische Gemeinden, die teilweise auch auf frühere Klöster zurückgehen.
+('Essener_Münster', 0.6401358246803284, 'Dem Schatzverzeichnis des Essener Münsters vom 12. Juli 1662 zufolge waren es noch 18 Stück.')
+('Essener_Münster', 0.6896570920944214, 'Der Grundstein stammt aus der Essener Münsterkirche.')
+('Essener_Münster', 0.7387318015098572, 'Ein Johann Neelmann wurde 1600 als weiterer Glockengießer erwähnt; er goss eine Glocke mit der Inschrift „Johann Neelmann von Soest goth mich 1600“ für den Dachreiter der Münsterkirche in Essen.')
+('Essener_Münster', 0.7876101136207581, 'Weitere Reliquien befinden sich im Lateran in Rom, im Essener Münster und im Kunstgewerbemuseum Berlin (Armreliquiar des hl.')
+('Konstanzer_Münster', 0.8042261004447937, 'Im 1. Jahrhundert wurde auf dem Gebiet des Münsterhügels eine römische Befestigungsanlage errichtet.')
+```
+Note: all nn sentences as well as the query sentence share the same theme 'war' and 'conflict'
+``` 
+Gulag | Als Instrument der Bekämpfung gründete Kaiser Alexander 1881 die Geheimpolizei Ochrana, die politische Gegner in die sibirischen Arbeitslager sperrte.
+('Zweite_Kamtschatkaexpedition', 0.8203372359275818, 'Im Dezember 1742 besuchten  Johann Georg Gmelin, Gerhard Friedrich Müller und Georg Wilhelm Steller während der Rückkehr von der Großen Sibirien-Expedition Demidow in Solikamsk, der ihnen auch seine Gewächshäuser zeigte.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9320636987686157, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9645217061042786, 'Von 1996 bis 2001 kämpfte Massoud als Mitglied der Vereinten Front (Nordallianz) im Afghanischen Bürgerkrieg (1989–2001) gegen die Taliban .')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9652268290519714, 'Nazri Mohammad war ein Kommandant der Nordallianz und kämpfte in der Zeit des Afghanischen Bürgerkriegs (1989–2001) unter Ahmed Schah Massud gegen die Taliban .')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9668467044830322, 'Fahim war ein ehemaliger Kommandeur der Nordallianz und kämpfte in der Zeit des Afghanischen Bürgerkrieges (1989–2001) gegen die Taliban und fremde Islamisten (Al Qaida).')
+```
 ### (leftover) false negatives
 -> Note: only FN that were FN in the original Bert
 

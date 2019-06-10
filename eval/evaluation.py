@@ -153,11 +153,18 @@ class Evaluator:
 
                     # FIXME: comment out again, only used for debugging to get NN sentences for FN and FP samples
                     nn_sentences = sample.get('nn_sentences', None)
-                    if fp == 5 and nn_sentences is not None:
+                    if nn_sentences[0][0] != gt_entity:
                         print(gt_entity + " | " + sample['query_sentence'])
                         for nn_sample in nn_sentences:
                             print(nn_sample)
                         print("")
+
+                    # # FIXME: comment out again, only used for debugging to get NN sentences for FN and FP samples (only the cases were the top results didn't contain the GT entity at all)
+                    # if tp == 0 and nn_sentences is not None:
+                    #     print(gt_entity + " | " + sample['query_sentence'])
+                    #     for nn_sample in nn_sentences:
+                    #         print(nn_sample)
+                    #     print("")
 
                     self._top1_accuracy += accuracy_tmp
                     self._macro_precision += precision(tp, fp)
