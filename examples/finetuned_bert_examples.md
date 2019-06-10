@@ -41,13 +41,13 @@
 ## FN nearest neighbor examples (excellent dataset)
 Note: ?
 ```
-Geschichte_der_Demokratischen_Republik_Kongo | Das Streckennetz der SNCC umfasst theoretisch 5.033 km mit verschiedenen Spurweiten, die alle noch aus der Kolonialzeit stammen und zumeist in desolatem Zustand oder zum Teil gar nicht mehr befahrbar sind.
+ Geschichte_der_Demokratischen_Republik_Kongo | Das Streckennetz der SNCC umfasst theoretisch 5.033 km mit verschiedenen Spurweiten, die alle noch aus der Kolonialzeit stammen und zumeist in desolatem Zustand oder zum Teil gar nicht mehr befahrbar sind.
 ('Vom_Nutzen_und_Nachteil_der_Historie_für_das_Leben', 0.9491801857948303, 'Seine Kritik an den deutschen Zuständen ist deutlich geprägt von der Nietzsches in dessen Unzeitgemäßen Betrachtungen.')
 ('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9668245315551758, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
 ('Star_Trek:_Der_erste_Kontakt', 0.9755210876464844, 'Während dieser Zeit arbeitete er wieder mit Braga an einem Drehbuch für einen neuen Star-Trek-Film, nämlich Star Trek: Der erste Kontakt.')
 ('Seekrieg_während_der_Operation_Overlord', 0.979102611541748, 'Die Konvois für Utah und Omaha Beach bestanden aus insgesamt 16 Angriffstruppentransportern (→ Seekrieg während der Operation Overlord).')
 ('Österreichische_Filmgeschichte', 0.9804499745368958, 'Der Film zeichnet sich weniger durch seine oft undurchsichtigen Handlungsstränge aus, als dadurch, dass er die größte und teuerste Filmproduktion der österreichischen Filmgeschichte darstellt.')
-```
+``` 
 Note: ?
 ```
 Tierseuche | Die Geflügelcholera ist eine durch Pasteurella multocida hervorgerufene seuchenartige bakterielle Infektionskrankheit der Vögel.
