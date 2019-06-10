@@ -37,38 +37,45 @@
 
 ## FN nearest neighbor examples (excellent dataset)
 ```
-Geschichte_der_Demokratischen_Republik_Kongo | Denis Mukengere Mukwege (* 1. März 1955 in Bukavu, Belgisch-Kongo) ist ein kongolesischer Gynäkologe, Menschenrechtsaktivist, Gründer und leitender Chirurg des Panzi-Hospitals in Bukavu sowie Friedensnobelpreisträger.
-('Geschichte_der_Demokratischen_Republik_Kongo', 0.34584492444992065, 'Alan Rupert Tyrrell QC (* 27. Juni 1933 in Bolobo, Belgisch-Kongo; † 23. Oktober 2014) war ein britischer Jurist und Politiker der Conservative Party, der als Anwalt unter anderem Strafverteidiger der Bestie von Islington sowie zwischen 1979 und 1984 Mitglied des Europäischen Parlaments war und sich anschließend als Jurist überwiegend mit Fragen des Europarechts beschäftigte.')
-('Geschichte_der_Demokratischen_Republik_Kongo', 0.43917983770370483, 'In der damaligen Kolonie Belgisch-Kongo beobachteten und fotografierten sie unter anderem Gorillas .')
-('Geschichte_der_Demokratischen_Republik_Kongo', 0.6093013286590576, 'Die Élisabethville (I) war ein 1911 in Dienst gestelltes Passagierschiff der belgischen Reederei Compagnie Maritime Belge (CMB), das im Passagier- und Frachtverkehr von Antwerpen nach Belgisch-Kongo eingesetzt wurde.')
-('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9062690138816833, 'Die Gebäude, die Anlagen und die Gewächse im Garten wurden durch den Krieg in Afghanistan nach 1992 stark zerstört.')
-('Spanisch-Portugiesischer_Krieg_(1735–1737)', 0.9166758060455322, 'Ein letzter offener militärischer Konflikt war der Spanisch-Portugiesische Krieg von 1735 bis 1737.')
+Geschichte_der_Demokratischen_Republik_Kongo | Das Streckennetz der SNCC umfasst theoretisch 5.033 km mit verschiedenen Spurweiten, die alle noch aus der Kolonialzeit stammen und zumeist in desolatem Zustand oder zum Teil gar nicht mehr befahrbar sind.
+('Vom_Nutzen_und_Nachteil_der_Historie_für_das_Leben', 0.9491801857948303, 'Seine Kritik an den deutschen Zuständen ist deutlich geprägt von der Nietzsches in dessen Unzeitgemäßen Betrachtungen.')
+('Afghanischer_Bürgerkrieg_(1989–2001)', 0.9668245315551758, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
+('Star_Trek:_Der_erste_Kontakt', 0.9755210876464844, 'Während dieser Zeit arbeitete er wieder mit Braga an einem Drehbuch für einen neuen Star-Trek-Film, nämlich Star Trek: Der erste Kontakt.')
+('Seekrieg_während_der_Operation_Overlord', 0.979102611541748, 'Die Konvois für Utah und Omaha Beach bestanden aus insgesamt 16 Angriffstruppentransportern (→ Seekrieg während der Operation Overlord).')
+('Österreichische_Filmgeschichte', 0.9804499745368958, 'Der Film zeichnet sich weniger durch seine oft undurchsichtigen Handlungsstränge aus, als dadurch, dass er die größte und teuerste Filmproduktion der österreichischen Filmgeschichte darstellt.')
 ```
 ```
-Afghanischer_Bürgerkrieg_(1989–2001) | In den Machtkämpfen der 1990er Jahre verlor er sein Amt, konnte es aber 1996 noch einmal für wenige Wochen zurückgewinnen.
-('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7008225917816162, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, bei der der Demokrat Woodrow Wilson wiedergewählt wurde.')
-('Afghanischer_Bürgerkrieg_(1989–2001)', 0.7008232474327087, 'Durch den Bürgerkrieg in den 1990er Jahren wurde der Zoo wesentlich beschädigt, die Tiere wurden weitgehend getötet.')
-('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.7139281630516052, 'Gleichzeitig fand auch die Präsidentschaftswahl des Jahres 1916 statt, die der demokratische Amtsinhaber Woodrow Wilson gewann.')
-('Afghanischer_Bürgerkrieg_(1989–2001)', 0.8051326870918274, 'Nach dem Abzug der sowjetischen Truppen im sowjetisch-afghanischen Krieg wurde der Palast während des Bürgerkrieges in den 1990er-Jahren durch Artilleriebeschuss der Mudschaheddin endgültig zur Ruine.')
-('Präsidentschaftswahl_in_den_Vereinigten_Staaten_1916', 0.8390297293663025, 'Der Demokrat Wilson hatte die Präsidentschaftswahl von 1916 mit einer „Friedensplattform“ und dem Versprechen sozialdemokratischer Arbeitsgesetze sowie strikter Neutralität zum europäischen Krieg gewonnen; sein republikanischer Kontrahent Charles Evans Hughes war für Mobilmachung und militärische Vorbereitungen eingetreten.')
-
+Tierseuche | Die Geflügelcholera ist eine durch Pasteurella multocida hervorgerufene seuchenartige bakterielle Infektionskrankheit der Vögel.
+('Flechte', 0.7402814626693726, 'Nach Meylan wurde die Meylania, eine Zeitschrift für Bryologie und Lichenologie, benannt.')
+('Herz-Lungen-Wiederbelebung', 0.8075322508811951, 'Neben der üblichen Beratung veranstaltet der BDS Kurse über Herz-Lungen-Wiederbelebung, Erste Hilfe, Wasserrettung, Notfallmaßnahmen, Aqua-Fitness, Tauchen und Wasserspringen.')
+('Stammesgeschichte_des_Menschen', 0.812583863735199, 'In diesem Zusammenhang wurde vermutet, dass wesentliche evolutionäre Änderungen der Handanatomie im Laufe der Stammesgeschichte des Menschen die Bildung einer Faust unterstützen und in diesem Entwicklungsprozess könnte die Bildung von Waschfrauenhänden eine untergeordnete Rolle gespielt haben.')
+('Vibrio_cholerae', 0.8160889744758606, 'In Kalkutta konnte Koch schließlich Anfang 1884 das für die Cholera verantwortliche Bakterium Vibrio cholerae finden, isolieren und züchten.')
+('Globale_Erwärmung', 0.8288146257400513, 'Ein Straßenlampeneffekt wird von David Victor auch bei der Erforschung der globalen Erwärmung unterstellt.')
 ```
 ```
-Ahmose-Pyramide | Im Komplex der Ahmose-Pyramide befindet sich eine Gedächtniskapelle und die kleine, ihr gewidmete (Kenotaph-)Pyramide der Tetischeri .
-('Ahmose-Pyramide', 0.3117927312850952, 'Im Totentempel der Ahmose-Pyramide in Abydos fanden sich schließlich gestempelte Siegel des Neferperet, der vielleicht die Bauleitung an dem Tempel innehatte.')
-('Sahure-Pyramide', 0.5788346529006958, 'Der Unterbau war nach dem seit der Sahure-Pyramide einheitlich verwendeten Schema aufgebaut.')
-('Sahure-Pyramide', 0.6356656551361084, 'Stattdessen wählte er ein Areal nordwestlich der Sahure-Pyramide auf halbem Weg zum Sonnenheiligtum des Userkaf als Bauplatz.')
-('Sahure-Pyramide', 0.639440655708313, 'Von einem Feldzug gegen Libyen berichten Reliefs im Totentempel der Sahure-Pyramide (5.')
-('Rote_Pyramide', 0.6442857384681702, 'Im Inneren der roten Pyramide in Dahschur sind von Perring angebrachte Besuchergraffiti noch heute lesbar.')
+Dali’s_Mustache | Halsman und Dalí veröffentlichten als Ergebnis ihrer Zusammenarbeit 1954 das Buch Dali’s Mustache, das 28 unterschiedliche Fotos seines Schnurrbarts zeigt.
+('Pinguine', 0.9791246652603149, 'Ein Bericht des United States Hydrographic Office aus dem Jahr 1943 berichtet über zahlreiche Pinguin-Kolonien an den Hängen der Inseln und einen reichen Robben-Bestand.')
+('Friedhof_der_Märzgefallenen', 0.9814435243606567, 'Seit 2006 ist Kitschun Leiterin des Gedenk- und Ausstellungsortes Friedhof der Märzgefallenen.')
+('Couven-Museum', 0.9945758581161499, 'Dabei wurden ein Großteil der Innenausstattung sowie Tapeten und Möbel, teilweise an das Couven-Museum der Stadt Aachen, verkauft.')
+('Schermützelsee', 0.9967182874679565, 'Der Film beginnt vor Käthe Reichels Haus in Buckow am Schermützelsee, welches sie von Bertolt Brecht, an den sie sich früh verloren hat, 1952 gekauft bekam.')
+('Herz-Lungen-Wiederbelebung', 1.0032650232315063, 'Im selben Zeitraum begann Wiseman immer häufiger Vorträge zu den Themen Herz-Lungen-Wiederbelebung, Bondage und Themen aus dem Umfeld des Kampfsports Taekwondo zu halten in dem er eine Dan-Graduierung innehat.')
 ```
-``` 
-Messerschmitt_Bf_108 | Für Flugversuche erhielten auch einzelne Flugzeuge Nord 1110 und Dornier Do 27 Astazou-Triebwerke.
-('Zweite_Kamtschatkaexpedition', 0.973088264465332, 'Die meisten Erkenntnisse stammen aus den Aufzeichnungen des Historikers Gerhard Friedrich Müller, der die Geschichten über Pjanda rund 100 Jahre später während seiner Teilnahme an der Großen Nordischen Expedition in den Regionen von Jenissei und Lena gesammelt hat.')
-('Zweite_Kamtschatkaexpedition', 1.0000261068344116, 'Plasn de la Ville de St. Petersbourg avec ses principales Vües“, Petersburg), auch seine Details zum Anwesen des Grafen Scheremetjew (1713–1788) in Kuskowo (1779), sowie andere Ansichten von Sankt Petersburg und Moskau, auch vom anderen russischen Städten und von sibirischen Städten (siehe auch die Illustrationen zur Großen Nordische Expedition, 1733–1743).')
-('Südafrika', 1.0169963836669922, 'Cherry Wainer (* 2. März 1935 in Südafrika; † 14. November 2014 in Las Vegas; geboren als Cherry Rachel Wainer) war eine südafrikanische Musikerin, die durch ihre auf der Hammond-Orgel gespielten Evergreens bekannt wurde.')
-('Sojus_(Raumschiff)', 1.0179438591003418, 'Flüge zur ISS sollen weiterhin mit dem Sojus-MS-Raumschiff durchgeführt werden.')
-('Südafrika', 1.0198795795440674, 'Während der gemeinsamen Zeit in Südafrika empfanden die Beiden sofortige Sympathie für dem jeweils anderen, woraus eine Freundschaft entstand.')
-``` 
+```
+Auge_für_Auge | Die Talion ist ein gängiges Strafprinzip im Alten Testament und galt in der christlichen Deutung als Prinzip göttlicher Vergeltung schlechthin.
+('Tapeverband', 0.822422444820404, 'Er beschäftigt sich mit der Taping-Therapie am Bewegungsapparat.')
+('Erythropoetin', 0.8566761016845703, 'Er wurde daraufhin wegen EPO-Missbrauchs für zwei Jahre gesperrt.')
+('Suprematismus', 0.8882577419281006, 'Ihr suprematistisches Ballett von 1920 ist eine der ersten kinetischen Theateraufführungen überhaupt.')
+('Herz-Lungen-Wiederbelebung', 0.8982336521148682, 'Dort sollte er ihn so lange reanimieren, bis die Rettungssanitäter eintreffen.')
+('Episches_Theater', 0.8999769687652588, 'Erste Elemente des später von Brecht entwickelten Theaterkonzepts werden sichtbar, wenn sich die Darsteller ans Publikum wenden, Songs die Handlung unterbrechen oder der halbhohe Vorhang die Umbauten nur unvollständig verbirgt.')
+```
+```
+Keltische_Religion | Eine nachträgliche Beeinflussung könnte sich durch den kulturellen und wirtschaftlichen Kontakt mit den Kelten, Balten, Slawen und (spät) auch den Römern ergeben haben.
+('Eifelwasserleitung', 1.1014353036880493, 'Das Dorf Hermülheim entstand an der früheren von der Eifel nach Köln führenden römischen Wasserleitung und des späteren künstlichen Wasserlaufs des Duffesbachs .')
+('Mittelmeerraum', 1.1130257844924927, 'Andererseits, des allgemeinen Bereiches aller Kulturen, von denen des das Land València umrandenden Mittelmeers, bis hin zu denen entfernterer Regionen der Welt.')
+('Deutsches_Kaiserreich', 1.1226885318756104, 'Als Architekt tritt Alfred Martens in der späten Gründerzeit des Deutschen Kaiserreichs in Erscheinung, als 1910 unter seiner Leitung im Stadtbauamt der seinerzeit selbständigen Industriestadt Linden vor Hannover eine städtische Hochbauabteilung entstand.')
+('Fürstenenteignung', 1.1249500513076782, 'Erst 1926 wurde an ihn im Zusammenhang mit dem Volksbegehren zur Fürstenenteignung im Vorwärts wieder erinnert.')
+('Brühl_(Leipzig)', 1.1269341707229614, 'Nach wenigen Jahren kaufte er bereits selbst auf dem Pelzzentrum des Leipziger Brühls in großer Menge Felle ein und besetzte die Mäntel mit eigener Ware.')
+```
 
 ### (leftover) false negatives
 -> Note: only FN that were FN in the original Bert

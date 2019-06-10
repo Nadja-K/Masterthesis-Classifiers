@@ -153,7 +153,7 @@ class Evaluator:
 
                     # FIXME: comment out again, only used for debugging to get NN sentences for FN and FP samples
                     nn_sentences = sample.get('nn_sentences', None)
-                    if fp > 0 or fn > 0 and nn_sentences is not None:
+                    if fp == 5 and nn_sentences is not None:
                         print(gt_entity + " | " + sample['query_sentence'])
                         for nn_sample in nn_sentences:
                             print(nn_sample)
