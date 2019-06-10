@@ -151,6 +151,13 @@ class Evaluator:
                 for sample in samples:
                     tp, fp, fn, accuracy_tmp = self._evaluate_sample(gt_entity, sample, mention)
 
+                    # FIXME: comment out again, only used for debugging to get NN sentences for FN and FP samples
+                    nn_sentences = sample.get('nn_sentences', None)
+                    if fp > 0 or fn > 0 and nn_sentences is not None:
+                        for nn_sample in nn_sentences:
+                            print(nn_sample)
+                        print("")
+
                     self._top1_accuracy += accuracy_tmp
                     self._macro_precision += precision(tp, fp)
                     self._macro_recall += recall(tp, fn)

@@ -117,15 +117,18 @@ class BertEmbeddingClassifier(Classifier):
         #     print(suggestion)
         # print("")
 
-        top_suggestions = {'suggestions': {}}
+        top_suggestions = {'suggestions': {}, 'nn_sentences': suggestions}
         if len(suggestions) > 0:
             min_distance = suggestions[0][1]
             for tuple in suggestions:
-                if self._distance_allowance is not None:
-                    if tuple[1] <= (min_distance + self._distance_allowance):
+                if (((self._distance_allowance is not None) and (tuple[1] <= (min_distance + self._distance_allowance)))
+                        or (self._distance_allowance is None)):
+                    # If the entity is already in the top suggestions, only keep the lowest distance
+                    if tuple[0] in top_suggestions['suggestions'] and tuple[1] < top_suggestions['suggestions'][tuple[0]]:
                         top_suggestions['suggestions'][tuple[0]] = tuple[1]
-                else:
-                    top_suggestions['suggestions'][tuple[0]] = tuple[1]
+                    # Otherwise only add the result if the entity is not in the top suggestions yet
+                    elif tuple[0] not in top_suggestions['suggestions']:
+                        top_suggestions['suggestions'][tuple[0]] = tuple[1]
 
         return top_suggestions
 
