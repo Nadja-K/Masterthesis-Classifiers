@@ -7,6 +7,7 @@
 - The complete log including ALL evaluated samples can be found in `C:\Users\Nadja\Desktop\Masterthesis - Experiments\console_output.txt`
 - From looking at the nn sentences, it can be seen that while the suggested nearest neighbor sentences are sometimes wrong (wrong entity), the main topic between the query sentence as well as the suggested nn sentences seems to always be quite similar (helicopter example, steam example, war examples in general, ...)
 
+# FP Examples where the GT entity is part of the top5 result (but not the top1 result)
 ## FP Examples without any missed context sentences
 ### Ambiguous people
 These cases are almost always tricky because the query will be for a specific person with a name that also refers to other people that lived during different times.
@@ -423,20 +424,345 @@ mention: Leiter-Übergänge | sentence: Nach einer Zeit in der Industrie, währe
 mention: Leiter | sentence: Siti stellt Kabel und Leiter her und gehört in dieser Branche zu den größten Unternehmen Indiens.
 ```
 
-## (Good) TP Examples
+# FP Examples where the GT entity is NOT part of the top5 result at all
+Some of the examples in this section are rather 'bad' cases where bert performed rather poorly either due to unknown reasons or due to the lack of informative context sentences (however, not for all examples).
+
+Note: one of the examples where bert seems to have done a rather poor job. The suggested nn sentences are not very fitting. However, the only available context sentence is not very useful/informative either. The approach failing here might be more related to the lack of context sentences for the entity in this case.
 ``` 
+FP* | entity: Rachel_Z | mention: Rachel Z | sentence: Lediglich die Keyboarderin Rachel Z, die aus Termingründen die Tour nicht begleiten konnte, wurde durch die Schottin Angie Pollock ersetzt.
+entity: Ramkie | score: 0.96181 | mention: ramkie | sentence: Anfang des 20. Jahrhunderts wurde das Saiteninstrument ramkie durch Banjo und Gitarre ersetzt.
+entity: Randy_Rampage | score: 0.98059 | mention: Rampage, Randy | sentence: Rampage, Randy (1960–2018), kanadischer Sänger und Bassist.
+entity: Randy_Rampage | score: 0.99858 | mention: Randy Rampage | sentence: Randy Rampage (1960–2018), kanadischer Sänger und Bassist.
+entity: Václav_Rabas_(Organist) | score: 1.00125 | mention: Rabas, Václav | sentence: Rabas, Václav (1933–2015), tschechischer Organist.
+entity: Nicole_Rampersaud | score: 1.00751 | mention: Rampersaud, Nicole | sentence: Rampersaud, Nicole (* 1981), kanadische Improvisationsmusikerin.
 
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+mention: Rachel Z | sentence: Rachel Z (* 1962), US-amerikanische Jazzpianistin.
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
 ```
+
+Note: Here bert failed in my opinion. The suggested nn sentences are not very fitting (although cosmic radiation might be a theme that is shared between the sentences or at least radiation in general).
 ``` 
+FP* | entity: Abstrahlung | mention: abgestrahlt | sentence: Ein Schwarzer Zwerg wäre das letzte Stadium eines Weißen Zwerges, wenn dessen Energie abgegeben oder die Oberflächentemperatur so weit gefallen ist, dass weder Wärme noch sichtbares Licht in nennenswertem Ausmaß abgestrahlt werden.
+entity: Lupe | score: 0.84681 | mention: Vergrößerungsgläser | sentence: Wiesel baute eine große Vielzahl von optischen Produkten: verschiedenste Fernrohre – sein größtes war ausgezogen ca. 6 m lang ?, binokulare Ferngläser, Brillen jeder Art, Vergrößerungsgläser, Mikroskope, Periskope, Brennspiegel, sogenannte Landschaftsspiegel (als Zeichenhilfe), Windbrillen (zum Schutz gegen Straßenstaub), Flohbüchslein (Dosen zur Vergrößerung von Insekten) und andere Kuriositäten.
+entity: Abscheidegrad | score: 0.89024 | mention: Abscheidegrad | sentence: Bei filternden Abscheidern werden teilweise mehrere Filterstufen (meist mit ansteigendem Abscheidegrad) hintereinandergeschaltet, so dass die luftgetragenen Schadstoffpartikel bzw. Aerosole je nach Größe in jeder einzelnen Stufe herausgefiltert werden.
+entity: Siderisches_Pendel | score: 0.89922 | mention: ausgependelten | sentence: Gemeinsam bauten sie auf einer radiästhetisch ausgependelten Lichtung auf dem Burggelände das Seminarhaus Die Lichtung.
+entity: Fällungsreaktion | score: 0.90292 | mention: ausgefällt | sentence: Jedoch werden die Silberionen nicht durch anschließende Reduktion in schwarzbraunes elementares Silber umgewandelt, sondern als unlösliches Salz (Silberchromat) an der Bindungsstelle ausgefällt.
+entity: Lupe | score: 0.90533 | mention: Vergrößerungsgläsern | sentence: Zur Verwendung kommen visuelle Inspektionen mit Vergrößerungsgläsern oder auch fluoreszierende Flüssigkeiten (zum Beispiel Peenscan®), die nach dem Strahlvorgang einer UV-Belichtung unterzogen werden.
 
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Abstrahlung | sentence: Zieht man Reflexion und Abstrahlung ab, erhält man die Strahlungsbilanz eines Ortes, die wiederum bestimmt, wie viel Wasser verdunstet und wie der Temperaturverlauf aussieht.
+mention: Abstrahlung | sentence: Erwärmt die Abstrahlung der Motorwärme wartender Busse die Fläche zusätzlich und bremst ein ankommender Bus an dieser Stelle, so entstehen die bekannten Schäden.
 ```
 
-## Examples where the mention is not equal the GT entity or the mention of the suggested nn sentence
+Note: this is an example where bert seemed to have failed. The suggested nn sentences are quite bad and there are a lot of possible context sentences available for this entity.
 ``` 
+FP* | entity: Rolex | mention: Rolex | sentence: Eine Armbanduhr der Marke Rolex, Modell Submariner Ref.Nr.
+entity: Climax-Lokomotive | score: 0.94247 | mention: Climax-Lokomotive | sentence: Ab 1912 wurde die 18 t schwere Climax-Lokomotive der A-Klasse mit der Seriennummer x38 von 1912 eingesetzt.
+entity: XM501_Non_Line_of_Sight_Launch_System | score: 0.98198 | mention: XM501 Non Line of Sight Launch System | sentence: Das ursprünglich dazugehörige XM501 Non Line of Sight Launch System wurde nachträglich gestrichen.
+entity: KTM_X-Bow | score: 0.98330 | mention: KTM X-Bow | sentence: Das Fahrzeug war vom KTM X-Bow inspiriert.
+entity: STX_Corporation | score: 0.98468 | mention: STX Shipbuilding | sentence: Im Oktober 2007 kaufte der südkoreanische Werftkonzern STX Shipbuilding 39,2 % der Anteile von Aker Yards.
+entity: Jaguar_XJ_(Mark_I) | score: 0.98569 | mention: Jaguar XJ 6 | sentence: Viele Teile stammen vom Jaguar XJ 6.
 
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+mention: Rolex | sentence: Gruen und die Uhrenfirma Rolex, die zu dieser Zeit keine eigene Produktion unterhielt, waren in den 1920er Jahren die größten Kunden der Uhrenwerke Aegler.
+mention: Rolex | sentence: Im Jahr 2007 kam zu den bisherigen Hauptsponsoren, CN/CN Worldwide und Rolex der europäische Fernsehsender Eurosport hinzu.
+mention: Rolex | sentence: Zu dem Namen kam es, da Marcos jedem dieser Vertrauten persönlich eine Rolex übergeben haben soll.
+mention: Rolex | sentence: Die erste Armbanduhr mit spritzwasserfestem Gehäuse war 1926 die Rolex Oyster.
+mention: Rolex | sentence: Sie wird vom International Jumping Rider Club (IJRC) organisiert und von Rolex gesponsert.
+mention: Rolex | sentence: Wie bei diesen ist nun Rolex aus Großsponsor auf dem Turnier vertreten.
+mention: Rolex | sentence: Che gab ihm zwei Rolex Oyster Perpetuals, eine davon von Carlos Coello („Tuma“) für dessen Sohn.
+mention: Rolex | sentence: Er war Generaldirektor und Delegierter des Verwaltungsrates bei Rolex, einer Schweizer Luxus-Uhrenmanufaktur.
+mention: Rolex | sentence: Bei den Wertungsprüfungen kam es zu einer Änderung: der CHIO Aachen ist nicht mehr Teil der Furusiyya FEI Nations Cups, da es zu keiner Einigung im Sponsorenstreit mit der FEI kam (der CHIO arbeitet weiterhin mit Rolex als Sponsor zusammen und ist Teil des „Rolex Grand Slam of Show Jumping“, die FEI hingegen hat einen Sponsoringvertrag mit Longines).
+mention: Rolex | sentence: Seit 2002 ist er Mitglied des Stiftungsrates der Fondation Hans Wilsdorf (Rolex) in Genf.
+mention: Rolex | sentence: In diesem Zusammenhang wurden Ziffernblätter mit der Aufschrift Rolex angebracht.
+mention: Rolex | sentence: Selbst seine Rolex und das Auto werden ihm genommen.
+mention: Rolex | sentence: Leffingwell produzierte den Film für Rolex in Technicolor.
+mention: Rolex | sentence: Der Titel ist an die Schweizer Uhrenmarke Rolex angelehnt.
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
 ```
+
+Note: the main topic between the sentences is correct but I think the missed context sentences were more similar than the suggested nn sentences.
 ``` 
+FP* | entity: Sockel_2011 | mention: LGA 2011-CPUs | sentence: Chipsätze mit Unterstützung für LGA 2011-CPUs (Sandy Bridge E und Ivy Bridge E) für Oberklasse Desktop-Plattformen.
+entity: MOS_Technology_7501 | score: 0.80755 | mention: MOS-7501-CPU | sentence: Alle drei Computer nutzten eine MOS-7501-CPU und einen MOS 7360 „TED“.
+entity: Toyota_GT86 | score: 0.82559 | mention: Toyota GT86 CS-V3 | sentence: In den Jahren 2013, 2014 und 2015 startete er mit einem Toyota GT86 CS-V3 im Toyota-GT86-Cup der VLN Langstreckenmeisterschaft Nürburgring .
+entity: High_Definition_Multimedia_Interface | score: 0.85938 | mention: HDMI 1.4a | sentence: Dieses unterstützt die Formate DVI, HDMI 1.4a und DisplayPort (mit HDCP).
+entity: Sockel_771 | score: 0.86081 | mention: LGA771 | sentence: LGA771, AGTL+ mit 166 oder 266 MHz (quadpumped, FSB 667 oder FSB 1066).
+entity: Diemaco_C7 | score: 0.86526 | mention: Diemaco C7 | sentence: Zu ihnen gehören das HK G3 oder das Diemaco C7 .
 
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Sockel 2011 | sentence: Beim Sockel 2011-3 handelt es sich um den Nachfolger des Sockel 2011 für den High-End-Desktop- und Server-Bereich, der, trotz der ähnlichen Benennung, mechanisch und elektrisch inkompatibel ist.
+mention: LGA2011-Sockel | sentence: Während die E3-Varianten noch mit einem LGA1155-Sockel auskommen und nur zwei DDR3-Speicherkanäle besitzen, wurde ab E5 (und E7) der LGA2011-Sockel mit vier DDR3-Speicherkanälen eingeführt.
 ```
 
-## 
+Note: the entity of the suggested nn sentences is almost identical to the GT entity making this a very difficult sample.
+``` 
+FP* | entity: Waffenbesitzkarte_(Österreich) | mention: Waffenbesitzkarten | sentence: Hofer bekundete im Vorfeld der Bundespräsidentenwahl 2016 wiederholt Verständnis dafür, dass die Österreicher angesichts der Flüchtlingskrise vermehrt Waffenbesitzkarten beantragten; die Menschen versuchten „immer, sich in unsicheren Zeiten zu schützen“.
+entity: Waffenbesitzkarte | score: 0.43675 | mention: Waffenbesitzkarte | sentence: In Deutschland wird bei einem Kauf im Inland die Legitimation für erlaubnispflichtige Waffen in Form einer Waffenbesitzkarte oder eines Jagdscheins nachgewiesen, bei erlaubnisfreien Waffen durch Vorlage eines Altersnachweises.
+entity: Waffenbesitzkarte | score: 0.46321 | mention: Waffenbesitzkarte | sentence: Es genügt die fristgerechte Erwerbsanzeige bei der entsprechenden Behörde zur Eintragung in die vorhandene Waffenbesitzkarte .
+entity: Waffenbesitzkarte | score: 0.46469 | mention: Waffenbesitzkarte | sentence: Sie besaß dafür die erforderliche Waffenbesitzkarte und war früher als Sportschützin in einem Verein aktiv.
+entity: Waffenbesitzkarte | score: 0.47047 | mention: Waffenbesitzkarte | sentence: Der Vercharterer muss die Waffenbesitzkarte dem Charterer für die Dauer des Törns übergeben.
+entity: Waffenbesitzkarte | score: 0.48002 | mention: Waffenbesitzkarte | sentence: Die erste, oberflächliche Überprüfung war vielversprechend, denn der Verdächtige hatte eine Waffenbesitzkarte über eine Kleinkaliberwaffe 5,6 Millimeter.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Voraussetzungen | sentence: Jeder EWR-Bürger kann unter gewissen Voraussetzungen einen WP für in der Regel ein oder zwei genehmigungspflichtige Schusswaffen beantragen.
+```
+
+Note: 
+``` 
+FP* | entity: Ort_(Waffe) | mention: Ort (Waffe) | sentence: Ort (Waffe), Klingenspitze bei Hieb- oder Stichwaffen.
+entity: Sica_(Waffe) | score: 0.64408 | mention: Sica (Waffe) | sentence: Sica (Waffe) (Kurzschwert).
+entity: Stütze_(Gefäß) | score: 0.74831 | mention: Stütze (Gefäß) | sentence: Stütze (Gefäß), ein hölzernes Gefäß.
+entity: Krug_(Gefäß) | score: 0.78689 | mention: Krug (Gefäß) | sentence: Krug (Gefäß), ein Getränkegefäß mit Henkel, zum Beispiel Bierkrug .
+entity: Mörsern_(Küche) | score: 0.80411 | mention: Mörsern (Küche) | sentence: Mörsern (Küche), das Zerkleinern von Zutaten beim Kochen.
+entity: Guara_(Steckschwert) | score: 0.82967 | mention: Guara (Steckschwert) | sentence: Guara (Steckschwert), dienen in Verbindung mit einem Segel der Steuerung von hochseetüchtigen Flößen aus Peru und Ecuador.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort breiter und hat weder Mittelgrat noch Hohlschliff.
+mention: Ort | sentence: Der auffallendste Unterschied zum Talwar ist, dass die Parierstange zum Ort zeigend umgebogen sind.
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort leicht schmaler und ist ab 2/3 der Klinge leicht gebogen.
+mention: Ort | sentence: Die mittlere Klinge ist wie bei dem Katar üblich gestaltet und wird vom Heft zum Ort schmaler.
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort schmaler und hat weder Mittelgrat noch Hohlschliff.
+mention: Klingenort | sentence: Als abgeschnitten bezeichnet man einen Klingenort, der nicht spitz zulaufend, sondern gerade oder schräg zulaufend ist.
+mention: Ort | sentence: Die Klinge ist keilförmig und wird vom Heft zum Ort schmaler.
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort breiter und hat einen abgerundeten Ort.
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort breiter und ist s-förmig gebogen.
+mention: Ort | sentence: Die Klinge ist vom Heft zum Ort breit und stark s-förmig gebogen.
+mention: Ort | sentence: Die Klinge wird vom Heft zum Ort breiter und endet hakenförmig.
+mention: Ort | sentence: Der Rücken und die Schneide verlaufen in gleichbleibender Breite bis zum Ort.
+mention: Ort | sentence: Die Schneide ist zwischen Heft und Ort von gleichbleibender Breite.
+mention: Ort | sentence: Der Klingenrücken läuft in einer leichten Kurve zum Ort.
+mention: Ort | sentence: Die Klinge ist vom Heft zum Ort fast gleich breit.
+mention: Ort | sentence: Allen Messern ist gemein, das sie keinen scharfen- oder spitzen Ort besitzen.
+mention: Ort | sentence: Die Klinge beginnt am Heft meist breit und wird zum Ort hin schmaler.
+mention: Klingenende | sentence: Die Klingenende ist oft verbreitet und kann spitz oder flach ausgeführt sein.
+```
+
+Note: 
+``` 
+FP* | entity: BMW_N52 | mention: BMW N52 | sentence: So werden nicht nur Teile des Motors aus Magnesiumlegierung hergestellt, sondern zunehmend auch für den Guss von Motorblöcken das Hybridverfahren/Hybridguss angewendet, erstmals in der Großserie im Alfa Romeo 156, später auch bei BMW (siehe hierzu auch BMW N52) .
+entity: BMW_V12_LMR | score: 0.59209 | mention: BMW V12 LMR | sentence: Die Leistung des BMW V12-Konzeptes wurde deutlich, als er in einer auf sechs Liter Hubraum vergrößerten Ausführung in dem geschlossenen McLaren BMW 1995 zum ersten großen Triumph als Sieger der 24 Stunden von Le Mans verhalf, sowie 1999 der Gesamtsieg BMW V12 LMR im legendären 24 Stunden-Rennen.
+entity: BMW_V12_LMR | score: 0.60005 | mention: BMW V12 LM | sentence: Das Rennen endete mit einem Defekt am BMW V12 LM vorzeitig.
+entity: BMW | score: 0.60639 | mention: BMW | sentence: Für den Antrieb sorgen Sechszylindermotoren von BMW.
+entity: BMW_V12_LMR | score: 0.61134 | mention: BMW V12 LMR | sentence: Zusammen mit Bill Auberlen pilotierte Gounon nun einen BMW V12 LMR.
+entity: BMW | score: 0.62392 | mention: BMW | sentence: Der BMW i8 (Entwicklungsbezeichnung l12 für Coupé, l15 für Roadster) ist ein Plug-in-Hybrid-Sportwagen, entwickelt von BMW und Teil der 2010 neu gegründeten Submarke BMW i.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: N52 | sentence: Dort ersetzte er den Sechszylinder N52 und wird seitdem sukzessive auch in anderen Baureihen verwendet.
+mention: N52 | sentence: Im X1 xDrive28i erreicht der N20 gegenüber dem N52 einen Gewichtsvorteil von 15 kg (Leergewichte mit Automatikgetriebe nach EU: N20 1670 kg, N52 1685 kg) und einen um 1,5 l verringerten Durchschnittsverbrauch im EU-Testzyklus (7,9 l zu 9,4 l).
+```
+
+# (Good) TP Examples
+
+Note: 
+``` 
+TP | entity: Rolex | mention: Rolex | sentence: Bis 2006 war dies die Genfer Uhrenmanufaktur Rolex.
+entity: Rolex | score: 0.28263 | mention: Rolex | sentence: Der Titel ist an die Schweizer Uhrenmarke Rolex angelehnt.
+entity: Rolex | score: 0.34503 | mention: Rolex | sentence: Er war Generaldirektor und Delegierter des Verwaltungsrates bei Rolex, einer Schweizer Luxus-Uhrenmanufaktur.
+entity: Rolex | score: 0.35840 | mention: Rolex | sentence: In diesem Zusammenhang wurden Ziffernblätter mit der Aufschrift Rolex angebracht.
+entity: Rolex | score: 0.37856 | mention: Rolex | sentence: Sie wird vom International Jumping Rider Club (IJRC) organisiert und von Rolex gesponsert.
+entity: Rolex | score: 0.41418 | mention: Rolex | sentence: Wie bei diesen ist nun Rolex aus Großsponsor auf dem Turnier vertreten.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+mention: Rolex | sentence: Gruen und die Uhrenfirma Rolex, die zu dieser Zeit keine eigene Produktion unterhielt, waren in den 1920er Jahren die größten Kunden der Uhrenwerke Aegler.
+mention: Rolex | sentence: Im Jahr 2007 kam zu den bisherigen Hauptsponsoren, CN/CN Worldwide und Rolex der europäische Fernsehsender Eurosport hinzu.
+mention: Rolex | sentence: Zu dem Namen kam es, da Marcos jedem dieser Vertrauten persönlich eine Rolex übergeben haben soll.
+mention: Rolex | sentence: Die erste Armbanduhr mit spritzwasserfestem Gehäuse war 1926 die Rolex Oyster.
+mention: Rolex | sentence: Che gab ihm zwei Rolex Oyster Perpetuals, eine davon von Carlos Coello („Tuma“) für dessen Sohn.
+mention: Rolex | sentence: Bei den Wertungsprüfungen kam es zu einer Änderung: der CHIO Aachen ist nicht mehr Teil der Furusiyya FEI Nations Cups, da es zu keiner Einigung im Sponsorenstreit mit der FEI kam (der CHIO arbeitet weiterhin mit Rolex als Sponsor zusammen und ist Teil des „Rolex Grand Slam of Show Jumping“, die FEI hingegen hat einen Sponsoringvertrag mit Longines).
+mention: Rolex | sentence: Seit 2002 ist er Mitglied des Stiftungsrates der Fondation Hans Wilsdorf (Rolex) in Genf.
+mention: Rolex | sentence: Selbst seine Rolex und das Auto werden ihm genommen.
+mention: Rolex | sentence: Leffingwell produzierte den Film für Rolex in Technicolor.
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+
+Note: 
+``` 
+TP | entity: Peter_Bares | mention: Peter Bares | sentence: Die Initiative ging von dem damaligen avantgardistischen Komponisten und Organisten Peter Bares aus.
+entity: Peter_Bares | score: 0.33431 | mention: Peter Bares | sentence: Es wurde 1976 vom Organisten und Komponisten Peter Bares gegründet.
+entity: Peter_Bares | score: 0.38302 | mention: Peter Bares | sentence: Als Nachfolger von Peter Bares improvisiert er jeden ersten Sonntag im Monat ein Konzert an den Orgeln für Neue Musik.
+entity: Peter_Bares | score: 0.40883 | mention: Peter Bares | sentence: Am 28. März 1881 wurde die erste bekannte Orgel von St. Peter eingeweiht, in deren Gehäuse sich heute eine von dem Komponisten und Organisten Peter Bares konzipierte Orgel befindet.
+entity: Peter_Bares | score: 0.44617 | mention: Bares, Peter | sentence: Bares, Peter (1936–2014), deutscher Organist, Komponist für Kirchenmusik und Dichter.
+entity: Peter_Gläser | score: 0.72940 | mention: Peter Gläser | sentence: Cäsar – Wer die Rose ehrt (zusammen mit Cäsar Peter Gläser), Militzke, 2007, ISBN 978-3-86189-826-9.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+mention: Peter Bares | sentence: CD Peter Bares – Orgelwerke St. Peter (Köln) 2012.
+mention: Peter Bares | sentence: Der 1960 in Sinzig angestellte Organist Peter Bares baute 1972 in St. Peter eine besondere Orgel für zeitgenössische Musik.
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+
+Note: *** for this sample it should be noted that the more difficult context sentences were NOT suggested
+``` 
+TP | entity: Gewichtswebstuhl | mention: Gewichtswebstühle | sentence: An Fundstellen dieser Kulturen wurden auch keramische Webgewichte für Gewichtswebstühle gefunden.
+entity: Gewichtswebstuhl | score: 0.35049 | mention: Gewichtswebstühlen | sentence: Webgewichte dienen bei prähistorischen, antiken und mittelalterlichen Gewichtswebstühlen zum Spannen der Kettfäden .
+entity: Gewichtswebstuhl | score: 0.44754 | mention: Gewichtswebstühlen | sentence: Die Tuche der beiden Mäntel wurden auf Gewichtswebstühlen hergestellt, zur Verzierung und Verstärkung der umlaufenden Gewebekanten wurden brettchengewebte Borten angewebt.
+entity: Gewichtswebstuhl | score: 0.45362 | mention: Gewichtswebstuhl | sentence: Das Gewebe des Hauptteils wurde aus Z-gesponnenem Garn auf einem Gewichtswebstuhl in 2/2 Fischgrätköper gewoben.
+entity: Gewichtswebstuhl | score: 0.45804 | mention: Gewichtswebstuhl | sentence: In einigen alten norwegischen und isländischen Quellen wird Vadmal beschrieben als ein gleichseitiges Köpergewebe, das auf einem Gewichtswebstuhl in standardisierter Länge und Breite hergestellt wurde.
+entity: Gewichtswebstuhl | score: 0.73534 | mention: Webstuhlgewichte | sentence: Trotz mittelalterlicher Terrassierungen konnten intakte Siedlungsspuren freigelegt werden, wie eine aus Steinen aufgesetzte Feuerstelle (80 × 80 cm), bei der einige Webstuhlgewichte lagen.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Gewichtswebstuhl | sentence: Beim Stand-Webstuhl (basse lisse) liegt das Webfach waagerecht, beim Gewichtswebstuhl bildet sich das Fach senkrecht.
+mention: Webstuhl | sentence: Diese einfache Vorrichtung besteht aus einem vertikalen Webstuhl, der sanft gegen eine Wand geneigt wird.
+mention: Webgewichte | sentence: Es wurden dort neben hochwertigen, individualisierten Töpferwaren und uniformen eisernen Pfeilspitzen auch einige Webgewichte (Spinnwirtel) gefunden.
+mention: Webstuhlgewichten | sentence: Funde von Webstuhlgewichten an anderen Orten belegen dies.
+```
+
+Note: good example because only top1 result is the correct GT entity AND has a very low score as compared to the remaining nn sentences. However, the more difficult related context sentences were NOT suggested by the classifier.
+``` 
+TP | entity: Nashorn_(Panzer) | mention: Nashorn | sentence: Zu einer Serienproduktion kam es nicht, da man sich stattdessen für die Herstellung des Nashorn entschied.
+entity: Nashorn_(Panzer) | score: 0.51917 | mention: Nashorn | sentence: Die 8,8-cm-Flak wurde später sogar als Kampfwagenkanone (in leicht modifizierter Form als 8,8 cm KwK 36 L/56) als Hauptwaffe im Panzerfahrzeug Tiger I eingebaut, aber auch die übergroße PaK 43 wurde als 8,8 cm KwK L/71 in den neueren und sehr kampfstarken Panzer wie Tiger II, Jagdpanther oder Nashorn verwendet.
+entity: Füllhorn | score: 0.83204 | mention: Füllhorn | sentence: Im Erdgeschoss befindet sich mittig eine Nische mit einem Putto mit Füllhorn, als Betonplastik hergestellt.
+entity: Füllhorn | score: 0.84865 | mention: Füllhorn | sentence: Das Füllhorn zu ihrer Rechten ist ein Hinweis auf den Wohlstand ihres Reiches.
+entity: Füllhorn | score: 0.87405 | mention: Füllhorn | sentence: Viele dieser Schwebeengel tragen ein Füllhorn oder einen Blumenkorb.
+entity: Füllhorn | score: 0.87870 | mention: Füllhorn | sentence: Ein weiteres Mosaik (C) zeigt in der Mitte ein Medaillon mit einer Büste, die ein Füllhorn hält.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Hornisse bzw. Nashorn | sentence: Die Gefangenen wurden als Zwangsarbeiter in dem unmittelbar südlich des Bahnhofgeländes Neubrücke und im Steinautal erbauten Zweigwerk der Deutsche Edelstahlwerke AG (DEW) zur Produktion von Fahrgestellen und Achsen für die Selbstfahrlafette Hornisse bzw. Nashorn und das
+mention: Panzerjäger Nashorn | sentence: Panzerjäger Nashorn (nur Entwicklung).
+mention: Hornisse/Nashorn | sentence: Der Panzerjäger Hornisse/Nashorn war der erste Kampfwagen, der serienmäßig mit dieser Kanone ausgerüstet war.
+mention: Selbstfahrlafette Nashorn | sentence: Panzerjäger: Selbstfahrlafette Nashorn (PaK 43/1) sowie.
+```
+
+Note: In comparison, in this case some of the more difficult context sentences are suggested.
+``` 
+TP | entity: Nashorn_(Panzer) | mention: Nashorn | sentence: Nach dem zuvor erwähnten Tiger, der im Februar 1945 einen M26 außer Gefecht gesetzt hatte, gelang es einem Panzerjäger Nashorn der schweren Panzerjäger-Abteilung 93 am 6. März 1945 bei Remagen südlich von Köln in einem Hinterhalt, einen M26 der
+entity: Nashorn_(Panzer) | score: 0.78935 | mention: Hornisse/Nashorn | sentence: Der Panzerjäger Hornisse/Nashorn war der erste Kampfwagen, der serienmäßig mit dieser Kanone ausgerüstet war.
+entity: Nashorn_(Panzer) | score: 0.91266 | mention: Panzerjäger Nashorn | sentence: Panzerjäger Nashorn (nur Entwicklung).
+entity: Nashorn_(Panzer) | score: 0.93734 | mention: Selbstfahrlafette Nashorn | sentence: Panzerjäger: Selbstfahrlafette Nashorn (PaK 43/1) sowie.
+entity: SMS_Blücher_(1908) | score: 1.08268 | mention: SMS Blücher | sentence: Erst die Kaiserliche Marine führte nach langwierigen und kostenintensiven Versuchen beginnend mit dem Großen Kreuzer SMS Blücher diese Art des hochwirksamen Unterwasserschutzes ein.
+entity: Evi_Sachenbacher-Stehle | score: 1.08636 | mention: Evi Sachenbacher-Stehle | sentence: Auch für die deutschen Läuferinnen begannen die Olympischen Spiele unglücklich, denn die mitfavorisierte Evi Sachenbacher-Stehle erhielt aufgrund eines zu hohen Hämoglobinwerts eine automatische fünftägige Schutzsperre und konnte somit nicht starten; die weiteren deutschen Läuferinnen blieben unter ihren Möglichkeiten.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+mention: Nashorn | sentence: Die 8,8-cm-Flak wurde später sogar als Kampfwagenkanone (in leicht modifizierter Form als 8,8 cm KwK 36 L/56) als Hauptwaffe im Panzerfahrzeug Tiger I eingebaut, aber auch die übergroße PaK 43 wurde als 8,8 cm KwK L/71 in den neueren und sehr kampfstarken Panzer wie Tiger II, Jagdpanther oder Nashorn verwendet.
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Hornisse bzw. Nashorn | sentence: Die Gefangenen wurden als Zwangsarbeiter in dem unmittelbar südlich des Bahnhofgeländes Neubrücke und im Steinautal erbauten Zweigwerk der Deutsche Edelstahlwerke AG (DEW) zur Produktion von Fahrgestellen und Achsen für die Selbstfahrlafette Hornisse bzw. Nashorn und das
+```
+
+Note: the classifier does not always fail for ambiguous entities that only differentiate due to numbers.
+``` 
+TP | entity: AN-M69 | mention: AN-M69 | sentence: Erstmals sollten über Tokio die Napalm-Streubomben vom Typ AN-M69 zum Einsatz gebracht werden.
+entity: AN-M69 | score: 0.30437 | mention: AN-M69 | sentence: Bei diesem wurden Napalm-Streubomben vom Typ AN-M69 eingesetzt, der speziell zum Angriff auf japanische Städte entwickelt worden war.
+entity: AN-M69 | score: 0.34899 | mention: AN-M69 | sentence: Dieser analysierte die bisherigen Angriffe und es erfolgte ein Übergang zu Flächenbombardements bei Nacht mit Napalm-Streubomben der Typen AN-M69 und AN-M74 bei Nacht und aus geringerer Höhe.
+entity: AN-M69 | score: 0.35629 | mention: AN-M69 | sentence: Für die Angriffe auf die japanischen Städte wurden die mit Napalm gefüllten Stabbrandbomben AN-M69 und AN-M74 entwickelt.
+entity: AN-M74 | score: 0.59893 | mention: AN-M74 | sentence: Dieser analysierte die bisherigen Angriffe und es erfolgte ein Übergang zu Flächenbombardements bei Nacht mit Napalm-Streubomben der Typen AN-M69 und AN-M74 bei Nacht und aus geringerer Höhe.
+entity: AN/APG-73 | score: 0.70331 | mention: AN/APG-73 | sentence: Um die Kosten zu reduzieren wurde ebenfalls auf Teile des AN/APG-73 (Radar der F/A-18 Hornet) zurückgegriffen.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+
+Note: same note as above
+``` 
+TP | entity: Typ-4-Gewehr | mention: Typ-4-Gewehr | sentence: Typ-4-Gewehr, ein experimentelles Gewehr der Kaiserlich Japanischen Marine, ähnlich dem amerikanischen M1 Garand.
+entity: Typ-4-Gewehr | score: 0.24950 | mention: Typ-4-Gewehr | sentence: Typ-4-Gewehr Kopie des M1 Garand (Japan, 1944).
+entity: Typ_2_Ka-Mi | score: 0.64144 | mention: Typ 2 Ka-Mi | sentence: Typ 2 Ka-Mi, leichter Amphibien-Panzer.
+entity: Typ-94-Tankette | score: 0.64795 | mention: Typ-94-Tankette | sentence: Typ-94-Tankette, Tankette des japanischen Heeres und der japanischen Marine .
+entity: Typ_11_Leichtes_Maschinengewehr | score: 0.66965 | mention: Typ-11-6,5-mm-MGs | sentence: Rechts vom Fahrer saß ein Schütze, der eines der vier Typ-11-6,5-mm-MGs bediente.
+entity: Typ_2_Ka-Mi | score: 0.69801 | mention: Typ 2 Ka-Mi | sentence: Typ 2 Ka-Mi, der erste Schwimmpanzer der Kaiserlich Japanischen Marine.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+
+Note: 
+``` 
+TP | entity: Wolseley_21/60 | mention: Wolseley 21/60 | sentence: Der erste Twenty-One oder 21 hp war ein großer Wagen mit Sechszylindermotor, der den Wolseley 21/60 ersetzte.
+entity: Wolseley_21/60 | score: 0.07959 | mention: Wolseley 21/60 | sentence: Der erste Twenty-Five oder 25 hp war ein Wagen mit großem Sechszylindermotor, der den Wolseley 21/60 ersetzte.
+entity: Wolseley_21/60 | score: 0.72739 | mention: 21/60 | sentence: Der Wolseley Twenty-Five war ein Oberklasse-PKW, den Wolseleys 1936 parallel zum Modell Twenty-One als größeren Nachfolger des 21/60 herausbrachte.
+entity: Alvis_12/60 | score: 0.83945 | mention: 12/60 | sentence: Sportliche Varianten des 12/50 TJ waren die Modelle 12/60 TK von 1931/32 und TL (nur 1932).
+entity: Junkers_Ju_52/1m | score: 0.84207 | mention: Ju 52/1m | sentence: Das heute als Ju 52 bekannte Flugzeug ist die dreimotorige Ausführung Junkers Ju 52/3m, die aus dem einmotorigen Modell Ju 52/1m hervorging.
+entity: TPF-TRN_RBDe_567 | score: 0.85273 | mention: RABDe 4/4 104–05 und 171–72 | sentence: Die beiden Bt 202 und 203 der RVT sowie der GFM Bt 301, neu 372 wurden zur Fernsteuerung der neuen RABDe 4/4 104–05 und 171–72 eingerichtet.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+
+
+# Examples where the mention is not equal the GT entity or the mention of the suggested nn sentence
+Note: *** this is a mention where bert always fails for (there are a few more samples that include this mention)
+``` 
+FP* | entity: Gärröhrchen | mention: Gärspundes | sentence: Die Gärung kann aufgrund der Kohlendioxid-Entwicklung mit Hilfe eines Gärspundes überwacht werden.
+entity: Gärung | score: 0.75022 | mention: Gärvorgangs | sentence: Nach dem gleichen Prinzip arbeiten Gasverschlüsse bei Gärtanks oder Weinfässern während des Gärvorgangs (siehe auch Gärröhrchen) sowie bei einer Vielzahl anderer chemischer Prozesse unter Luftabschluss, bei denen Gase entstehen, die durch den Siphon entweichen können.
+entity: Schrämmaschine | score: 0.80715 | mention: Schrämspuren | sentence: Der Sockel ist gut erhalten und weißt Bearbeitungsspuren, sogenannte Schrämspuren auf.
+entity: Gärung | score: 0.81239 | mention: Gärung | sentence: Die Weinbereitung oder Vinifikation ist der Punkt, an dem der natürliche Vorgang der Gärung mit dem Blick auf ein gewünschtes Endprodukt gestaltet und gesteuert wird.
+entity: Gärung | score: 0.82300 | mention: Gärung | sentence: Die Melasse wird mit Regenwasser und Hefe versetzt und nach einer kurzen Gärung mit einem Alkoholgehalt von ca. 10 % zur Destillation gegeben.
+entity: Zigarettenanzünder | score: 0.82499 | mention: Zigarettenanzünder | sentence: Sie sind häufig komplett mit Matratze und Innenbeleuchtung (Kabel mit Stecker für den Zigarettenanzünder) ausgestattet und heutzutage meist in wenigen Sekunden durch Gasdruckfedern, oder einen Kurbelmechanismus aufgestellt.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Gärröhrchen | sentence: Falls auch nach Zugabe des Zinks keine Farbveränderung zu beobachten ist, wurde das Nitrat zu elementarem Stickstoff reduziert, der gegebenenfalls als Gas in einem Gärröhrchen aufgefangen werden kann.
+mention: Gärröhrchen | sentence: Zur Gärung wird der gefüllte Gärballon mit einem Gärröhrchen und einem Stöpsel oder einem Korken verschlossen.
+mention: Gärröhrchen | sentence: Es gibt verschiedene Formen von Gärverschlüssen wie das Gärröhrchen oder die Gärglocke oder auch ganz einfache Vorrichtungen, bei denen etwa ein auf das Verschlussloch aufgesetzter Schlauch in einen mit Wasser gefüllten Behälter geführt wird.
+mention: Gärröhrchen | sentence: Nach dem gleichen Prinzip arbeiten Gasverschlüsse bei Gärtanks oder Weinfässern während des Gärvorgangs (siehe auch Gärröhrchen) sowie bei einer Vielzahl anderer chemischer Prozesse unter Luftabschluss, bei denen Gase entstehen, die durch den Siphon entweichen können.
+mention: Gärröhrchen | sentence: Der obere hat oben eine Öffnung, die oft mit einem Gärröhrchen verschlossen wird, und unten ein Steigrohr, das bis nahe an den Boden des untersten Glasballons reicht.
+```
+Note: 
+``` 
+TP | entity: Kugelgewindetrieb | mention: Kugelumlauflenkung | sentence: Die Kugelumlauflenkung musste jedoch einer Zahnstangenlenkung weichen, welche ein direkteres Lenkgefühl vermittelt.
+entity: Kugelgewindetrieb | score: 0.41924 | mention: Kugelumlauflenkung | sentence: Die Fahrzeuge, die sowohl als Rechts- wie als Linkslenker lieferbar waren, haben eine Kugelumlauflenkung mit ungeteilter Spurstange von Mercedes-Benz.
+entity: Kugelgewindetrieb | score: 0.52570 | mention: Kugelumlauf- | sentence: Es ist eine Kugelumlauf-Lenkung (ZF-Servocom) eingebaut.
+entity: Kugelgewindetrieb | score: 0.65257 | mention: Kugelgewindetrieb | sentence: Gegenüber dem Kugelgewindetrieb besitzt der Trapezgewindetrieb aufgrund der Gleitreibung zwischen Mutter und Spindel einen wesentlich schlechteren Wirkungsgrad.
+entity: Kugelgewindetrieb | score: 0.67248 | mention: Kugelgewindetrieb | sentence: Bei neueren Maschinen ersetzt ein Kugelgewindetrieb die Leit- und Zugspindel.
+entity: Kugelgewindetrieb | score: 0.68765 | mention: Kugelgewindetrieb | sentence: Das Lenkgetriebe arbeitet mit einem Kugelgewindetrieb (Kugelumlauflenkung).
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: Kugelgewindetrieb | sentence: Die Vorschubbewegung erfolgt hierbei jedoch nicht über die Zugspindel, sondern über die wesentlich präzisere Leitspindel, die als Trapezgewindespindel, bei moderneren Maschinen als Kugelgewindetrieb, ausgeführt ist.
+mention: Kugelgewindetrieb | sentence: Sie enthält zwischen Spindelschraube und -mutter auf der Gewindebahn umlaufende Kugeln (Kugelgewindetrieb).
+mention: Kugelrollspindeln | sentence: Der Antrieb erfolgt über eine Hydraulik oder elektromechanisch über Kugelrollspindeln .
+mention: Kugelgewindetrieb | sentence: Der 3-Phasen Asynchronmotor wirkt daher über das bekannte Differentialgetriebe auf einen im Ölbad laufenden Kugelgewindetrieb.
+```
+Note: 
+``` 
+TP | entity: Deutz_D_2506 | mention: D 2506 | sentence: Das Einstiegsmodell war der D 2506.
+entity: Deutz_D_2506 | score: 0.61711 | mention: Deutz D 2506 | sentence: Ab 1974 war der D 3006 auch der einzig verbliebene 2-Zylinder, da die Produktion des Deutz D 2506 eingestellt wurde.
+entity: Nennweite | score: 0.80160 | mention: DN 500 | sentence: Den Stausee verlässt der Bach durch eine Rohrleitung DN 500 und mündet bei Altscheidenbach in die Spree.
+entity: MAN_Lion’s_City | score: 0.80477 | mention: MAN Lion’s City DD A39 | sentence: Dieser und weitere Tests 2016 mit dem Typ MAN Lion’s City DD A39 sollen zur Überprüfung diesen, ob in Zukunft wieder (wie bereits von 1967 bis 1976) Doppeldeckerbusse zur Kapazitätssteigerung auf bestimmten Linien in Frankfurt eingesetzt werden sollen, auf denen der Einsatz von Gelenkbussen aus Platzgründen nicht in Frage kommt.
+entity: Nennweite | score: 0.80568 | mention: DN 500 | sentence: Der Auslauf erfolgt bei Altscheidenbach durch eine Rohrleitung DN 500 in die Spree.
+entity: DIN_2403 | score: 0.80877 | mention: 2403 | sentence: Grundlage: Gemäß VBG 1 § 49 sowie der der DIN 2403.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+```
+Note:
+```  
+TP | entity: I²C | mention: I2C-Buszyklus | sentence: Je nach Ausstattung des Oszilloskops gibt es noch spezielle Triggerschaltungen, die z.b. TV-Signale oder den I2C-Buszyklus erkennen und zur Auslösung verwenden.
+entity: I²C | score: 0.59083 | mention: I2C-Bus | sentence: Die Rückhälfte verfügt über eine eigene Daten- und Stromverbindung (erstere über einen I2C-Bus), d. h. es wird nicht nur NFC verwendet.
+entity: I²C | score: 0.70027 | mention: I²C | sentence: Die Kommunikation funktioniert über die Ethernet-Schnittstelle der Kamera oder für kleine Datenmengen über RS-232 und I²C .
+entity: IBM_Personal_Computer | score: 0.75428 | mention: IBM-PC | sentence: In Großbuchstaben wird der Dateiname meist deshalb geschrieben, weil zu Zeiten von MS-DOS und dem IBM-PC und kompatiblen Computern das Dateisystem  (kurz FAT) nur Großbuchstaben speicherte; zudem bestand eine 8.3-Begrenzung.
+entity: I²C | score: 0.76631 | mention: I²C | sentence: Dies sind vorrangig die IPMI Busse, deren Hardware und Datenübertragung dem I²C Bus entspricht.
+entity: I²C | score: 0.76631 | mention: I²C | sentence: Dies sind vorrangig die IPMI Busse, deren Hardware und Datenübertragung dem I²C Bus entspricht.
+entity: I²C | score: 0.76631 | mention: I²C | sentence: Dies sind vorrangig die IPMI Busse, deren Hardware und Datenübertragung dem I²C Bus entspricht.
+entity: I²C | score: 0.76631 | mention: I²C | sentence: Dies sind vorrangig die IPMI Busse, deren Hardware und Datenübertragung dem I²C Bus entspricht.
+
+Trivial missed context sentences (query sentence mention == context sentence mention): 
+
+Difficult missed context sentences (query sentence mention != context sentence mention): 
+mention: I²C | sentence: I²C (nur per Software implementiert).
+```
