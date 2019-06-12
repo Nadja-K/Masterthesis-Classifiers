@@ -198,6 +198,9 @@ class Classifier(metaclass=ABCMeta):
 
             suggestions = self._classify(mention, sentence=sentence, num_results=num_results)
 
+            # FIXME: comment out, only relevant for debugging purposes to check nn sentences and missed sentences
+            self._debug_info(suggestions, entity, mention, sentence)
+
             if 'sentence' not in suggestions:
                 suggestions['sentence'] = sample['sentence']
 
@@ -222,4 +225,46 @@ class Classifier(metaclass=ABCMeta):
         print("\nMicro metrics:"
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
+    def _debug_info(self, suggestions, entity, mention, sentence):
+        """
+            Only used to print out nearest neighbors and some special cases for the bert based classifier.
+        """
+        nn_sentences = suggestions.get('nn_sentences', None)
+        if nn_sentences[0][0] != entity:
+            # Case: the GT entity is not in the top n results at all
+            if entity not in [e[0] for e in nn_sentences]:
+                print("FP* | entity: %s | mention: %s | sentence: %s" % (entity, mention, sentence))
+            # Case: the GT entity is somewhere in the top n results but not the first suggestion
+            else:
+                print("FP | entity: %s | mention: %s | sentence: %s" % (entity, mention, sentence))
+        else:
+            print("TP | entity: %s | mention: %s | sentence: %s" % (entity, mention, sentence))
 
+        # Print out sentences that were relevant for the current sample but missed
+        relevant_context_data = [context_sample for context_sample in self._context_data if
+                                 context_sample['entity_title'] == entity]
+
+        # In order to get the mention for a suggestion sentence I need to check every context sentence again
+        for nn_sample in nn_sentences:
+            for context_sample in self._context_data:
+                if (nn_sample[0], nn_sample[2]) == (context_sample['entity_title'], context_sample['sentence']):
+                    print("entity: %s | score: %0.5f | mention: %s | sentence: %s" % (nn_sample[0], nn_sample[1], context_sample['mention'], nn_sample[2]))
+
+        trivial_missed_context_sentences = []
+        difficult_missed_context_sentences = []
+        for context_sample in relevant_context_data:
+            if ((str(entity), context_sample['sentence']) not in
+                    [(str(nn_sample[0]), nn_sample[2]) for nn_sample in nn_sentences]):
+                if str(context_sample['mention']) != str(mention).replace("_", " "):
+                    difficult_missed_context_sentences.append(context_sample)
+                else:
+                    trivial_missed_context_sentences.append(context_sample)
+
+        print("\nTrivial missed context sentences (query sentence mention == context sentence mention): ")
+        for sample in trivial_missed_context_sentences:
+            print("mention: %s | sentence: %s" % (sample['mention'], sample['sentence']))
+
+        print("\nDifficult missed context sentences (query sentence mention != context sentence mention): ")
+        for sample in difficult_missed_context_sentences:
+            print("mention: %s | sentence: %s" % (sample['mention'], sample['sentence']))
+        print("\n\n")
