@@ -872,3 +872,71 @@ Trivial - gets classified correctly
 ```
 Gelsenwasser | Gelsenwasser AG | Im Oktober 2000 wurde Röstel Managerin für Projektentwicklung und Unternehmensstrategie bei der Gelsenwasser AG, damals ein Tochterunternehmen von E.ON, ab 2003 im Eigentum der Dortmunder und der Bochumer Stadtwerke.
 ```
+
+# Sanity Check 2.0
+I additionally took 100 random samples from the  geraete_large dataset (without trivial samples) and checked the suggested top5 sentences. 81 out of the 100 sentences had the correct entity in the top1 suggested result. The evaluated accuracy of the geraete_large dataset without trivial samples is 81.65%. The mentions were in fact different from the GT entity and in many cases different from the mention of the top suggested nn sentence as well.
+I did not write down all of the 100 sentences but the following are some of the examples:
+
+Note: the mention is different from the GT entity AND the mention in the top1 and top2 suggested nn sentence.
+```
+Wasseraufbereitungsanlage | Abwasseraufbereitungsanlage | Gleichzeitig dienen sie der Entsorgung, wofür sie mit einer Müllentsorgungseinrichtung und einer Abwasseraufbereitungsanlage ausgestattet sind. 
+('Wasseraufbereitungsanlage', 0.4448377192020416, 'Dieser Wasserbedarf wäre im Notfall über einen eigenen, 60 Meter tiefen, Brunnen samt Trinkwasseraufbereitungsanlage gestillt worden.')
+('Wasseraufbereitungsanlage', 0.6600450277328491, 'Die Aufbereitungsanlage , wusste das Verteidigungsministerium seit 2007, als die Bundeswehr die Abwasserentsorgungs-Verträge kündigte, neu ausschrieb, und wieder an Ecolog vergab.')
+('Wasseruhr', 0.7697835564613342, 'Ob er als Erfinder der einfachen Wasseruhr angesehen werden kann, bleibt daher unklar, da es neben der Auslaufwasseruhr das Modell der Einlaufwasseruhr gab und Amenemhet auf seine Kenntnis der ungleichen Anzahl der Nachtstunden hinwies.')
+('Zündunterbrecher', 0.792700469493866, 'Die Ursache wurde schließlich in einem durch große Temperaturunterschiede verformten Gleitstück aus Polyamid am Unterbrecherhebel der Zündanlage gefunden.')
+('Druckgießmaschine', 0.7962222099304199, 'Der Gießbehälter ist Teil einer Warmkammerdruckgießmaschine.')
+```
+
+Note: the mention is different from the GT entity and the mention of the top1 suggested nn sentence.
+```
+Ebenheit_(Technik) | Ebenheitsnormal | Ohne Rotation des Spiegels wurden Quecksilberspiegel in der Metrologie als Ebenheitsnormal eingesetzt. 
+('Ebenheit_(Technik)', 0.6755223870277405, 'Um Maschinen und Anlagen zu vermessen (Ebenheit, Geradheit, Rechtwinkligkeit oder Parallelität) werden ebenfalls Rotationslaser eingesetzt.')
+('Unkonventionelle_Spreng-_und_Brandvorrichtung', 0.8682276606559753, 'Dieses Papier erklärt detailgetreu die Konstruktion einer unkonventionellen Spreng- und Brandvorrichtung, die als „cat’s cradle“ bekannt ist.')
+('Ebenheit_(Technik)', 0.8774202466011047, 'Der Vorteil dieses Verfahrens ist der Ausgleich von Unebenheiten und die einfachere Realisierung von Sonderkonstruktionen.')
+('Doppelt_gespeiste_Asynchronmaschine', 0.879364013671875, 'Im Gegensatz zu herkömmlichen Transformatoren besteht der Drehtransformator aus einer doppelt gespeisten Asynchronmaschine, deren Rotor auf einer bestimmten Position mit einem selbsthemmenden Schneckengetriebe fixiert ist.')
+('Geschwindigkeitsbegrenzer_(Aufzug)', 0.8845919966697693, 'Bei einer zu großen Abweichung von der Nenngeschwindigkeit löst normalerweise der Geschwindigkeitsbegrenzer die Fangvorrichtung aus und stoppt den Fahrkorb innerhalb kurzer Zeit.')
+
+```
+
+Note: the mention is different from the GT entity and the mention in the top1 suggested nn sentence.
+```
+Paintballmarkierer | Markierern | Paintball ist ein taktischer Mannschaftssport, bei dem sich Spieler mittels Markierern mit Farbkugeln markieren.Der getroffene und damit markierte Spieler muss das Spielfeld in der Regel verlassen. 
+('Paintballmarkierer', 0.7164713740348816, 'Entsprechend beschießen sich hier die Teams mit Paintballmarkierern und Farbkugeln.')
+('Verfolger_(Scheinwerfer)', 0.8681914210319519, 'Super Trouper ist ein geschützter Name für eine Baureihe von sogenannten Verfolgern (Spotscheinwerfer) der Firma Ballantyne Strong Inc.')
+('Wärmeerzeuger_(Gebäudeheizung)', 0.8724806904792786, 'Der Speicher wird zur wichtigen Schnittstelle zwischen den Wärmeerzeugern .')
+('Zweirad', 0.877406895160675, 'Aussehen wie ein Affe auf dem Schleifstein – ungewöhnliche oder unbequeme Fortbewegungsart, vor allem in Verbindung mit Zweirädern; seltsame Sitzposition.')
+('Lupe', 0.9056364297866821, 'Zur Verwendung kommen visuelle Inspektionen mit Vergrößerungsgläsern oder auch fluoreszierende Flüssigkeiten (zum Beispiel Peenscan®), die nach dem Strahlvorgang einer UV-Belichtung unterzogen werden.')
+
+```
+
+Note: the mention is slightly different (and very ambiguous) from the GT entity, but very similar to the mentions of the top2 suggested nn sentences. Although the top2 sentences are correct, the cosine distance is rather high, meaning that the classifier is not very certain about this result.
+``` 
+Saures_Gas | saures | Kohlenstoffdioxid oder Kohlendioxid ist eine chemische Verbindung aus Kohlenstoff und Sauerstoff mit der Summenformel CO2, ein unbrennbares, saures und farbloses Gas; es löst sich gut in Wasser: Hier wird es umgangssprachlich oft – besonders im Zusammenhang mit kohlenstoffdioxidhaltigen Getränken – fälschlicherweise auch „Kohlensäure“ genannt. 
+('Saures_Gas', 0.7333080768585205, 'Beim Erhitzen von Bromdichlormethan in Anwesenheit von Sauerstoff oder Reduktionsmitteln und Metallen als Katalysator erfolgt langsame Zersetzung unter Bildung saurer Gase (HCl, HBr).')
+('Saures_Gas', 0.7729208469390869, 'Die Aminwäsche ist ein häufig benutzter chemischer Prozess zur Abtrennung von Kohlenstoffdioxid, Schwefelwasserstoff und anderen sauren Gasen aus Gasgemischen.')
+('Sauerstoffflasche', 0.9008333086967468, 'Während dieser Besteigung wurden erstmals Sauerstoffgeräte eingesetzt.')
+('Sauerstoffflasche', 0.9057358503341675, 'Diese organisieren für ihre Kunden möglichst alles, vom Einreisevisum über Sherpas und Bergführer bis hin zu den Sauerstoff-Flaschen für die Besteigung und der Müllentsorgung am Berg.')
+('Sauerstoffflasche', 0.9110228419303894, 'Sie wollten diesmal mit zusätzlichem Sauerstoff steigen.')
+```
+
+Note: this is a case where the classifier FAILS. The mention is different from the GT entity and from the mentions in the top5 suggested nn sentences. However, it should be noted that the cosine distance is rather high.
+```
+Kutter_(Bootstyp) | Kuttertakelung | Der Norweger Johan Anker ersetzte schließlich die bis dahin im Regattasport der 12-mR-Yachten übliche Kuttertakelung mit geteilter Vorsegelfläche durch die Sluptakelung mit einem einzigen Vorsegel, nachdem er diese als leistungsfähiger erkannt hatte. 
+('Kugelgewindetrieb', 0.848766565322876, 'Die Fahrzeuge, die sowohl als Rechts- wie als Linkslenker lieferbar waren, haben eine Kugelumlauflenkung mit ungeteilter Spurstange von Mercedes-Benz.')
+('Kugelgewindetrieb', 0.8594294786453247, 'Der Antrieb erfolgt über eine Hydraulik oder elektromechanisch über Kugelrollspindeln .')
+('Kupplung', 0.8799959421157837, 'Konuskupplung, ein einzelner Gang, Vorgelegewelle und seitliche Ketten sind für die Kraftübertragung überliefert.')
+('Sicherheitsgurt', 0.894256591796875, 'Alle Fahrzeuge hatten serienmäßig Dreipunkt-Rückhaltegurte bei den Vordersitzen und hinten außen Dreipunkt-Rückhaltegurte und einen Beckengurt in der Mitte als Sicherheitsausstattung.')
+('Zapfen_(Technik)', 0.8977314233779907, 'Die festen Auflager des Mittelträgers sind als Kipplager ausgebildet und bestehen aus einem oberen Sattelstück und dem unteren Lagerkörper mit dem Kugelzapfen.')
+
+```
+
+Note: another example where the classifier FAILS. The mention is different from the GT entity and the mentions in suggested nn sentences. As in the example above, the cosine distance is rather high.
+```
+Hodometer | Schiffshodometer | Der Einsatz von Schaufelrädern in der Schifffahrt ist zum ersten Mal beim römischen Ingenieur Vitruvius belegt, der in seinem Werk „De architectura“ (X 9.5-7) ein Schaufelrad beschreibt, das als Schiffshodometer fungiert. 
+('Voyage_Data_Recorder', 0.9081860780715942, 'Zwei weitere Leichen wurden am 13. Januar an Deck gefunden, zugleich konnte der Schiffsdatenschreiber sichergestellt werden.')
+('Hamburgische_Schiffbau-Versuchsanstalt', 0.925264835357666, 'Klages blieb bis 1927 in Bremen und wechselte dann zu den Albatros Flugzeugwerken, blieb dort allerdings wegen der angespannten Wirtschaftslage im Luftfahrtbereich nur kurze Zeit und wechselte in den Schiffsbausektor zur Hamburgischen Schiffsbau-Versuchsanstalt für die Berechnung und Konstruktion von Schiffsschrauben .')
+('Hamburgische_Schiffbau-Versuchsanstalt', 0.9309741854667664, 'Unter Mitarbeit des Werftbesitzers Theodor Hitzler, dessen Anliegen die Typisierung der Binnenschiffe war, des Ingenieurs Friedrich Kölln, der die Konstruktion übernahm und des Ingenieurs Helm der Hamburgischen Schiffbau-Versuchsanstalt, der die Schleppversuche leitete, entwickelte der Selbstfahrerausschuss den Karl-Vortisch-Typ.')
+('Hamburgische_Schiffbau-Versuchsanstalt', 0.93724524974823, 'Unter Mitarbeit des Werftbesitzers Theodor Hitzler, dessen Anliegen die Typisierung der Binnenschiffe war, des Ingenieurs Friedrich Kölln, der die Konstruktion übernahm und des Ingenieurs Helm der Hamburgischen Schiffbau-Versuchsanstalt, der die Schleppversuche leitete, entwickelte der Selbstfahrerausschuss den Typ Theodor-Beyer-Schiff.')
+('Hamburgische_Schiffbau-Versuchsanstalt', 0.93982994556427, 'Unter Mitarbeit des Werftbesitzers Theodor Hitzler, dessen Anliegen die Typisierung der Binnenschiffe war, des Ingenieurs Friedrich Kölln, der die Konstruktion übernahm und des Ingenieurs Helm der Hamburgischen Schiffbau-Versuchsanstalt, der die Schleppversuche leitete, entwickelte der Selbstfahrerausschuss den Typ Oskar-Teubert-Schiff.')
+
+```
