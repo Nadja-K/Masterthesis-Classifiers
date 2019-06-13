@@ -36,7 +36,6 @@ class BertEncoder:
                                                  mention_mask=self._mention_mask, is_training=False,
                                                  use_one_hot_embeddings=use_one_hot_embeddings)
 
-        # FIXME: make this an option in the remote_config
         gpu_memory_fraction = 1.0
         self._sess_config = tf.ConfigProto()
         self._sess_config.gpu_options.allow_growth = True

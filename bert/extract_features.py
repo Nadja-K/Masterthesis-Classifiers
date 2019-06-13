@@ -26,7 +26,6 @@ import re
 
 from typing import List, Union
 from bert import tokenization
-import tensorflow as tf
 
 
 class InputExample(object):
@@ -46,96 +45,6 @@ class InputFeatures(object):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.input_type_ids = input_type_ids
-
-
-# FIXME: remove eventually
-# def input_fn_builder(sentences: List[str], tokenizer: tokenization.FullTokenizer, max_seq_length: int):
-#     unique_id_to_feature = {}
-#
-#     def gen():
-#         for feature in convert_lst_to_features(sentences, max_seq_length=max_seq_length, tokenizer=tokenizer):
-#             unique_id_to_feature[feature.unique_id] = feature
-#             yield {
-#                 'unique_ids': [feature.unique_id],
-#                 'input_ids': [feature.input_ids],
-#                 'input_mask': [feature.input_mask],
-#                 'input_type_ids': [feature.input_type_ids]
-#             }
-#
-#     def input_fn(params):
-#         """The actual input function."""
-#         # batch_size = params["batch_size"]
-#
-#         return (tf.data.Dataset.from_generator(
-#             gen,
-#             output_types={
-#                 'unique_ids': tf.int32,
-#                 'input_ids': tf.int32,
-#                 'input_mask': tf.int32,
-#                 'input_type_ids': tf.int32
-#             },
-#             output_shapes={
-#                 'unique_ids': (None,),
-#                 'input_ids': (None, None),
-#                 'input_mask': (None, None),
-#                 'input_type_ids': (None, None)
-#             }
-#         ))
-#
-#     return input_fn, unique_id_to_feature
-
-
-# FIXME: remove eventually
-# def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_one_hot_embeddings):
-#     """Returns `model_fn` closure for TPUEstimator."""
-#
-#     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
-#         """The `model_fn` for TPUEstimator."""
-#
-#         with tf.device("/device:GPU:2"):
-#             unique_ids = features["unique_ids"]
-#             input_ids = features["input_ids"]
-#             input_mask = features["input_mask"]
-#             input_type_ids = features["input_type_ids"]
-#
-#             model = modeling.BertModel(
-#                 config=bert_config,
-#                 is_training=False,
-#                 input_ids=input_ids,
-#                 input_mask=input_mask,
-#                 token_type_ids=input_type_ids,
-#                 use_one_hot_embeddings=use_one_hot_embeddings)
-#
-#             if mode != tf.estimator.ModeKeys.PREDICT:
-#                 raise ValueError("Only PREDICT modes are supported: %s" % (mode))
-#
-#             tvars = tf.trainable_variables()
-#             scaffold_fn = None
-#             (assignment_map, initialized_variable_names) = modeling.get_assignment_map_from_checkpoint(
-#                 tvars, init_checkpoint)
-#             tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-#
-#             tf.logging.info("**** Trainable Variables ****")
-#             for var in tvars:
-#                 init_string = ""
-#                 if var.name in initialized_variable_names:
-#                     init_string = ", *INIT_FROM_CKPT*"
-#                 tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
-#
-#             all_layers = model.get_all_encoder_layers()
-#
-#             predictions = {
-#                 "unique_id": unique_ids,
-#             }
-#
-#             for (i, layer_index) in enumerate(layer_indexes):
-#                 predictions["layer_output_%d" % i] = all_layers[layer_index]
-#
-#             output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-#                 mode=mode, predictions=predictions, scaffold_fn=scaffold_fn)
-#             return output_spec
-#
-#     return model_fn
 
 
 def convert_lst_to_features(lst_str: Union[List[List[str]], List[str]], max_seq_length: int, tokenizer: tokenization,

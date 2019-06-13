@@ -199,7 +199,7 @@ class Classifier(metaclass=ABCMeta):
             suggestions = self._classify(mention, sentence=sentence, num_results=num_results)
 
             # FIXME: comment out, only relevant for debugging purposes to check nn sentences and missed sentences
-            self._debug_info(suggestions, entity, mention, sentence)
+            # self._debug_info(suggestions, entity, mention, sentence)
 
             if 'sentence' not in suggestions:
                 suggestions['sentence'] = sample['sentence']
