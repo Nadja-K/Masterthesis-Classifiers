@@ -766,3 +766,109 @@ Trivial missed context sentences (query sentence mention == context sentence men
 Difficult missed context sentences (query sentence mention != context sentence mention): 
 mention: I²C | sentence: I²C (nur per Software implementiert).
 ```
+
+
+# Non-trivial sample check + Sanity Check
+Here, I picked 20 random samples from the mixed_small dataset (after removing trivial samples where the mention and GT entity are completely identical) and tried to classify them into one of the three difficulty categories based on the mention, sentence and the correct GT entity: trivial, difficult, synonym.
+Note: why do entities like Drei_Schwestern_(Drama) that are technically identical to their mention, e.g. Drei_Schwestern, not count as trivial when I remove trivial samples from my dataset? The answer is: because such entities are ambiguous. That means there are usually at least 2 different entities without the brackets part that refer to something else. Based on the context such a mention might become trivial. However, I do not count them as trivial when removing them from my dataset because of their ambiguity.
+Sanity Check: I classified every sample here separately - 2/20 were classified wrong, the others were classified correctly leading to a top1 accuracy of about 90%. The mixed_small dataset has an accuracy of 91.65% without trivial samples.
+
+Difficult/Synonym - gets classified correctly
+```
+Theaterleiter | Prinzipal | Mit 18 Jahren wurde Bethmann vom Prinzipal Friedrich Wilhelm Bossann in Bad Kreuznach für sein Ensemble engagiert.
+```
+
+Trivial - gets classified correctly
+```
+Drei_Schwestern_(Drama) | Drei Schwestern | Unter der Regie namhafter Theaterpersönlichkeiten wie Douglas Sirk, Fritz Kortner und Heinz Hilpert verkörperte Kuzmany große Bühnenrollen wie die Die heilige Johanna George Bernard Shaws, die „Kunigunde“ in Heinrich von Kleists Käthchen von Heilbronn, die Titelrolle in Federico García Lorcas Doña Rosita bleibt ledig, die „Olga“ in Anton Tschechows Drei Schwestern und die „Elisabeth“ in Schillers Maria Stuart.
+```
+
+Trivial - gets classified correctly
+```
+Christopher_Nolan_(Autor) | Christopher Nolan | Christopher Nolan (1965–2009), Schriftsteller.
+```
+
+Trivial/Synonym - gets classified correctly
+```
+Cummins_Engine | Cummins | Dieselmotoren von Cummins und Perkins wurden verbaut.
+```
+
+Trivial - gets classified correctly
+```
+Sturm_und_Drang_(Schauspiel) | Sturm und Drang | Sturm und Drang (Schauspiel), 1776.
+```
+
+Trivial - gets classified correctly
+```
+Episches_Theater | Epischen Theaters | Die Darstellung der Rolle des Coriolanus durch den renommierten Schauspieler Ewald Balser 1936/37 hatte einen nachhaltigen Einfluss auf Brechts Entwicklung seiner Konzeption des Epischen Theaters .
+```
+
+Trivial-Difficult (the last name is part of the context) - gets classified correctly
+```
+Eero_Saarinen | Eero | Weitere Teilnehmer waren der etablierte finnisch-amerikanische Architekt Eliel Saarinen sowie dessen 38-jähriger Sohn Eero, der am Beginn seiner Karriere stand und in Zusammenarbeit mit dem Landschaftsarchitekten Dan Kiley ein von seinem Vater unabhängiges Projekt unterbreitete.
+```
+
+Trivial/Synonym - gets classified correctly
+```
+Hankook_Tire | Hankook | Viele Teile an den Fahrzeugen, darunter die Reifen (bis 2010 von Dunlop, ab 2011 von Hankook), das Getriebe von Xtrac oder Hewland, die Carbon-Keramik-Bremsen von AP Racing, die Elektronik von Bosch und der Heckflügel sind einheitlich für alle Fahrzeuge vorgeschrieben.
+```
+
+Synonym - gets NOT correctly classified (instead suggests 'Hintergrundstrahlung')
+```
+Sonnenphysik | Solarphysik | Die Tachocline-Region oder kurz Tachocline ist ein Begriff aus der Solarphysik.
+```
+
+Trivial - gets classified correctly
+```
+The_Leading_Hotels_of_the_World | Leading Hotels of the World | Er stieg im 1891 eröffneten Luxushotel Reid’s Palace ab, das eines der Leading Hotels of the World und weit über die Insel hinaus das bekannteste Hotel Madeiras ist.
+```
+
+Trivial/Synonym - gets classified correctly
+```
+Hawesko_Holding | Hawesko | Bei der Weinhandelsgruppe Hawesko saß er zwischen Mitte 2014 und Juni 2017 im Aufsichtsrat.
+```
+
+Difficult - gets NOT correctly classified (instead suggests 'Theaterleiter')
+```
+Regieassistent | Assistant Director | In den 1970er Jahren arbeitete Morris als Assistant Director, bevor er Produktionsleiter von Filmen wie Der Kontrakt des Zeichners oder Gorky Park wurde.
+```
+
+Trivial - gets classified correctly
+```
+Bühne_(Theater) | Bühne | Das Hauptspiel konzentrierte sich jedoch vorwiegend auf die Bühne .
+```
+
+Trivial - gets classified correctly
+```
+Guess_(Modeunternehmen) | Guess | Nachdem sie mit 12 Jahren ihren ersten Schönheitswettbewerb gewann arbeitete Mero als Model unter anderem für die Firmen L’Oréal, Pepsi und Guess .
+```
+
+Trivial (in regard to the context at least) - gets classified correctly
+```
+Kopenhagen_(Theaterstück) | Kopenhagen | Die Begegnung von Heisenberg und Bohr, insbesondere der umstrittene Inhalt des Gesprächs, sind Gegenstand eines zeitgenössischen Theaterstücks (Kopenhagen von Michael Frayn).
+```
+
+Synonym - gets classified correctly
+```
+Panoramascheibe | Panorama-Rückfenster | Moran gefiel das Panorama-Rückfenster und die Dachlinie des 1952er Ford, und Barit verlangte ein vergleichbares Design für den Jet.
+```
+
+Difficult - gets classified correctly
+```
+GEA_Group | Metallgesellschaft | Die Trümmerverwertungsgesellschaft (TVG) war ein im Herbst 1945 von der Stadt Frankfurt am Main, den Baufirmen Philipp Holzmann und Wayss & Freytag und dem Industriekonzern Metallgesellschaft gegründetes gemeinnütziges Unternehmen.
+```
+
+Trivial/Synonym - gets classified correctly
+```
+EVN_AG | EVN | Im Jahr 1959 übernahm sie von der heutigen EVN und der STEWEAG die Stromversorgung.
+```
+
+Difficult (based on the context it would not be absolutely clear what is meant with 'Stab', it could also refer to the object) - gets classified correctly
+```
+Stab_(Team) | Stabs | Der Standort des Stabs war die Stadt Bremen .
+```
+
+Trivial - gets classified correctly
+```
+Gelsenwasser | Gelsenwasser AG | Im Oktober 2000 wurde Röstel Managerin für Projektentwicklung und Unternehmensstrategie bei der Gelsenwasser AG, damals ein Tochterunternehmen von E.ON, ab 2003 im Eigentum der Dortmunder und der Bochumer Stadtwerke.
+```
