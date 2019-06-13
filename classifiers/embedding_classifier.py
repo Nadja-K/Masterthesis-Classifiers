@@ -126,9 +126,8 @@ class BertEmbeddingClassifier(Classifier):
 
         return top_suggestions
 
-    def classify(self, mention: str, sentence: str) -> Set[Tuple[str, float]]:
+    def classify(self, mention: str, sentence: str) -> Set[Tuple[str, float, str]]:
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=1)
         min_distance = suggestions[0][1]
 
-        # FIXME
         return set([tuple for tuple in suggestions if tuple[1] == min_distance])
