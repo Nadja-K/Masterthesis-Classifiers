@@ -86,6 +86,7 @@ class RuleClassifier(Classifier):
                         min_distance = suggestion.distance
 
                     for reference_entity in suggestion.reference_entities:
+                        # print(reference_entity, mention, suggestion.distance)
                         best_results['suggestions'][reference_entity] = suggestion.distance
 
             # If the distance is already perfect, return the result here
