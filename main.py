@@ -125,6 +125,7 @@ def rule_classifier_main():
     prefix_length = config['RULECLASSIFIER'].getint('PREFIX_LENGTH', 5)
     count_threshold = config['RULECLASSIFIER'].getint('COUNT_THRESHOLD', 5)
     compact_level = config['RULECLASSIFIER'].getint('COMPACT_LEVEL', 5)
+    compound_splitter_sensitivity = config['RULECLASSIFIER'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.1)
 
     # Create heuristic objects
     original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
@@ -140,7 +141,7 @@ def rule_classifier_main():
     sort_heuristic = HeuristicSort(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
     abbreviation_compounds_heuristic = HeuristicAbbreviationsCompounds(abbreviations_max_edit_distance_dictionary,
                                                                        prefix_length, count_threshold, compact_level,
-                                                                       0.1)
+                                                                       compound_splitter_sensitivity)
     abbreviation_spaces_heuristic = HeuristicAbbreviationsSpaces(abbreviations_max_edit_distance_dictionary,
                                                                  prefix_length, count_threshold, compact_level)
 
@@ -160,5 +161,5 @@ def rule_classifier_main():
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
-    # rule_classifier_main()
+    # bert_embedding_classifier_main()
+    rule_classifier_main()

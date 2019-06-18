@@ -103,6 +103,10 @@ class HeuristicBrackets(Heuristic):
 
 
 class HeuristicPunctuation(Heuristic):
+    """
+    Remove punctuation symbols from a string.
+    Example: Höxter_ -> Höxter
+    """
     def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
                  compact_level: int = 5):
         super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
@@ -116,6 +120,10 @@ class HeuristicPunctuation(Heuristic):
 
 
 class HeuristicLowercasing(Heuristic):
+    """
+    Lowercase all symbols within a string.
+    Example: Höxter -> höxter
+    """
     def name(self):
         return "lowercasing"
 
@@ -125,6 +133,7 @@ class HeuristicLowercasing(Heuristic):
 
 class HeuristicStemming(Heuristic):
     """
+    Reduces all words of an input string to their root form.
     Note:   This heuristic does also lowercasing, however it primarily stems words.
             It is possible that a match would be found for the lowercased unstemmed version, so there is a separate
             lowercasing heuristic.
@@ -143,6 +152,9 @@ class HeuristicStemming(Heuristic):
 
 
 class HeuristicStopwords(Heuristic):
+    """
+    Removes common german stopwords from an input string.
+    """
     def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
                  compact_level: int = 5):
         super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
@@ -157,6 +169,9 @@ class HeuristicStopwords(Heuristic):
 
 
 class HeuristicSort(Heuristic):
+    """
+    Sort the words of an input string in alphabetical order.
+    """
     def name(self):
         return "sort"
 
@@ -167,6 +182,8 @@ class HeuristicSort(Heuristic):
 
 class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
     """
+    Generate an abbreviation version of an input string based on its compounds.
+
     The abbreviation heuristic is far more complex than the other heuristics.
     This is because I can not know if the given query mention is already an abbreviation or the reference entity.
     Example:    Given the mention "embedded subscriber identity module" and the reference entity "eSIM".
@@ -295,6 +312,9 @@ class HeuristicAbbreviationsSpaces(HeuristicAbbreviationsCompounds):
 
 
 class HeuristicCorporateForms(Heuristic):
+    """
+    Remove specific corporate forms from an input string.
+    """
     def __init__(self, max_edit_distance_dictionary: int = 5, prefix_length: int = 10, count_threshold: int = 1,
                  compact_level: int = 5, corporate_list: List[str]=[]):
         super().__init__(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
