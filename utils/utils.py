@@ -42,8 +42,8 @@ def split_compounds(s: str, prop_threshold: float=0.5) -> List[str]:
         split_res = char_split.split_compound(s)[0]
         probability = split_res[0]
         split = split_res[1:]
-    compounds = [split.strip().lower() for split in split]
-    # compounds = [split.strip() for split in split]
+    # compounds = [split.strip().lower() for split in split]
+    compounds = [split.strip() for split in split]
 
     if probability >= prop_threshold:
         recursive_compounds = []
