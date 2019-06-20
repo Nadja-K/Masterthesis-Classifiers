@@ -30,8 +30,7 @@ def split_compounds(s: str, prop_threshold: float=0.5) -> List[str]:
     CharSplit has some other 'weaknesses' that are covered here.
     1) If the input string consists of multiple words separated by a space, CharSplit is unable to handle it very
        well. Usually the resulting probability is negative. Instead, I split the input string manually on spaces.
-    2) The compound splitter capitalizes every word, but I want them lowercased.
-    3) CharSplit returns various splits (sorted by a probability) but to keep it simple, I only take the first one
+    2) CharSplit returns various splits (sorted by a probability) but to keep it simple, I only take the first one
        into consideration
     """
     s = remove_punctuation(s)
@@ -44,6 +43,7 @@ def split_compounds(s: str, prop_threshold: float=0.5) -> List[str]:
         probability = split_res[0]
         split = split_res[1:]
     compounds = [split.strip().lower() for split in split]
+    # compounds = [split.strip() for split in split]
 
     if probability >= prop_threshold:
         recursive_compounds = []
