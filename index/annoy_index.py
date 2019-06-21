@@ -211,6 +211,7 @@ class BertIndexer(AnnoyIndexer):
 
     def close_session(self):
         self._embedding_model.close_session()
+        self._annoy_index.unload()
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
         with self._annoy_entity_mapping.begin(write=True) as entity_mapping:
