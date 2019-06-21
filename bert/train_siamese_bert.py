@@ -382,8 +382,8 @@ class SiameseBert:
         run_config = tf.estimator.RunConfig(
             model_dir=self._output_dir,
             save_checkpoints_steps=self._save_checkpoints_steps,
-            save_summary_steps=self._summary_steps#,
-            # keep_checkpoint_max=20
+            save_summary_steps=self._summary_steps,
+            keep_checkpoint_max=1
         )
 
         if self._num_train_steps is None:
