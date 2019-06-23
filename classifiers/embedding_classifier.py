@@ -57,9 +57,7 @@ class TokenLevelEmbeddingClassifier(Classifier):
         return top_suggestions
 
     def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float, str]]:
-        # Some minor refactoring before nearest neighbours are looked  up
         mention = str(mention)
-        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
         suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=1)
         if len(suggestions) > 0:
             min_distance = suggestions[0][1]

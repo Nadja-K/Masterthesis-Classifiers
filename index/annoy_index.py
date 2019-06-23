@@ -160,11 +160,8 @@ class Sent2VecIndexer(AnnoyIndexer):
                 entities = set([str(sample['entity_title']) for sample in context_data])
 
                 for sample_id, entity in enumerate(entities):
-                    # Replace _ symbols with spaces
-                    refactored_entity = entity.replace("_", " ")
-
                     # Get the entity embedding
-                    emb, _ = self._get_embedding(refactored_entity)
+                    emb, _ = self._get_embedding(entity)
 
                     # Add entity embedding to index
                     self._annoy_index.add_item(sample_id, emb)
@@ -176,6 +173,10 @@ class Sent2VecIndexer(AnnoyIndexer):
 
     def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float],
                                                                                                        bool]:
+        # Refactoring step
+        phrase = phrase.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
+
+        # Get the actual embedding
         emb = self._embedding_model.embed_sentence(phrase)[0]
         phrase_found = True
         if not np.any(emb):
