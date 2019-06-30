@@ -3,6 +3,7 @@ import time
 import json
 import logging
 import tensorflow as tf
+import argparse
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 
@@ -36,7 +37,6 @@ print(dataset_db_name)
 
 def bert_embedding_classifier_main():
     # Logging
-    tmp = time.time()
     dataset = dataset_db_name.split("/")[-1].split(".")[0]
     logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
                                                                 'filename'].split(".")[0] + "_bert_embedding_" + dataset + ".log"
@@ -62,19 +62,32 @@ def bert_embedding_classifier_main():
     bert_distance_allowance = config['EMBEDDINGCLASSIFIER_BERT'].getfloat('DISTANCE_ALLOWANCE', None)
     num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
+    # Argparse (this is optional and usually the config file is used - only use for experiments)
+    import ast
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
+    parser.add_argument('--vocab_file', nargs='?', type=str, default=vocab_file)
+    parser.add_argument('--bert_config_file', nargs='?', type=str, default=bert_config_file)
+    parser.add_argument('--init_checkpoint', nargs='?', type=str, default=init_checkpoint)
+    parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
+    parser.add_argument('--layer_indexes', nargs='*', type=int, default=layer_indexes)
+    args = parser.parse_args()
+    print(args)
+
     # Classifier
-    classifier = BertEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+    classifier = BertEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=dataset_split,
                                          split_table_name=split_table_name,
                                          annoy_metric=annoy_metric, num_trees=num_trees,
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
-                                         skip_trivial_samples=skip_trivial_samples,
-                                         bert_config_file=bert_config_file, init_checkpoint=init_checkpoint,
-                                         vocab_file=vocab_file, seq_len=seq_len, batch_size=batch_size,
-                                         layer_indexes=layer_indexes, use_one_hot_embeddings=use_one_hot_embeddings,
+                                         skip_trivial_samples=args.skip_trivial_samples,
+                                         bert_config_file=args.bert_config_file, init_checkpoint=args.init_checkpoint,
+                                         vocab_file=args.vocab_file, seq_len=seq_len, batch_size=batch_size,
+                                         layer_indexes=args.layer_indexes, use_one_hot_embeddings=use_one_hot_embeddings,
                                          do_lower_case=do_lower_case,
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
     # print(classifier._index._get_embedding("Königin", "Die Königin starb an jenem Tage."))
@@ -164,6 +177,6 @@ def rule_classifier_main():
 
 
 if __name__ == '__main__':
-    token_level_embedding_classifier_main()
-    # bert_embedding_classifier_main()
+    # token_level_embedding_classifier_main()
+    bert_embedding_classifier_main()
     # rule_classifier_main()

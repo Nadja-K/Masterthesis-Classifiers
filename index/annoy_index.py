@@ -44,7 +44,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
         dirname = os.path.dirname(output_filename)
         if len(dirname) == 0:
             dirname = "."
-        if len(glob.glob(os.path.join(dirname, '*.ann'))) > 10:
+        if len(glob.glob(os.path.join(dirname, '*.ann'))) > 20:
             log.warning("There are a lot of annoy indice and lmdb mapping files in %s. Make sure to empty the directory"
                         "if necessary." % dirname)
             input("Waiting for keypress to continue...")
