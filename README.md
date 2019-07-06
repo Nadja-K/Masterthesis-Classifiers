@@ -1,45 +1,22 @@
 ## Directory structure
-
-classifiers
-├── annoy_data
-|   └── ...
-|
-├── bert
-|   └── ...
-|
-├── classifiers
-|   └── ...
-|
-├── configs
-|   └── bert_train_config.ini
-|   └── config.ini
-|   └── remote_config.ini
-|   └── logging_config.ini
-|
-├── eval
-|   └── ...
-|
-├── examples
-|   └── ...
-|
-├── heuristics
-|   └── ...
-|
-├── index
-|   └── ...
-|
-├── logs
-|   └── ...
-|
-├── utils
-|   └── ...
-|
-├── main.py
-├── main_train.py
-├── ngram_probs.py
-├── README.md
+```sh
+Classifiers
+├── annoy_data                  # Tmp dir for annoy indices
+├── bert                        # BERT related source files
+├── classifiers                 # Source files for the classifiers
+├── configs                     # Config files for running the classification or finetuning BERT
+├── eval                        # Evaluation class
+├── examples                    # Output examples for all classifiers
+├── heuristics                  # Heuristics for the rule-based classifier
+├── index                       # Annoy index class for the token-level and BERT-based classifiers
+├── logs                        # Tmp dir for output logs
+├── utils                       # Tools and utilities
+├── main.py                     
+├── main_train.py               
+├── ngram_probs.py              # Trained CharSplit model
+├── README.md                   
 └── requirements.txt
-
+```
 
 ## Setup
 Install dependencies:
@@ -62,7 +39,7 @@ import nltk
 nltk.download('punkt')
 ```
 
-### CharSplit
+### CharSplit Setup
 In order to install CharSplit as a module with ```pip install .```, first clone the 
 [repository](https://github.com/dtuggener/CharSplit) and add the [setup.py file](####setup.py) 
 as seen in the following folder structure:
