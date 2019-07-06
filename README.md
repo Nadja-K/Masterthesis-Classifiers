@@ -1,15 +1,70 @@
-# Requirements
-* [Python SymSpell](https://github.com/mammothb/symspellpy) (based on [SymSpell](https://github.com/wolfgarbe/SymSpell))
-* [Compound splitter](https://github.com/dtuggener/CharSplit)
-    * Add [setup.py](#setup.py) to install CharSplit with ```pip install .```
-    * Copy the trained ngrams_probs.py model to your directory
-* nltk 
+## Directory structure
 
-## SymSpell
-Install symspellpy with ```pip install -U symspellpy```.
+classifiers
+├── annoy_data
+|   └── ...
+|
+├── bert
+|   └── ...
+|
+├── classifiers
+|   └── ...
+|
+├── configs
+|   └── bert_train_config.ini
+|   └── config.ini
+|   └── remote_config.ini
+|   └── logging_config.ini
+|
+├── eval
+|   └── ...
+|
+├── examples
+|   └── ...
+|
+├── heuristics
+|   └── ...
+|
+├── index
+|   └── ...
+|
+├── logs
+|   └── ...
+|
+├── utils
+|   └── ...
+|
+├── main.py
+├── main_train.py
+├── ngram_probs.py
+├── README.md
+└── requirements.txt
 
-## CharSplit
-In order to install CharSplit as a module with ```pip install .```, add the [setup.py file](#setup.py) 
+
+## Setup
+Install dependencies:
+```sh 
+pip install -r requirements.txt
+```
+
+Install sent2vec:
+```sh 
+pip install git+https://github.com/epfml/sent2vec.git
+```
+
+Install CharSplit:
+Follow the instructions [below](###CharSplit) to install the module.
+Add the trained ```ngram_prob.py``` model from the original git repo to the classifier [directory structure](##Directory structure)
+ 
+Download the nltk punkt sentence tokenizer: 
+```
+import nltk
+nltk.download('punkt')
+```
+
+### CharSplit
+In order to install CharSplit as a module with ```pip install .```, first clone the 
+[repository](https://github.com/dtuggener/CharSplit) and add the [setup.py file](####setup.py) 
 as seen in the following folder structure:
 ```
 CharSplit/
@@ -45,11 +100,4 @@ setuptools.setup(
         "Operating System :: Linux",
     ],
 )
-```
-
-## NLTK
-Download the punkt sentence tokenizer with: 
-```
-import nltk
-nltk.download('punkt')
 ```

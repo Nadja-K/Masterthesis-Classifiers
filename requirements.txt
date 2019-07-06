@@ -1,0 +1,9 @@
+regex
+nltk
+lxml
+cython
+annoy
+lmdb
+tensorflow-gpu==1.13.1
+symspellpy
+numpy
