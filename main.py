@@ -90,8 +90,6 @@ def bert_embedding_classifier_main():
     classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
-    # print(classifier._index._get_embedding("Königin", "Die Königin starb an jenem Tage."))
-
     # Necessary to close the tensorflow session
     classifier.close_session()
 

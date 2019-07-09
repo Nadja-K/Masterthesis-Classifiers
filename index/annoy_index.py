@@ -171,6 +171,40 @@ class Sent2VecIndexer(AnnoyIndexer):
                     # While the sentence mapping is not needed for this model, the code structure needs a dummy.
                     sentence_mapping.put(str(sample_id).encode(), "".encode())
 
+    # def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float],
+    #                                                                                                    bool]:
+    #     # Refactoring step
+    #     phrase = phrase.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
+    #
+    #     # Does the same but calculates individual word embeddings first
+    #     uni_words = re.split("\s+", phrase)
+    #     uni_embs = self._embedding_model.embed_unigrams(uni_words)
+    #     all_phrases_found = [True] * len(uni_embs)
+    #     for index, uni_emb in enumerate(uni_embs):
+    #         phrase_found = True
+    #         if not np.any(uni_emb):
+    #             if self._use_compound_splitting:
+    #                 if compound_attempt:
+    #                     log.warning("Word '%s' not found in sent2vec. Zero-vector returned." % uni_words[index])
+    #                     phrase_found = False
+    #                 else:
+    #                     compound_splitted_phrase = ' '.join(
+    #                         split_compounds(uni_words[index], prop_threshold=self._compound_splitting_threshold))
+    #                     uni_embs[index], phrase_found = self._get_embedding(compound_splitted_phrase, sentence=sentence,
+    #                                                                         compound_attempt=True)
+    #             else:
+    #                 log.warning("Word '%s' not found in sent2vec. Zero-vector returned." % uni_words[index])
+    #                 phrase_found = False
+    #         all_phrases_found[index] = phrase_found
+    #
+    #     non_zero_vec_counts = sum([0 if not np.any(uni_emb) else 1 for uni_emb in uni_embs])
+    #     emb = np.sum(uni_embs, axis=0) / max(non_zero_vec_counts, 1)
+    #
+    #     if not compound_attempt and not any(all_phrases_found):
+    #         log.warning("Phrase '%s' not found in sent2vec. Zero-vector returned." % phrase)
+    #     return emb, any(all_phrases_found)
+
+
     def _get_embedding(self, phrase: str, sentence: str = "", compound_attempt: bool = False) -> Tuple[List[float],
                                                                                                        bool]:
         # Refactoring step
@@ -178,6 +212,7 @@ class Sent2VecIndexer(AnnoyIndexer):
 
         # Get the actual embedding
         emb = self._embedding_model.embed_sentence(phrase)[0]
+
         phrase_found = True
         if not np.any(emb):
             if self._use_compound_splitting:

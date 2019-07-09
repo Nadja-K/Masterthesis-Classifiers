@@ -78,3 +78,7 @@ setuptools.setup(
     ],
 )
 ```
+
+## Classification
+In order to classify a query mention (or mention-sentence pair) ...
+FIXME
