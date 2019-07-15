@@ -99,13 +99,13 @@ class RuleClassifier(Classifier):
 
     def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float]]:
         """
-        Public classify method that users can use to classify a given string based on the train split.
+        Public classify method that users can use to classify a given string based on the defined split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be
         refilled first. This might take a while depending on the size of the dataset.
 
         Note: the entities of the split will be used to fill the dictionaries.
         """
-        self._fill_symspell_dictionaries(dataset_split='train')
+        # self._fill_symspell_dictionaries(dataset_split='train')
 
         res = self._classify(mention)
         matched_entities = set()
