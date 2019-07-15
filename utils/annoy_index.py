@@ -53,6 +53,12 @@ class AnnoyIndexer(metaclass=ABCMeta):
         if self._annoy_index is not None:
             self._annoy_index.unload()
 
+        if self._annoy_entity_mapping is not None:
+            self._annoy_entity_mapping.close()
+
+        if self._annoy_sentence_mapping is not None:
+            self._annoy_sentence_mapping.close()
+
     def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
         """
         The public create entity index method that users can call.
@@ -71,8 +77,8 @@ class AnnoyIndexer(metaclass=ABCMeta):
         self._annoy_index = annoy.AnnoyIndex(self._embedding_vector_size, metric=self._metric)
 
         # Create mapping instance
-        self._annoy_entity_mapping = lmdb.open(file_entity_lmdb, map_size=int(1e9))
-        self._annoy_sentence_mapping = lmdb.open(file_sentence_lmdb, map_size=int(1e9))
+        self._annoy_entity_mapping = lmdb.open(file_entity_lmdb, map_size=int(1e9), max_dbs=1)
+        self._annoy_sentence_mapping = lmdb.open(file_sentence_lmdb, map_size=int(1e9), max_dbs=1)
 
         # Retrieve entity embeddings and add them to the annoy index
         self._create_entity_index(context_data)
@@ -84,7 +90,7 @@ class AnnoyIndexer(metaclass=ABCMeta):
         log.info("Building annoy index took %s" % (time.time() - start))
 
         # Save annoy index
-        self._annoy_index.save(file_annoy)
+        # self._annoy_index.save(file_annoy)
 
     def load_entity_index(self, file_annoy: str):
         """

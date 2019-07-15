@@ -40,27 +40,23 @@ class HybridClassifier(Classifier):
                                                        query_data=self._query_data, context_data=self._context_data,
                                                        entities=self._entities, loaded_datasplit=self._loaded_datasplit)
 
-        # Just some sanity checks
-        import time
-        eval_mode = "mentions"
-        start = time.time()
-        self.rule_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        print("Rule Evaluation took %s" % (time.time() - start))
-
-        eval_mode = "samples"
-        start = time.time()
-        self.bert_classifier.evaluate_datasplit('test', eval_mode=eval_mode)
-        print("Bert Evaluation took %s" % (time.time() - start))
-
-        eval_mode = "mentions"
-        start = time.time()
-        self.rule_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        print("Rule Evaluation took %s" % (time.time() - start))
-
-        eval_mode = "samples"
-        start = time.time()
-        self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        print("Bert Evaluation took %s" % (time.time() - start))
+        # # Just some sanity checks
+        # import time
+        #
+        # eval_mode = "samples"
+        # start = time.time()
+        # self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+        # print("Bert Evaluation took %s" % (time.time() - start))
+        #
+        # eval_mode = "samples"
+        # start = time.time()
+        # self.rule_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+        # print("Bert Evaluation took %s" % (time.time() - start))
+        #
+        # eval_mode = "samples"
+        # start = time.time()
+        # self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+        # print("Bert Evaluation took %s" % (time.time() - start))
 
     # FIXME
     def _classify(self, mention: str, sentence: str, num_results: int=1):
@@ -69,24 +65,47 @@ class HybridClassifier(Classifier):
 
         # Case 1: rule based finds exactly 1 entity
         # -> Return
-        suggestions = self.rule_classifier._classify(mention, sentence)
-        if len(suggestions['suggestions']) == 1:
+        rule_suggestions = self.rule_classifier._classify(mention, sentence)
+        if len(rule_suggestions['suggestions']) == 1:
             # print("Rule: ")
             # print(suggestions)
             pass
-        # Case 2: rule based finds exactly 0 entities
+        # Case 2: rule based finds > 1 entities
         # -> Bert
-        # Case 3: rule based finds > 1 entities
+        elif len(rule_suggestions['suggestions']) > 1:
+            bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=5)
+
+            best_suggestion = ()
+            for rule_suggestion in rule_suggestions['suggestions']:
+                if rule_suggestion in bert_suggestions['suggestions']:
+                    if len(best_suggestion) > 0:
+                        if bert_suggestions['suggestions'][rule_suggestion] > best_suggestion[1]:
+                            best_suggestion = (rule_suggestion, bert_suggestions['suggestions'][rule_suggestion])
+                    else:
+                        best_suggestion = (rule_suggestion, bert_suggestions['suggestions'][rule_suggestion])
+
+            if len(best_suggestion) > 0:
+                # print(best_suggestion)
+                return {'suggestions': {best_suggestion[0]: best_suggestion[1]}}
+            else:
+                import operator
+                tmp = sorted(bert_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
+                tmp = {'suggestions': {tmp[0]: tmp[1]}}
+                # print(tmp)
+                return tmp
+        # Case 3: rule based finds exactly 0 entities
         # -> Bert
         else:
-            suggestions = self.bert_classifier._classify(mention, sentence, num_results=1)
+            bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=1)
+            return bert_suggestions
             # print("Bert: ")
             # print(suggestions)
 
-        return suggestions
+        return rule_suggestions
 
     # FIXME (is not correct yet)
     def classify(self, mention: str, sentence: str):
+        # FIXME load data (see other classifiers)
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
 
@@ -97,8 +116,12 @@ class HybridClassifier(Classifier):
         assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
                                  'with the same distance are returned for this classifier.'
 
-        self.load_datasplit(self.data)
-        self.rule_classifier._fill_symspell_dictionaries(dataset_split="val")
+        # FIXME load data (see other classifiers) (do all of this in a separate function that can be called for classify as well)
+        # 1. self.load_datasplit(dataset_split, ...)
+        # 2. Update query, context, entities and loaded datasplit for rule based and bert
+        # 3. self.rule_classifier._fill_symspell_dictionaries(dataset_split)
+        # 4. self.bert_classifier._fill_index(dataset_split)
+
         assert (self._loaded_datasplit == 'val' and self.rule_classifier._loaded_datasplit == 'val' and
                 self.bert_classifier._loaded_datasplit == 'val'), 'The evaluation could not be performed because one' \
                                                                   'of the classifiers had a different dataset loaded' \

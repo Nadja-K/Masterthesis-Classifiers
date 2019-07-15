@@ -47,6 +47,11 @@ class BertEmbeddingClassifier(Classifier):
     def _fill_index(self, dataset_split: str):
         # Create (or load) annoy index (If no data has been loaded or if new data needs to be loaded do this here)
         if self._annoy_loaded_datasplit != dataset_split:
+            assert self._annoy_loaded_datasplit is None, "Annoy stores data in the RAM, creating a new index in the " \
+                                                         "same session can cause problems with the indexed data. As " \
+                                                         "a result, this feature is not supported currently. " \
+                                                         "Only load one split per session."
+
             if dataset_split != self._loaded_datasplit:
                 print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
                       "data." % dataset_split)
@@ -56,7 +61,7 @@ class BertEmbeddingClassifier(Classifier):
 
             # If a new index has to be created, make sure the old one is unloaded
             if self._index is not None:
-                self._index.close_index()
+                self._index.close_session()
             print("The annoy index has not been filled with the %s data. Doing this now. This might take "
                   "a while." % dataset_split)
 

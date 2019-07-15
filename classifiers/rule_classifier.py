@@ -13,6 +13,7 @@ class RuleClassifier(Classifier):
                          load_context=False, query_data=query_data, context_data=context_data,
                          entities=entities, loaded_datasplit=loaded_datasplit)
         self._heuristics = heuristics
+        self._symspell_loaded_datasplit = None
 
         # Fill the symspell dictionaries of each heuristic with the data of the train split
         # The flag is used in order to re-fill the dictionaries if a different split needs to be used.
@@ -20,8 +21,6 @@ class RuleClassifier(Classifier):
             print("Filling the symspell dictionaries for the %s split. This might take a while." % dataset_split)
             self._fill_symspell_dictionaries(dataset_split)
             self._symspell_loaded_datasplit = dataset_split
-        else:
-            self._symspell_loaded_datasplit = None
 
     def _fill_symspell_dictionaries(self, dataset_split: str):
         """

@@ -34,6 +34,11 @@ class TokenLevelEmbeddingClassifier(Classifier):
     def _fill_index(self, dataset_split: str):
         # Create (or load) annoy index (If no data has been loaded or if new data needs to be loaded do this here)
         if self._annoy_loaded_datasplit != dataset_split:
+            assert self._annoy_loaded_datasplit is None, "Annoy stores data in the RAM, creating a new index in the " \
+                                                         "same session can cause problems with the indexed data. As " \
+                                                         "a result, this feature is not supported currently. " \
+                                                         "Only load one split per session."
+
             if dataset_split != self._loaded_datasplit:
                 print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
                       "data." % dataset_split)

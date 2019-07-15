@@ -90,11 +90,6 @@ def bert_embedding_classifier_main():
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
-    print(classifier.classify("test", "Das ist ein test"))
-    classifier.evaluate_datasplit('test', eval_mode=args.eval_mode)
-    print(classifier.classify("test", "Das ist ein test"))
-    classifier.evaluate_datasplit(dataset_split, eval_mode=args.eval_mode)
-    print(classifier.classify("test", "Das ist ein test"))
     print("Evaluation took %s" % (time.time() - start))
 
     # Necessary to close the tensorflow session
@@ -271,7 +266,7 @@ def hybrid_classifier():
                                   dataset_split=dataset_split, annoy_metric=annoy_metric,
                                   bert_config_file=args.bert_config_file, init_checkpoint=args.init_checkpoint,
                                   vocab_file=args.vocab_file, seq_len=seq_len, split_table_name=split_table_name,
-                                  skip_trivial_samples=args.skip_trivial_samples, prefill_symspell=False,
+                                  skip_trivial_samples=args.skip_trivial_samples, prefill_symspell=True,
                                   batch_size=batch_size, layer_indexes=args.layer_indexes,
                                   use_one_hot_embeddings=use_one_hot_embeddings, do_lower_case=do_lower_case,
                                   annoy_index_path=annoy_index_path, num_trees=num_trees,
@@ -284,6 +279,6 @@ def hybrid_classifier():
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
+    # bert_embedding_classifier_main()
     # rule_classifier_main()
-    # hybrid_classifier()
+    hybrid_classifier()
