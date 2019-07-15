@@ -7,10 +7,8 @@ Classifiers
 ├── configs                     # Config files for running the classification or finetuning BERT
 ├── eval                        # Evaluation class
 ├── examples                    # Output examples for all classifiers
-├── heuristics                  # Heuristics for the rule-based classifier
-├── index                       # Annoy index class for the token-level and BERT-based classifiers
 ├── logs                        # Tmp dir for output logs
-├── utils                       # Tools and utilities
+├── utils                       # Tools and utilities, including the annoy index class and heuristics
 ├── main.py                     
 ├── main_train.py               
 ├── ngram_probs.py              # Trained CharSplit model

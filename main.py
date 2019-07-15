@@ -6,8 +6,10 @@ import tensorflow as tf
 import argparse
 from configs.logging_config import logging_config
 from logging.config import dictConfig
+import ast
 
-from classifiers.embedding_classifier import TokenLevelEmbeddingClassifier, BertEmbeddingClassifier
+from classifiers.bert_classifier import BertEmbeddingClassifier
+from classifiers.token_classifier import TokenLevelEmbeddingClassifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicOriginal, HeuristicBrackets, \
@@ -63,7 +65,6 @@ def bert_embedding_classifier_main():
     num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
     # Argparse (this is optional and usually the config file is used - only use for experiments)
-    import ast
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
@@ -111,18 +112,26 @@ def token_level_embedding_classifier_main():
     distance_allowance = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('DISTANCE_ALLOWANCE', None)
     num_results = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getint('NUM_RESULTS', 1)
 
+    # Argparse (this is optional and usually the config file is used - only use for experiments)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
+    parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
+    args = parser.parse_args()
+    print(args)
+
     # Classifier
-    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=dataset_split,
                                                split_table_name=split_table_name,
                                                embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
                                                num_trees=num_trees, annoy_index_path=annoy_index_path,
                                                annoy_output_dir=annoy_output_dir,
-                                               skip_trivial_samples=skip_trivial_samples,
+                                               skip_trivial_samples=args.skip_trivial_samples,
                                                use_compound_splitting=use_compound_splitting,
                                                compound_splitting_threshold=compound_splitting_threshold,
                                                distance_allowance=distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -141,6 +150,14 @@ def rule_classifier_main():
     count_threshold = config['RULECLASSIFIER'].getint('COUNT_THRESHOLD', 5)
     compact_level = config['RULECLASSIFIER'].getint('COMPACT_LEVEL', 5)
     compound_splitter_sensitivity = config['RULECLASSIFIER'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.1)
+
+    # Argparse (this is optional and usually the config file is used - only use for experiments)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
+    parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
+    args = parser.parse_args()
+    print(args)
 
     # Create heuristic objects
     original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
@@ -167,14 +184,14 @@ def rule_classifier_main():
     # heuristic_list = [original_heuristic]
 
     # Classifier
-    classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, split_table_name,
-                                skip_trivial_samples, False)
+    classifier = RuleClassifier(heuristic_list, args.dataset_db_name, dataset_split, split_table_name,
+                                args.skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+    classifier.evaluate_datasplit(dataset_split, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    # bert_embedding_classifier_main()
-    rule_classifier_main()
+    bert_embedding_classifier_main()
+    # rule_classifier_main()

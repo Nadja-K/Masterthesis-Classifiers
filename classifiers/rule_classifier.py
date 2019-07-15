@@ -1,7 +1,7 @@
-from typing import Tuple, List, Dict, Set, Union
+from typing import Dict, Union
 
 from classifiers.classifier import Classifier
-from heuristics.heuristics import *
+from utils.heuristics import *
 
 
 class RuleClassifier(Classifier):
