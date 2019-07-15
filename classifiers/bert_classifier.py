@@ -14,10 +14,12 @@ class BertEmbeddingClassifier(Classifier):
                  layer_indexes: List[int] = [-1, -2, -3, -4], use_one_hot_embeddings: bool = False,
                  do_lower_case: bool = True, skip_trivial_samples: bool = False,
                  split_table_name: str='splits', annoy_index_path: str=None, num_trees: int=30,
-                 annoy_output_dir: str='', distance_allowance: float=0.05):
+                 annoy_output_dir: str='', distance_allowance: float=0.05, query_data=None,
+                 context_data=None, entities=None, loaded_datasplit=None):
         super().__init__(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
                          split_table_name=split_table_name,
-                         skip_trivial_samples=skip_trivial_samples, load_context=True)
+                         skip_trivial_samples=skip_trivial_samples, load_context=False, query_data=query_data,
+                         context_data=context_data, entities=entities, loaded_datasplit=loaded_datasplit)
 
         self._distance_allowance = distance_allowance
         assert self._entities == set([x['entity_title'] for x in self._context_data]

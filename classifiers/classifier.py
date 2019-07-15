@@ -8,7 +8,8 @@ from eval.evaluation import Evaluator
 
 class Classifier(metaclass=ABCMeta):
     def __init__(self, dataset_db_name: str, dataset_split: str, split_table_name: str='splits',
-                 skip_trivial_samples: bool = False, load_context: bool = False):
+                 skip_trivial_samples: bool = False, load_context: bool = False, query_data=None,
+                 context_data=None, entities=None, loaded_datasplit=None):
         self._loaded_datasplit = None
         self._query_data = None
         self._context_data = None
@@ -19,9 +20,16 @@ class Classifier(metaclass=ABCMeta):
 
         # Load the specified datasplit
         assert dataset_split in ['train', 'test', 'val']
-        self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
-            dataset_db_name, dataset_split, split_table_name=split_table_name,
-            skip_trivial_samples=skip_trivial_samples, load_context=load_context)
+        if (query_data is not None and context_data is not None and entities is not None and
+                loaded_datasplit is not None):
+            self._query_data = query_data
+            self._context_data = context_data
+            self._entities = entities
+            self._loaded_datasplit = loaded_datasplit
+        else:
+            self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
+                dataset_db_name, dataset_split, split_table_name=split_table_name,
+                skip_trivial_samples=skip_trivial_samples, load_context=load_context)
 
     @staticmethod
     def load_datasplit(dataset_db_name: str, dataset_split: str, split_table_name: str = 'splits',
