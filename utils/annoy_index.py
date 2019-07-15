@@ -49,6 +49,10 @@ class AnnoyIndexer(metaclass=ABCMeta):
                         "if necessary." % dirname)
             input("Waiting for keypress to continue...")
 
+    def close_index(self):
+        if self._annoy_index is not None:
+            self._annoy_index.unload()
+
     def create_entity_index(self, context_data: List[sqlite3.Row], output_filename: str, num_trees: int=30):
         """
         The public create entity index method that users can call.
@@ -246,7 +250,7 @@ class BertIndexer(AnnoyIndexer):
 
     def close_session(self):
         self._embedding_model.close_session()
-        self._annoy_index.unload()
+        self.close_index()
 
     def _create_entity_index(self, context_data: List[sqlite3.Row]):
         with self._annoy_entity_mapping.begin(write=True) as entity_mapping:

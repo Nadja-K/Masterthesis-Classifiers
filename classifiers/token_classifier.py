@@ -17,24 +17,60 @@ class TokenLevelEmbeddingClassifier(Classifier):
                          split_table_name=split_table_name,
                          skip_trivial_samples=skip_trivial_samples, load_context=False)
 
+        self._embedding_model_path = embedding_model_path
+        self._annoy_metric = annoy_metric
+        self._use_compound_splitting = use_compound_splitting
+        self._compound_splitting_threshold = compound_splitting_threshold
+        self._annoy_index_path = annoy_index_path
+        self._annoy_output_dir = annoy_output_dir
+        self._dataset_db_name = dataset_db_name
+        self._num_trees = num_trees
         self._distance_allowance = distance_allowance
-        # Create (or load) the annoy index
-        self._index = Sent2VecIndexer(embedding_model_path, annoy_metric, use_compound_splitting,
-                                      compound_splitting_threshold)
-        if annoy_index_path is None:
-            log.info("No annoy index file has been provided, creating new index now.")
-            output_path = os.path.join(annoy_output_dir, "%s_%s" % (dataset_db_name.split(os.sep)[-1].split(".")[0],
-                                                                    dataset_split))
-            self._index.create_entity_index(self._context_data, output_path, num_trees)
-        else:
-            log.info("Loading provided annoy index.")
-            self._index.load_entity_index(annoy_index_path)
+        self._annoy_loaded_datasplit = None
+        self._index = None
+
+        self._fill_index(dataset_split)
+
+    def _fill_index(self, dataset_split: str):
+        # Create (or load) annoy index (If no data has been loaded or if new data needs to be loaded do this here)
+        if self._annoy_loaded_datasplit != dataset_split:
+            if dataset_split != self._loaded_datasplit:
+                print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
+                      "data." % dataset_split)
+                self._query_data, self._context_data, self._entities, self._loaded_datasplit = \
+                    self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
+                                        skip_trivial_samples=True, load_context=False)
+
+            # If a new index has to be created, make sure the old one is unloaded
+            if self._index is not None:
+                self._index.close_index()
+            print("The annoy index has not been filled with the %s data. Doing this now. This might take "
+                  "a while." % dataset_split)
+
+            # Create (or load) the annoy index
+            self._index = Sent2VecIndexer(self._embedding_model_path, self._annoy_metric, self._use_compound_splitting,
+                                          self._compound_splitting_threshold)
+            if self._annoy_index_path is None:
+                log.info("No annoy index file has been provided, creating new index now.")
+                output_path = os.path.join(self._annoy_output_dir, "%s_%s" % (
+                    self._dataset_db_name.split(os.sep)[-1].split(".")[0], dataset_split))
+                self._index.create_entity_index(self._context_data, output_path, self._num_trees)
+                self._output_path = output_path
+            else:
+                log.info("Loading provided annoy index.")
+                self._index.load_entity_index(self._annoy_index_path)
+                self._output_path = self._annoy_index_path
+
+            self._annoy_loaded_datasplit = dataset_split
 
     def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
+        # Make sure the correct data is loaded
+        self._fill_index(dataset_split)
+
         # The actual evaluation process
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
@@ -57,6 +93,9 @@ class TokenLevelEmbeddingClassifier(Classifier):
         return top_suggestions
 
     def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float, str]]:
+        # Make sure the correct data is loaded
+        self._fill_index(self._loaded_datasplit)
+
         mention = str(mention)
         suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=1)
         if len(suggestions) > 0:

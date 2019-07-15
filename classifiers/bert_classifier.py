@@ -25,20 +25,59 @@ class BertEmbeddingClassifier(Classifier):
         assert self._entities == set([x['entity_title'] for x in self._context_data]
                                      ), "The query and context data is not sharing the same entities."
 
-        # Create (or load) annoy index
-        self._index = BertIndexer(bert_config_file=bert_config_file, init_checkpoint=init_checkpoint,
-                                  vocab_file=vocab_file, seq_len=seq_len, batch_size=batch_size,
-                                  layer_indexes=layer_indexes, use_one_hot_embeddings=use_one_hot_embeddings,
-                                  do_lower_case=do_lower_case, metric=annoy_metric)
+        self._bert_config_file = bert_config_file
+        self._init_checkpoint = init_checkpoint
+        self._vocab_file = vocab_file
+        self._seq_len = seq_len
+        self._batch_size = batch_size
+        self._layer_indexes = layer_indexes
+        self._use_one_hot_embeddings = use_one_hot_embeddings
+        self._do_lower_case = do_lower_case
+        self._metric = annoy_metric
+        self._num_trees = num_trees
+        self._annoy_index_path = annoy_index_path
+        self._annoy_output_dir = annoy_output_dir
+        self._dataset_db_name = dataset_db_name
+        self._annoy_loaded_datasplit = None
+        self._index = None
 
-        if annoy_index_path is None:
-            log.info("No annoy index file has been provided, creating new index now.")
-            output_path = os.path.join(annoy_output_dir, "%s_%s" % (dataset_db_name.split(os.sep)[-1].split(".")[0],
-                                                                    dataset_split))
-            self._index.create_entity_index(self._context_data, output_path, num_trees)
-        else:
-            log.info("Loading provided annoy index.")
-            self._index.load_entity_index(annoy_index_path)
+        # Create (or load) annoy index
+        self._fill_index(dataset_split)
+
+    def _fill_index(self, dataset_split: str):
+        # Create (or load) annoy index (If no data has been loaded or if new data needs to be loaded do this here)
+        if self._annoy_loaded_datasplit != dataset_split:
+            if dataset_split != self._loaded_datasplit:
+                print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
+                      "data." % dataset_split)
+                self._query_data, self._context_data, self._entities, self._loaded_datasplit = \
+                    self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
+                                        skip_trivial_samples=True, load_context=False)
+
+            # If a new index has to be created, make sure the old one is unloaded
+            if self._index is not None:
+                self._index.close_index()
+            print("The annoy index has not been filled with the %s data. Doing this now. This might take "
+                  "a while." % dataset_split)
+
+            self._index = BertIndexer(bert_config_file=self._bert_config_file, init_checkpoint=self._init_checkpoint,
+                                      vocab_file=self._vocab_file, seq_len=self._seq_len, batch_size=self._batch_size,
+                                      layer_indexes=self._layer_indexes,
+                                      use_one_hot_embeddings=self._use_one_hot_embeddings,
+                                      do_lower_case=self._do_lower_case, metric=self._metric)
+
+            if self._annoy_index_path is None:
+                log.info("No annoy index file has been provided, creating new index now.")
+                output_path = os.path.join(self._annoy_output_dir, "%s_%s" % (
+                    self._dataset_db_name.split(os.sep)[-1].split(".")[0], dataset_split))
+                self._index.create_entity_index(self._context_data, output_path, self._num_trees)
+                self._output_path = output_path
+            else:
+                log.info("Loading provided annoy index.")
+                self._index.load_entity_index(self._annoy_index_path)
+                self._output_path = self._annoy_index_path
+
+            self._annoy_loaded_datasplit = dataset_split
 
     def close_session(self):
         self._index.close_session()
@@ -48,6 +87,9 @@ class BertEmbeddingClassifier(Classifier):
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
+        # Make sure the correct data is loaded
+        self._fill_index(dataset_split)
+
         # The actual evaluation process
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
@@ -70,6 +112,9 @@ class BertEmbeddingClassifier(Classifier):
         return top_suggestions
 
     def classify(self, mention: str, sentence: str) -> Set[Tuple[str, float, str]]:
+        # Make sure the correct data is loaded
+        self._fill_index(self._loaded_datasplit)
+
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=1)
         min_distance = suggestions[0][1]
 

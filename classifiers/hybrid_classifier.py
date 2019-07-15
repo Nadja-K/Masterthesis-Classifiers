@@ -49,7 +49,7 @@ class HybridClassifier(Classifier):
 
         eval_mode = "samples"
         start = time.time()
-        self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
+        self.bert_classifier.evaluate_datasplit('test', eval_mode=eval_mode)
         print("Bert Evaluation took %s" % (time.time() - start))
 
         eval_mode = "mentions"
@@ -97,6 +97,7 @@ class HybridClassifier(Classifier):
         assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
                                  'with the same distance are returned for this classifier.'
 
+        self.load_datasplit(self.data)
         self.rule_classifier._fill_symspell_dictionaries(dataset_split="val")
         assert (self._loaded_datasplit == 'val' and self.rule_classifier._loaded_datasplit == 'val' and
                 self.bert_classifier._loaded_datasplit == 'val'), 'The evaluation could not be performed because one' \

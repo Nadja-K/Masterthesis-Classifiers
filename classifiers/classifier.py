@@ -17,6 +17,8 @@ class Classifier(metaclass=ABCMeta):
         self._entities = None
 
         self._dataset_db_name = dataset_db_name
+        self._split_table_name = split_table_name
+        self._skip_trivial_samples = skip_trivial_samples
 
         # Load the specified datasplit
         assert dataset_split in ['train', 'test', 'val']
@@ -193,9 +195,10 @@ class Classifier(metaclass=ABCMeta):
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
         """
-        assert split in ['train', 'test', 'val']
+        assert split in ['train', 'test', 'val'], "The given evaluation split is not a valid split."
+        assert split == self._loaded_datasplit, "The evaluation split has not been loaded."
 
-        assert eval_mode in ['mentions', 'samples']
+        assert eval_mode in ['mentions', 'samples'], "The evaluation mode is not a valid mode."
         start = datetime.datetime.now()
 
         eval_results = {}

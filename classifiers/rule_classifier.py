@@ -35,8 +35,9 @@ class RuleClassifier(Classifier):
             if self._loaded_datasplit != dataset_split:
                 print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
                       "data." % dataset_split)
-                self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
-                                    skip_trivial_samples=True, load_context=False)
+                self._query_data, self._context_data, self._entities, self._loaded_datasplit = \
+                    self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
+                                        skip_trivial_samples=True, load_context=False)
             print("The symspell dictionaries have not been filled with the %s data. Doing this now. This might take "
                   "a while." % dataset_split)
 
@@ -105,7 +106,8 @@ class RuleClassifier(Classifier):
 
         Note: the entities of the split will be used to fill the dictionaries.
         """
-        # self._fill_symspell_dictionaries(dataset_split='train')
+        # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropriate version)
+        self._fill_symspell_dictionaries(dataset_split=self._loaded_datasplit)
 
         res = self._classify(mention)
         matched_entities = set()
