@@ -2,6 +2,7 @@ from classifiers.classifier import Classifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
 from utils.heuristics import *
+import operator
 
 
 class HybridClassifier(Classifier):
@@ -40,41 +41,22 @@ class HybridClassifier(Classifier):
                                                        query_data=self._query_data, context_data=self._context_data,
                                                        entities=self._entities, loaded_datasplit=self._loaded_datasplit)
 
-        # # Just some sanity checks
-        # import time
-        #
-        # eval_mode = "samples"
-        # start = time.time()
-        # self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        # print("Bert Evaluation took %s" % (time.time() - start))
-        #
-        # eval_mode = "samples"
-        # start = time.time()
-        # self.rule_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        # print("Bert Evaluation took %s" % (time.time() - start))
-        #
-        # eval_mode = "samples"
-        # start = time.time()
-        # self.bert_classifier.evaluate_datasplit(dataset_split, eval_mode=eval_mode)
-        # print("Bert Evaluation took %s" % (time.time() - start))
-
-    # FIXME
     def _classify(self, mention: str, sentence: str, num_results: int=1):
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
 
-        # Case 1: rule based finds exactly 1 entity
-        # -> Return
+        # Case 1: rule based finds exactly 1 entity, Rule-based only
         rule_suggestions = self.rule_classifier._classify(mention, sentence)
         if len(rule_suggestions['suggestions']) == 1:
-            # print("Rule: ")
-            # print(suggestions)
-            pass
-        # Case 2: rule based finds > 1 entities
-        # -> Bert
+            return rule_suggestions
+
+        # Case 2: rule based finds > 1 entities, Rule-based + Bert-based
         elif len(rule_suggestions['suggestions']) > 1:
             bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=5)
 
+            # Prioritize entities that were found in both the rule-based classifier and the top 5 nearest neighbors
+            # of the bert based classifier. Return the best entity of this intersection based on the bert distance.
+            # Otherwise only rely on the bert entities.
             best_suggestion = ()
             for rule_suggestion in rule_suggestions['suggestions']:
                 if rule_suggestion in bert_suggestions['suggestions']:
@@ -85,43 +67,49 @@ class HybridClassifier(Classifier):
                         best_suggestion = (rule_suggestion, bert_suggestions['suggestions'][rule_suggestion])
 
             if len(best_suggestion) > 0:
-                # print(best_suggestion)
                 return {'suggestions': {best_suggestion[0]: best_suggestion[1]}}
             else:
-                import operator
                 tmp = sorted(bert_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
                 tmp = {'suggestions': {tmp[0]: tmp[1]}}
-                # print(tmp)
                 return tmp
-        # Case 3: rule based finds exactly 0 entities
-        # -> Bert
+
+        # Case 3: rule based finds exactly 0 entities, Bert-based only
         else:
             bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=1)
             return bert_suggestions
-            # print("Bert: ")
-            # print(suggestions)
 
-        return rule_suggestions
-
-    # FIXME (is not correct yet)
     def classify(self, mention: str, sentence: str):
-        # FIXME load data (see other classifiers)
+        self._verify_data(self._loaded_datasplit)
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
 
         res = self._classify(mention, sentence)
-        return res['suggestions'][0]
+        tmp = sorted(res['suggestions'].items(), key=operator.itemgetter(1))[0]
+        return tmp[0]
+
+    def _verify_data(self, dataset_split):
+        # Check if the correct data has been loaded (for all classifiers used in this approach)
+        if dataset_split != self._loaded_datasplit:
+            print("The %s data hasn't been loaded yet. Doing this now, this will overwrite any previously loaded "
+                  "data." % dataset_split)
+            self._query_data, self._context_data, self._entities, self._loaded_datasplit = \
+                self.load_datasplit(dataset_db_name=self._dataset_db_name, dataset_split=dataset_split,
+                                    skip_trivial_samples=True, load_context=False)
+
+            # Update the data of the two classifiers as well so they don't need to be reloaded as well
+            self.rule_classifier.set_data(self._query_data, self._context_data, self._entities, self._loaded_datasplit)
+            self.bert_classifier.set_data(self._query_data, self._context_data, self._entities, self._loaded_datasplit)
+
+        # And make sure the respective indexing step has been performed
+        self.rule_classifier._fill_symspell_dictionaries(dataset_split)
+        self.bert_classifier._fill_index(dataset_split)
 
     def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
-        assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
-                                 'with the same distance are returned for this classifier.'
+        assert num_results == 1, 'NUM_RESULTS should not be set for the hybrid classifier. The number of results is ' \
+                                 'already chosen in an appropriate manner for the classifiers incorporated in this' \
+                                 'hybrid approach. '
 
-        # FIXME load data (see other classifiers) (do all of this in a separate function that can be called for classify as well)
-        # 1. self.load_datasplit(dataset_split, ...)
-        # 2. Update query, context, entities and loaded datasplit for rule based and bert
-        # 3. self.rule_classifier._fill_symspell_dictionaries(dataset_split)
-        # 4. self.bert_classifier._fill_index(dataset_split)
-
+        self._verify_data(dataset_split)
         assert (self._loaded_datasplit == 'val' and self.rule_classifier._loaded_datasplit == 'val' and
                 self.bert_classifier._loaded_datasplit == 'val'), 'The evaluation could not be performed because one' \
                                                                   'of the classifiers had a different dataset loaded' \

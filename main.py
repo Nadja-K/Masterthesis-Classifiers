@@ -223,7 +223,6 @@ def hybrid_classifier():
     use_one_hot_embeddings = config['EMBEDDINGCLASSIFIER_BERT'].get('USE_ONE_HOT_EMBEDDINGS', False)
 
     bert_distance_allowance = config['EMBEDDINGCLASSIFIER_BERT'].getfloat('DISTANCE_ALLOWANCE', None)
-    num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
     # Argparse (this is optional and usually the config file is used - only use for experiments)
     parser = argparse.ArgumentParser()
@@ -273,7 +272,9 @@ def hybrid_classifier():
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
     start = time.time()
+    print(classifier.classify("test", "das ist ein test"))
     classifier.evaluate_datasplit(dataset_split, eval_mode=args.eval_mode)
+    print(classifier.classify("test", "das ist ein test"))
     print("Evaluation took %s" % (time.time() - start))
 
 

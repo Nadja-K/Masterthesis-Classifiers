@@ -21,17 +21,21 @@ class Classifier(metaclass=ABCMeta):
         self._skip_trivial_samples = skip_trivial_samples
 
         # Load the specified datasplit
-        assert dataset_split in ['train', 'test', 'val']
+        assert dataset_split in ['train', 'test', 'val'], "The datasplit is not valid."
         if (query_data is not None and context_data is not None and entities is not None and
                 loaded_datasplit is not None):
-            self._query_data = query_data
-            self._context_data = context_data
-            self._entities = entities
-            self._loaded_datasplit = loaded_datasplit
+            self.set_data(query_data, context_data, entities, loaded_datasplit)
         else:
             self._query_data, self._context_data, self._entities, self._loaded_datasplit = Classifier.load_datasplit(
                 dataset_db_name, dataset_split, split_table_name=split_table_name,
                 skip_trivial_samples=skip_trivial_samples, load_context=load_context)
+
+    def set_data(self, query_data, context_data, entities, loaded_datasplit):
+        assert loaded_datasplit in ['train', 'test', 'val'], "The datasplit is not valid."
+        self._query_data = query_data
+        self._context_data = context_data
+        self._entities = entities
+        self._loaded_datasplit = loaded_datasplit
 
     @staticmethod
     def load_datasplit(dataset_db_name: str, dataset_split: str, split_table_name: str = 'splits',
