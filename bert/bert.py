@@ -30,11 +30,12 @@ class BertEncoder:
             self._input_type_ids = tf.placeholder(tf.int32, shape=(None, None), name='input_type_ids')
             self._mention_mask = tf.placeholder(tf.float32, shape=(None, None), name='mention_mask')
 
-            self._output_layer = self.load_model(bert_config=bert_config, init_checkpoint=init_checkpoint,
-                                                 layer_indexes=layer_indexes, input_ids=self._input_ids,
-                                                 input_mask=self._input_mask, input_type_ids=self._input_type_ids,
-                                                 mention_mask=self._mention_mask, is_training=False,
-                                                 use_one_hot_embeddings=use_one_hot_embeddings)
+            self._bert_output_layer = self.load_model(bert_config=bert_config, init_checkpoint=init_checkpoint,
+                                                      layer_indexes=layer_indexes, input_ids=self._input_ids,
+                                                      input_mask=self._input_mask, input_type_ids=self._input_type_ids,
+                                                      is_training=False, use_one_hot_embeddings=use_one_hot_embeddings)
+            # FIXME: remove this later
+            # self._mention_embedding_layer = self.add_mention_embedding_layer(self._bert_output_layer, self._mention_mask)
 
         gpu_memory_fraction = 1.0
         self._sess_config = tf.ConfigProto()
@@ -57,8 +58,8 @@ class BertEncoder:
         self._sess.close()
 
     @staticmethod
-    def load_model(bert_config, init_checkpoint: Union[str, None], layer_indexes: List[int], input_ids, input_mask, input_type_ids,
-                   mention_mask, is_training: bool=False, use_one_hot_embeddings: bool=False, scope: str=None):
+    def load_model(bert_config, init_checkpoint: Union[str, None], layer_indexes: List[int], input_ids, input_mask,
+                   input_type_ids, is_training: bool=False, use_one_hot_embeddings: bool=False, scope: str=None):
         # Load the Bert Model
         model = modeling.BertModel(
             config=bert_config,
@@ -96,7 +97,16 @@ class BertEncoder:
                     init_string = ", *INIT_FROM_CKPT*"
                 tf.logging.info("   name = %s, shape = %s%s", var.name, var.shape, init_string)
 
-        mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(mention_mask, -1), axis=1),
+        return output_layer
+
+    @staticmethod
+    def add_mention_embedding_layer(output_layer, mention_mask):
+        """
+        An additional tensorflow layer that automatically creates a mention embedding, given a mention mask.
+        This layer is required for the finetuning of the BERT model for the entity linking task.
+        """
+        mention_embedding_layer = tf.div(tf.reduce_sum(output_layer * tf.expand_dims(mention_mask, -1),
+                                                       axis=1),
                                          tf.expand_dims(tf.reduce_sum(mention_mask, axis=1), axis=-1))
 
         return mention_embedding_layer
@@ -205,7 +215,10 @@ class BertEncoder:
 
         return mask
 
-    def encode(self, mentions: List[str], original_sentences: List[str]):
+    def get_token_embeddings(self, original_sentences: List[str]):
+        """
+        Calculate the token embeddings for a given sentence.
+        """
         # Tokenize the sentences
         tokenized_sentences = []
         tokens_mappings = []
@@ -227,57 +240,160 @@ class BertEncoder:
                         'as a consequence you may get less-accurate or truncated embeddings or lose the '
                         'embedding for a specified phrase of a sentence.\n' % self._seq_len)
 
-        all_mention_embeddings = []
+        all_token_embeddings = []
         all_feature_tokens = []
 
         batch = {
             self._input_ids: [],
             self._input_mask: [],
-            self._input_type_ids: [],
-            self._mention_mask: []
+            self._input_type_ids: []
         }
         # Tokenizer is still needed for mapping and some other stuff that happens in the convert method
         for sample_index, data in enumerate(zip(convert_lst_to_features(tokenized_sentences,
                                                                         max_seq_length=self._seq_len,
                                                                         tokenizer=self._tokenizer),
-                                                mentions, original_sentences, tokens_mappings)):
-            feature, mention, sentence, token_mapping = data
+                                                original_sentences, tokens_mappings)):
+            feature, sentence, token_mapping = data
+
+            batch[self._input_ids].append(feature.input_ids)
+            batch[self._input_mask].append(feature.input_mask)
+            batch[self._input_type_ids].append(feature.input_type_ids)
+
+            all_feature_tokens.append(feature.tokens)
+            if sample_index % self._batch_size == 0:
+                batch_token_embeddings = self._sess.run(self._bert_output_layer, feed_dict=batch)
+
+                for token_embeddings in batch_token_embeddings:
+                    all_token_embeddings.append(token_embeddings)
+
+                # Reset the batch
+                batch = {
+                    self._input_ids: [],
+                    self._input_mask: [],
+                    self._input_type_ids: []
+                }
+
+        # Handle leftover samples that did not fit in the last batch
+        if len(batch[self._input_ids]) > 0:
+            batch_mention_embeddings = self._sess.run(self._bert_output_layer, feed_dict=batch)
+
+            for mention_embedding in batch_mention_embeddings:
+                all_token_embeddings.append(mention_embedding)
+
+        return all_token_embeddings, all_feature_tokens, tokenized_sentences, tokens_mappings
+
+    def get_mention_embedding(self, mentions: List[str], original_sentences: List[str], tokens_mappings,
+                              all_token_embeddings):
+        """
+        Compute a mention embedding given the precalculated token embeddings of a sentence.
+        This function can be applied to multiple mention-sentence samples.
+        """
+        all_mention_embeddings = []
+
+        # Tokenizer is still needed for mapping and some other stuff that happens in the convert method
+        for data in zip(mentions, original_sentences, tokens_mappings, all_token_embeddings):
+            mention, sentence, token_mapping, token_embeddings = data
 
             # Make sure the mention and sentence are cleaned to avoid any possible encoding issues
-            orig_m = mention + ""
-            orig_s = sentence + ""
             mention = self._tokenizer.clean_text(mention)
             sentence = self._tokenizer.clean_text(sentence)
 
             # Create mention mask
             mention_mask = self.get_mention_mask(self._seq_len, mention, sentence, token_mapping)
 
-            batch[self._input_ids].append(feature.input_ids)
-            batch[self._input_mask].append(feature.input_mask)
-            batch[self._input_type_ids].append(feature.input_type_ids)
-            batch[self._mention_mask].append(mention_mask)
-            # log.info("Sample: %d | Tokens: %s" % (sample_index, feature.tokens))
+            # Create mention embedding
+            mention_embedding = (np.sum(token_embeddings * np.expand_dims(mention_mask, -1), axis=0)) / np.sum(mention_mask)
 
-            all_feature_tokens.append(feature.tokens)
-            if sample_index % self._batch_size == 0:
-                batch_token_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
+            all_mention_embeddings.append(mention_embedding)
 
-                for token_embeddings in batch_token_embeddings:
-                    all_mention_embeddings.append(token_embeddings)
+        return all_mention_embeddings
 
-                # Reset the batch
-                batch = {
-                    self._input_ids: [],
-                    self._input_mask: [],
-                    self._input_type_ids: [],
-                    self._mention_mask: []
-                }
-
-        # Handle leftover samples that did not fit in the last batch
-        if len(batch[self._input_ids]) > 0:
-            batch_mention_embeddings = self._sess.run(self._output_layer, feed_dict=batch)
-
-            for mention_embedding in batch_mention_embeddings:
-                all_mention_embeddings.append(mention_embedding)
+    def encode(self, mentions: List[str], original_sentences: List[str]):
+        """
+        Calculates a mention embedding for multiple mention-sentence pairs.
+        """
+        all_token_embeddings, all_feature_tokens, _, token_mappings = self.get_token_embeddings(original_sentences)
+        all_mention_embeddings = self.get_mention_embedding(mentions, original_sentences, token_mappings, all_token_embeddings)
 
         return all_mention_embeddings, all_feature_tokens
+
+        # FIXME: remove this code later
+        # """
+        # Calculates the mention embeddings for multiple mention-sentence pairs.
+        # This function calculates the mention embedding using an additional embedding layer on top of the default
+        # BERT model.
+        # As alternative, the functions get_token_embeddings and get_mention_embedding can be used to compute the
+        # output of the default BERT model and then separately calculate a mention embedding.
+        # """
+        # # Tokenize the sentences
+        # tokenized_sentences = []
+        # tokens_mappings = []
+        # for sentence in original_sentences:
+        #     tokens, mapping = self.tokenize(sentence)
+        #
+        #     # Update the mapping with the CLS and SEP tag
+        #     mapping = [('[CLS]', 0)] + [(token, token_index+1) for (token, token_index) in
+        #                                 mapping] + [('[SEP]', mapping[-1][1]+2)]
+        #     tokenized_sentences.append(tokens)
+        #     tokens_mappings.append(mapping)
+        #
+        # # Check if the tokenized input format is correct
+        # self._check_input_lst_lst_str(tokenized_sentences)
+        #
+        # # Check if all sentences are shorter than the max seq len
+        # if not self._check_length(tokenized_sentences, self._seq_len, True):
+        #     log.warning('Some of your sentences have more tokens than "max_seq_len=%d" set,'
+        #                 'as a consequence you may get less-accurate or truncated embeddings or lose the '
+        #                 'embedding for a specified phrase of a sentence.\n' % self._seq_len)
+        #
+        # all_mention_embeddings = []
+        # all_feature_tokens = []
+        #
+        # batch = {
+        #     self._input_ids: [],
+        #     self._input_mask: [],
+        #     self._input_type_ids: [],
+        #     self._mention_mask: []
+        # }
+        # # Tokenizer is still needed for mapping and some other stuff that happens in the convert method
+        # for sample_index, data in enumerate(zip(convert_lst_to_features(tokenized_sentences,
+        #                                                                 max_seq_length=self._seq_len,
+        #                                                                 tokenizer=self._tokenizer),
+        #                                         mentions, original_sentences, tokens_mappings)):
+        #     feature, mention, sentence, token_mapping = data
+        #
+        #     # Make sure the mention and sentence are cleaned to avoid any possible encoding issues
+        #     mention = self._tokenizer.clean_text(mention)
+        #     sentence = self._tokenizer.clean_text(sentence)
+        #
+        #     # Create mention mask
+        #     mention_mask = self.get_mention_mask(self._seq_len, mention, sentence, token_mapping)
+        #
+        #     batch[self._input_ids].append(feature.input_ids)
+        #     batch[self._input_mask].append(feature.input_mask)
+        #     batch[self._input_type_ids].append(feature.input_type_ids)
+        #     batch[self._mention_mask].append(mention_mask)
+        #
+        #     all_feature_tokens.append(feature.tokens)
+        #     if sample_index % self._batch_size == 0:
+        #         batch_token_embeddings = self._sess.run(self._mention_embedding_layer, feed_dict=batch)
+        #
+        #         for token_embeddings in batch_token_embeddings:
+        #             all_mention_embeddings.append(token_embeddings)
+        #
+        #         # Reset the batch
+        #         batch = {
+        #             self._input_ids: [],
+        #             self._input_mask: [],
+        #             self._input_type_ids: [],
+        #             self._mention_mask: []
+        #         }
+        #
+        # # Handle leftover samples that did not fit in the last batch
+        # if len(batch[self._input_ids]) > 0:
+        #     batch_mention_embeddings = self._sess.run(self._mention_embedding_layer, feed_dict=batch)
+        #
+        #     for mention_embedding in batch_mention_embeddings:
+        #         all_mention_embeddings.append(mention_embedding)
+        #
+        # return all_mention_embeddings, all_feature_tokens

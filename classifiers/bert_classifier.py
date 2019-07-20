@@ -98,6 +98,28 @@ class BertEmbeddingClassifier(Classifier):
         # The actual evaluation process
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
+    def multi_classify(self, mentions: List[str], sentence: str, num_results: int=1):
+        """
+        If multiple mentions are known for a given query sentence then only calculate the token embeddings of the
+        sentence once.
+        The mention embeddings can then calculated without the need of recalculating the token embeddings.
+
+        This function is only required for the empolis data.
+        """
+        token_embeddings, token_mapping = self._index.get_token_embeddings(sentence)
+
+        all_suggestions = []
+        for mention in mentions:
+            # Create mention embedding
+            emb = self._index.get_mention_embedding(mention, sentence, token_mapping, token_embeddings)
+
+            # Get nns by vector
+            suggestions = self._index.get_nns_by_vector(emb, num_nn=num_results)
+            all_suggestions.append((mention, suggestions))
+
+        # FIXME: top suggestions (see _classify?)
+        return all_suggestions
+
     def _classify(self, mention: str, sentence: str, num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
         suggestions = self._index.get_nns_by_phrase(mention, sentence=sentence, num_nn=num_results)
 

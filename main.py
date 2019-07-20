@@ -39,14 +39,6 @@ print(dataset_db_name)
 
 
 def bert_embedding_classifier_main():
-    # Logging
-    dataset = dataset_db_name.split("/")[-1].split(".")[0]
-    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
-                                                                'filename'].split(".")[0] + "_bert_embedding_" + dataset + ".log"
-    # logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
-    #                                                             'filename'].split(".")[0] + "_bert_embedding.log"
-    dictConfig(logging_config)
-
     # Settings
     annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
     num_trees = config['ANNOY'].getint('NUM_TREES', 30)
@@ -77,6 +69,12 @@ def bert_embedding_classifier_main():
     args = parser.parse_args()
     print(args)
 
+    # Logging
+    dataset = args.dataset_db_name.split("/")[-1].split(".")[0]
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[0] + "_bert_embedding_" + dataset + ".log"
+    dictConfig(logging_config)
+
     # Classifier
     classifier = BertEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=dataset_split,
                                          split_table_name=split_table_name,
@@ -91,6 +89,8 @@ def bert_embedding_classifier_main():
     start = time.time()
     classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
+    # print(classifier.classify("test", "das ist ein test."))
+    # print(classifier.multi_classify(['test'], 'das ist ein test.'))
 
     # Necessary to close the tensorflow session
     classifier.close_session()
@@ -193,11 +193,6 @@ def rule_classifier_main():
 
 
 def hybrid_classifier():
-    # Logging
-    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
-                                                                'filename'].split(".")[0] + "_hybrid.log"
-    dictConfig(logging_config)
-
     # Settings
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
@@ -233,21 +228,30 @@ def hybrid_classifier():
     parser.add_argument('--bert_config_file', nargs='?', type=str, default=bert_config_file)
     parser.add_argument('--init_checkpoint', nargs='?', type=str, default=init_checkpoint)
     parser.add_argument('--layer_indexes', nargs='*', type=int, default=layer_indexes)
+    parser.add_argument('--max_edit_distance_dictionary', nargs='?', type=int, default=max_edit_distance_dictionary)
     args = parser.parse_args()
     print(args)
 
+    # Logging
+    dataset = args.dataset_db_name.split("/")[-1].split(".")[0]
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[
+                                                                0] + "_hybrid_embedding_" + dataset + ".log"
+    dictConfig(logging_config)
+    print(logging_config['handlers']['fileHandler']['filename'])
+
     # Create heuristic objects
-    original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    corporate_forms_heuristic = HeuristicCorporateForms(max_edit_distance_dictionary, prefix_length, count_threshold,
+    original_heuristic = HeuristicOriginal(args.max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    corporate_forms_heuristic = HeuristicCorporateForms(args.max_edit_distance_dictionary, prefix_length, count_threshold,
                                                         compact_level, corporate_forms_list)
-    brackets_heuristic = HeuristicBrackets(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    punctuation_heuristic = HeuristicPunctuation(max_edit_distance_dictionary, prefix_length, count_threshold,
+    brackets_heuristic = HeuristicBrackets(args.max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    punctuation_heuristic = HeuristicPunctuation(args.max_edit_distance_dictionary, prefix_length, count_threshold,
                                                  compact_level)
-    lowercasing_heuristic = HeuristicLowercasing(max_edit_distance_dictionary, prefix_length, count_threshold,
+    lowercasing_heuristic = HeuristicLowercasing(args.max_edit_distance_dictionary, prefix_length, count_threshold,
                                                  compact_level)
-    stemming_heuristic = HeuristicStemming(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    stopword_heuristic = HeuristicStopwords(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    sort_heuristic = HeuristicSort(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    stemming_heuristic = HeuristicStemming(args.max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    stopword_heuristic = HeuristicStopwords(args.max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    sort_heuristic = HeuristicSort(args.max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
     abbreviation_compounds_heuristic = HeuristicAbbreviationsCompounds(abbreviations_max_edit_distance_dictionary,
                                                                        prefix_length, count_threshold, compact_level,
                                                                        compound_splitter_sensitivity)
@@ -258,6 +262,8 @@ def hybrid_classifier():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
+    # heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
+    #                   stemming_heuristic, stopword_heuristic, sort_heuristic]
     # heuristic_list = [original_heuristic]
 
     # Classifier
@@ -280,6 +286,6 @@ def hybrid_classifier():
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    # bert_embedding_classifier_main()
+    bert_embedding_classifier_main()
     # rule_classifier_main()
-    hybrid_classifier()
+    # hybrid_classifier()

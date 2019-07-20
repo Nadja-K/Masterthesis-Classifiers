@@ -243,11 +243,12 @@ class Sent2VecIndexer(AnnoyIndexer):
 class BertIndexer(AnnoyIndexer):
     def __init__(self, bert_config_file: str, init_checkpoint: str, vocab_file: str, seq_len: int, batch_size: int=32,
                  layer_indexes: List[int]=[-1, -2, -3, -4], use_one_hot_embeddings: bool=False,
-                 do_lower_case: bool=True, metric: str ='euclidean'):
+                 do_lower_case: bool=True, metric: str ='euclidean', add_mention_embedding_layer=True):
         be = BertEncoder(bert_config_file=bert_config_file, init_checkpoint=init_checkpoint, vocab_file=vocab_file,
                          seq_len=seq_len, batch_size=batch_size, layer_indexes=layer_indexes,
                          use_one_hot_embeddings=use_one_hot_embeddings, do_lower_case=do_lower_case)
 
+        self._add_mention_embedding_layer = add_mention_embedding_layer
         self._stopwords = set(stopwords.words('german'))
         self._special_mentions_regex = re.compile("^0\\.\\d+$")
 
@@ -287,7 +288,23 @@ class BertIndexer(AnnoyIndexer):
                     entity_mapping.put(str(sample_id).encode(), entity_title.encode())
                     sentence_mapping.put(str(sample_id).encode(), entity_sentence.encode())
 
+    def get_token_embeddings(self, sentence: str) -> Tuple[np.ndarray, List[Tuple[str, int]]]:
+        """
+        Returns the token embeddings for a given sentence.
+        """
+        token_embeddings, _, _, token_mapping = self._embedding_model.get_token_embeddings([sentence])
+        return token_embeddings[0], token_mapping[0]
+
+    def get_mention_embedding(self, mention: str, sentence: str, token_mapping, token_embeddings) -> np.ndarray:
+        """
+        Computes a mention embedding given a single mention-sentence pair with pre-calculated token_embeddings.
+        """
+        return self._embedding_model.get_mention_embedding([mention], [sentence], [token_mapping], [token_embeddings])[0]
+
     def _get_embeddings(self, phrases: List[str], sentences: List[str]) -> List[np.ndarray]:
+        """
+        Computes the mention embeddings for multiple mention-sentence pairs.
+        """
         for i, _ in enumerate(phrases):
             phrases[i] = str(phrases[i].strip())
 
@@ -295,7 +312,8 @@ class BertIndexer(AnnoyIndexer):
         return mentions_embeddings
 
     def _get_embedding(self, phrase: str, sentence: str) -> Tuple[np.ndarray, bool]:
-        phrase = str(phrase.strip())
-
-        mention_embedding, _ = self._embedding_model.encode([phrase], [sentence])
+        """
+        Computes the mention embedding for a single mention-sentence pair without pre-calculated token_embeddings.
+        """
+        mention_embedding = self._get_embeddings([phrase], [sentence])
         return mention_embedding[0], True

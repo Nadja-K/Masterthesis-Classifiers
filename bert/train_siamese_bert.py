@@ -111,12 +111,16 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
             output_layer_left = BertEncoder.load_model(bert_config=bert_config, init_checkpoint=init_checkpoint,
                                                        layer_indexes=layer_indexes, input_ids=input_ids_left,
                                                        input_mask=input_mask_left, input_type_ids=input_type_ids_left,
-                                                       mention_mask=mention_mask_left, scope="bert", is_training=True)
+                                                       scope="bert", is_training=True)
+            output_layer_left = BertEncoder.add_mention_embedding_layer(output_layer_left, mention_mask_left)
+
             scope.reuse_variables()
             output_layer_right = BertEncoder.load_model(bert_config=bert_config, init_checkpoint=None,
                                                         layer_indexes=layer_indexes, input_ids=input_ids_right,
-                                                        input_mask=input_mask_right, input_type_ids=input_type_ids_right,
-                                                        mention_mask=mention_mask_right, scope="bert", is_training=True)
+                                                        input_mask=input_mask_right,
+                                                        input_type_ids=input_type_ids_right,
+                                                        scope="bert", is_training=True)
+            output_layer_right = BertEncoder.add_mention_embedding_layer(output_layer_right, mention_mask_right)
 
         # Create loss
         with tf.variable_scope("loss"):
