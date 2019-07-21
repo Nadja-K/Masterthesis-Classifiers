@@ -37,6 +37,11 @@ import nltk
 nltk.download('punkt')
 ```
 
+Download a German spacy model:
+``` 
+python -m spacy download de_core_news_sm
+```
+
 ### CharSplit Setup
 In order to install CharSplit as a module with ```pip install .```, first clone the 
 [repository](https://github.com/dtuggener/CharSplit) and add the [setup.py file](####setup.py) 

@@ -7,3 +7,4 @@ lmdb
 tensorflow-gpu==1.13.1
 symspellpy
 numpy
+spacy
