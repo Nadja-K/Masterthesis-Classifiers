@@ -60,6 +60,7 @@ def bert_embedding_classifier_main():
     # Argparse (this is optional and usually the config file is used - only use for experiments)
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--dataset_split', nargs='?', type=str, default=dataset_split)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
     parser.add_argument('--vocab_file', nargs='?', type=str, default=vocab_file)
     parser.add_argument('--bert_config_file', nargs='?', type=str, default=bert_config_file)
@@ -76,7 +77,7 @@ def bert_embedding_classifier_main():
     dictConfig(logging_config)
 
     # Classifier
-    classifier = BertEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=dataset_split,
+    classifier = BertEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=args.dataset_split,
                                          split_table_name=split_table_name,
                                          annoy_metric=annoy_metric, num_trees=num_trees,
                                          annoy_index_path=annoy_index_path, annoy_output_dir=annoy_output_dir,
@@ -87,7 +88,7 @@ def bert_embedding_classifier_main():
                                          do_lower_case=do_lower_case,
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
     # print(classifier.classify("test", "das ist ein test."))
     # print(classifier.multi_classify(['test'], 'das ist ein test.'))
@@ -116,13 +117,14 @@ def token_level_embedding_classifier_main():
     # Argparse (this is optional and usually the config file is used - only use for experiments)
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--dataset_split', nargs='?', type=str, default=dataset_split)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
     parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
     args = parser.parse_args()
     print(args)
 
     # Classifier
-    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=dataset_split,
+    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=args.dataset_db_name, dataset_split=args.dataset_split,
                                                split_table_name=split_table_name,
                                                embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
                                                num_trees=num_trees, annoy_index_path=annoy_index_path,
@@ -132,7 +134,7 @@ def token_level_embedding_classifier_main():
                                                compound_splitting_threshold=compound_splitting_threshold,
                                                distance_allowance=distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -155,6 +157,7 @@ def rule_classifier_main():
     # Argparse (this is optional and usually the config file is used - only use for experiments)
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--dataset_split', nargs='?', type=str, default=dataset_split)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
     parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
     args = parser.parse_args()
@@ -185,10 +188,10 @@ def rule_classifier_main():
     # heuristic_list = [original_heuristic]
 
     # Classifier
-    classifier = RuleClassifier(heuristic_list, args.dataset_db_name, dataset_split, split_table_name,
+    classifier = RuleClassifier(heuristic_list, args.dataset_db_name, args.dataset_split, split_table_name,
                                 args.skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit(dataset_split, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -222,6 +225,7 @@ def hybrid_classifier():
     # Argparse (this is optional and usually the config file is used - only use for experiments)
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_db_name', nargs='?', type=str, default=dataset_db_name)
+    parser.add_argument('--dataset_split', nargs='?', type=str, default=dataset_split)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
     parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
     parser.add_argument('--vocab_file', nargs='?', type=str, default=vocab_file)
@@ -268,7 +272,7 @@ def hybrid_classifier():
 
     # Classifier
     classifier = HybridClassifier(heuristics=heuristic_list, dataset_db_name=args.dataset_db_name,
-                                  dataset_split=dataset_split, annoy_metric=annoy_metric,
+                                  dataset_split=dargs.ataset_split, annoy_metric=annoy_metric,
                                   bert_config_file=args.bert_config_file, init_checkpoint=args.init_checkpoint,
                                   vocab_file=args.vocab_file, seq_len=seq_len, split_table_name=split_table_name,
                                   skip_trivial_samples=args.skip_trivial_samples, prefill_symspell=True,
@@ -279,7 +283,7 @@ def hybrid_classifier():
 
     start = time.time()
     print(classifier.classify("test", "das ist ein test"))
-    classifier.evaluate_datasplit(dataset_split, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
     print(classifier.classify("test", "das ist ein test"))
     print("Evaluation took %s" % (time.time() - start))
 
