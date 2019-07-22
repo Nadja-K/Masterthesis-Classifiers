@@ -12,10 +12,6 @@ config = configparser.ConfigParser()
 config.read("configs/bert_train_config.ini")
 
 
-# FIXME: distributed multi-gpu training
-# https://github.com/horovod/horovod
-# https://github.com/horovod/horovod/blob/master/examples/tensorflow_mnist_estimator.py
-
 def main():
     # Global config settings that are used for all classifiers
     dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')

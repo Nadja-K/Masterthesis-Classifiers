@@ -3,7 +3,7 @@ import os
 
 from classifiers.classifier import Classifier
 from utils.annoy_index import Sent2VecIndexer
-from typing import Set, Tuple, Dict, Union
+from typing import Set, Tuple, Dict, Union, List
 
 log = logging.getLogger(__name__)
 
@@ -79,33 +79,50 @@ class TokenLevelEmbeddingClassifier(Classifier):
         # The actual evaluation process
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
-    def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Dict[str, Union[float, int]]]:
-        # Some minor refactoring before nearest neighbours are looked  up
-        mention = str(mention)
-        mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
-        suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=num_results)
+    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+            Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
+        assert mentions != "[NAN]", "The rule-based classifier needs at least one mention for the classification."
+        multi_mentions = isinstance(mentions, List)
+        if multi_mentions is False:
+            mentions = [mentions]
 
-        top_suggestions = {'suggestions': {}}
-        if len(suggestions) > 0:
-            min_distance = suggestions[0][1]
-            for tuple in suggestions:
-                if self._distance_allowance is not None:
-                    if tuple[1] <= (min_distance + self._distance_allowance):
+        all_suggestions = []
+        for mention in mentions:
+            # Some minor refactoring before nearest neighbours are looked  up
+            mention = str(mention)
+            mention = mention.replace("-", " ").replace("(", " ").replace(")", " ").replace("_", " ")
+            suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=num_results)
+
+            top_suggestions = {'suggestions': {}}
+            if len(suggestions) > 0:
+                min_distance = suggestions[0][1]
+                for tuple in suggestions:
+                    if self._distance_allowance is not None:
+                        if tuple[1] <= (min_distance + self._distance_allowance):
+                            top_suggestions['suggestions'][tuple[0]] = tuple[1]
+                    else:
                         top_suggestions['suggestions'][tuple[0]] = tuple[1]
-                else:
-                    top_suggestions['suggestions'][tuple[0]] = tuple[1]
 
-        return top_suggestions
+            if multi_mentions is False:
+                return top_suggestions
+            all_suggestions.append((mention, top_suggestions))
 
-    def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float, str]]:
+        return all_suggestions
+
+    def classify(self, mentions: Union[str, List[str]], sentence: str = "[NAN]") \
+            -> Union[Set[str], List[Tuple[str, Set[str]]]]:
         # Make sure the correct data is loaded
         self._fill_index(self._loaded_datasplit)
 
-        mention = str(mention)
-        suggestions = self._index.get_nns_by_phrase(mention, sentence="", num_nn=1)
-        if len(suggestions) > 0:
-            min_distance = suggestions[0][1]
-            # We want all tuples that have the smallest distance of the result.
-            return set([tuple for tuple in suggestions if tuple[1] == min_distance])
+        suggestions = self._classify(mentions, num_results=1)
+
+        if isinstance(mentions, List) is False:
+            return set(suggestions['suggestions'].keys())
         else:
-            return set([])
+            res = []
+            for (mention, mention_suggestions) in suggestions:
+                res.append((mention, set(mention_suggestions['suggestions'].keys())))
+
+            return res
+
+

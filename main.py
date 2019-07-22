@@ -90,8 +90,8 @@ def bert_embedding_classifier_main():
     start = time.time()
     classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
-    # print(classifier.classify("test", "das ist ein test."))
-    # print(classifier.multi_classify(['test'], 'das ist ein test.'))
+    # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
+    # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
 
     # Necessary to close the tensorflow session
     classifier.close_session()
@@ -272,7 +272,7 @@ def hybrid_classifier():
 
     # Classifier
     classifier = HybridClassifier(heuristics=heuristic_list, dataset_db_name=args.dataset_db_name,
-                                  dataset_split=dargs.ataset_split, annoy_metric=annoy_metric,
+                                  dataset_split=args.dataset_split, annoy_metric=annoy_metric,
                                   bert_config_file=args.bert_config_file, init_checkpoint=args.init_checkpoint,
                                   vocab_file=args.vocab_file, seq_len=seq_len, split_table_name=split_table_name,
                                   skip_trivial_samples=args.skip_trivial_samples, prefill_symspell=True,
@@ -282,14 +282,14 @@ def hybrid_classifier():
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
     start = time.time()
-    print(classifier.classify("test", "das ist ein test"))
     classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
-    print(classifier.classify("test", "das ist ein test"))
     print("Evaluation took %s" % (time.time() - start))
+    # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
+    # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
 
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
+    # bert_embedding_classifier_main()
     # rule_classifier_main()
-    # hybrid_classifier()
+    hybrid_classifier()

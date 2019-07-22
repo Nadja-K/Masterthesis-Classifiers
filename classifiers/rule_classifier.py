@@ -65,39 +65,50 @@ class RuleClassifier(Classifier):
                                  'with the same distance are returned for this classifier.'
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
 
-    def _classify(self, mention: str, sentence: str = "", num_results: int=1) -> Dict[str, Union[str, Dict[str, Union[int, float]]]]:
+    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+            Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
-        best_results = {'refactored_mention': '', 'suggestions': {}, 'heuristic': None}
+        assert mentions != "[NAN]", "The rule-based classifier needs at least one mention for the classification."
+        multi_mentions = isinstance(mentions, List)
+        if multi_mentions is False:
+            mentions = [mentions]
 
-        # We want to refactor the already refactored string further with every rule (with some exceptions)
-        previous_refactored_mention = mention
-        min_distance = 99999
-        for heuristic in self._heuristics:
-            suggestions, previous_refactored_mention = heuristic.lookup(previous_refactored_mention,
-                                                                        original_mention=mention)
-            # All returned suggestions have the same edit distance, so if the distance is lower than the current best
-            # result, overwrite it with the new suggestions
-            if len(suggestions) > 0 and suggestions[0].distance < min_distance:
-                best_results['refactored_mention'] = previous_refactored_mention
-                best_results['heuristic'] = heuristic.name()
-                best_results['suggestions'] = {}
-                for suggestion in suggestions:
-                    if suggestion.distance < min_distance:
-                        min_distance = suggestion.distance
+        all_suggestions = []
+        for mention in mentions:
+            best_results = {'refactored_mention': '', 'suggestions': {}, 'heuristic': None}
 
-                    for reference_entity in suggestion.reference_entities:
-                        # print(reference_entity, mention, suggestion.distance)
-                        best_results['suggestions'][reference_entity] = suggestion.distance
+            # We want to refactor the already refactored string further with every rule (with some exceptions)
+            previous_refactored_mention = mention
+            min_distance = 99999
+            for heuristic in self._heuristics:
+                suggestions, previous_refactored_mention = heuristic.lookup(previous_refactored_mention,
+                                                                            original_mention=mention)
+                # All returned suggestions have the same edit distance, so if the distance is lower than the current
+                # best result, overwrite it with the new suggestions
+                if len(suggestions) > 0 and suggestions[0].distance < min_distance:
+                    best_results['refactored_mention'] = previous_refactored_mention
+                    best_results['heuristic'] = heuristic.name()
+                    best_results['suggestions'] = {}
+                    for suggestion in suggestions:
+                        if suggestion.distance < min_distance:
+                            min_distance = suggestion.distance
 
-            # If the distance is already perfect, return the result here
-            if min_distance == 0.0:
+                        for reference_entity in suggestion.reference_entities:
+                            best_results['suggestions'][reference_entity] = suggestion.distance
+
+                # If the distance is already perfect, return the result here
+                if min_distance == 0.0:
+                    break
+
+            if multi_mentions is False:
                 return best_results
+            all_suggestions.append((mention, best_results))
 
-        return best_results
+        return all_suggestions
 
-    def classify(self, mention: str, sentence: str = "") -> Set[Tuple[str, float]]:
+    def classify(self, mentions: Union[str, List[str]], sentence: str = "[NAN]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
         """
         Public classify method that users can use to classify a given string based on the defined split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be
@@ -108,9 +119,13 @@ class RuleClassifier(Classifier):
         # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropriate version)
         self._fill_symspell_dictionaries(dataset_split=self._loaded_datasplit)
 
-        res = self._classify(mention)
-        matched_entities = set()
-        for suggestion, distance in res['suggestions'].items():
-            matched_entities.add((suggestion, distance))
+        suggestions = self._classify(mentions)
 
-        return matched_entities
+        if isinstance(mentions, List) is False:
+            return set(suggestions['suggestions'].keys())
+        else:
+            res = []
+            for (mention, mention_suggestions) in suggestions:
+                res.append((mention, set(mention_suggestions['suggestions'].keys())))
+
+            return res

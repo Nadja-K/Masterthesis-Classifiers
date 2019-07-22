@@ -107,13 +107,6 @@ def convert_lst_to_features(lst_str: Union[List[List[str]], List[str]], max_seq_
         assert len(input_mask) == max_seq_length
         assert len(input_type_ids) == max_seq_length
 
-        # FIXME: enable again
-        # tf.logging.info("unique_id: %s" % unique_id)
-        # tf.logging.info("tokens: %s" % " ".join([tokenization.printable_text(x) for x in tokens]))
-        # tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-        # tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-        # tf.logging.info("input_type_ids: %s" % " ".join([str(x) for x in input_type_ids]))
-
         yield InputFeatures(
             unique_id=unique_id,
             tokens=tokens,

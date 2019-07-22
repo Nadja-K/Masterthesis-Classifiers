@@ -2,6 +2,7 @@ from classifiers.classifier import Classifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
 from utils.heuristics import *
+from typing import Union, Dict, List
 import operator
 
 
@@ -41,51 +42,81 @@ class HybridClassifier(Classifier):
                                                        query_data=self._query_data, context_data=self._context_data,
                                                        entities=self._entities, loaded_datasplit=self._loaded_datasplit)
 
-    def _classify(self, mention: str, sentence: str, num_results: int=1):
+    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+            Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
+        multi_mentions = isinstance(mentions, List)
+        if multi_mentions is False:
+            mentions = [mentions]
 
+        all_suggestions = []
+        case_2_mentions = {}
+        case_3_mentions = []
         # Case 1: rule based finds exactly 1 entity, Rule-based only
-        rule_suggestions = self.rule_classifier._classify(mention, sentence)
-        if len(rule_suggestions['suggestions']) == 1:
-            return rule_suggestions
+        rule_suggestions = self.rule_classifier._classify(mentions, sentence)
+        for (mention, suggestions) in rule_suggestions:
+            if len(suggestions['suggestions']) == 1:
+                all_suggestions.append((mention, suggestions))
+
+            # Case 2: rule based finds > 1 entities, Rule-based + Bert-based
+            elif len(suggestions['suggestions']) > 1:
+                case_2_mentions[mention] = suggestions
+
+            # Case 3: rule based finds exactly 0 entities, Bert-based only
+            else:
+                case_3_mentions.append(mention)
 
         # Case 2: rule based finds > 1 entities, Rule-based + Bert-based
-        elif len(rule_suggestions['suggestions']) > 1:
-            bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=5)
+        if len(case_2_mentions) > 0:
+            bert_suggestions = self.bert_classifier._classify(list(case_2_mentions.keys()), sentence, num_results=5)
 
-            # Prioritize entities that were found in both the rule-based classifier and the top 5 nearest neighbors
-            # of the bert based classifier. Return the best entity of this intersection based on the bert distance.
-            # Otherwise only rely on the bert entities.
-            best_suggestion = ()
-            for rule_suggestion in rule_suggestions['suggestions']:
-                if rule_suggestion in bert_suggestions['suggestions']:
-                    if len(best_suggestion) > 0:
-                        if bert_suggestions['suggestions'][rule_suggestion] > best_suggestion[1]:
-                            best_suggestion = (rule_suggestion, bert_suggestions['suggestions'][rule_suggestion])
-                    else:
-                        best_suggestion = (rule_suggestion, bert_suggestions['suggestions'][rule_suggestion])
+            for (mention, bert_mention_suggestions) in bert_suggestions:
+                rule_mention_suggestions = case_2_mentions[mention]
 
-            if len(best_suggestion) > 0:
-                return {'suggestions': {best_suggestion[0]: best_suggestion[1]}}
-            else:
-                tmp = sorted(bert_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
-                tmp = {'suggestions': {tmp[0]: tmp[1]}}
-                return tmp
+                # Prioritize entities that were found in both the rule-based classifier and the top 5 nearest neighbors
+                # of the bert based classifier. Return the best entity of this intersection based on the bert distance.
+                # Otherwise only rely on the bert entities.
+                best_suggestion = ()
+                for rule_suggestion in rule_mention_suggestions['suggestions']:
+                    if rule_suggestion in bert_mention_suggestions['suggestions']:
+                        if len(best_suggestion) > 0:
+                            if bert_mention_suggestions['suggestions'][rule_suggestion] > best_suggestion[1]:
+                                best_suggestion = (rule_suggestion, bert_mention_suggestions['suggestions'][rule_suggestion])
+                        else:
+                            best_suggestion = (rule_suggestion, bert_mention_suggestions['suggestions'][rule_suggestion])
+
+                if len(best_suggestion) > 0:
+                    all_suggestions.append((mention, {'suggestions': {best_suggestion[0]: best_suggestion[1]}}))
+                else:
+                    tmp = sorted(bert_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
+                    tmp = {'suggestions': {tmp[0]: tmp[1]}}
+                    all_suggestions.append((mention, tmp))
 
         # Case 3: rule based finds exactly 0 entities, Bert-based only
-        else:
-            bert_suggestions = self.bert_classifier._classify(mention, sentence, num_results=1)
-            return bert_suggestions
+        if len(case_3_mentions) > 0:
+            bert_suggestions = self.bert_classifier._classify(case_3_mentions, sentence, num_results=1)
 
-    def classify(self, mention: str, sentence: str):
+            for (mention, suggestions) in bert_suggestions:
+                all_suggestions.append((mention, suggestions))
+
+        return all_suggestions
+
+    def classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]") -> \
+            Union[Set[str], List[Tuple[str, Set[str]]]]:
+        assert sentence != "[NAN]", "The hybrid classifier requires at least a sentence for the classification " \
+                                    "process."
         self._verify_data(self._loaded_datasplit)
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
 
-        res = self._classify(mention, sentence)
-        tmp = sorted(res['suggestions'].items(), key=operator.itemgetter(1))[0]
-        return tmp[0]
+        suggestions = self._classify(mentions, sentence)
+
+        res = []
+        for (mention, mention_suggestions) in suggestions:
+            res.append((mention, set(mention_suggestions['suggestions'].keys())))
+
+        return res
 
     def _verify_data(self, dataset_split):
         # Check if the correct data has been loaded (for all classifiers used in this approach)
@@ -110,10 +141,10 @@ class HybridClassifier(Classifier):
                                  'hybrid approach. '
 
         self._verify_data(dataset_split)
-        assert (self._loaded_datasplit == 'val' and self.rule_classifier._loaded_datasplit == 'val' and
-                self.bert_classifier._loaded_datasplit == 'val'), 'The evaluation could not be performed because one' \
-                                                                  'of the classifiers had a different dataset loaded' \
-                                                                  'than the "val" dataset. Only run the evaluation on' \
-                                                                  'its own without manual classification requests.'
+        assert (self._loaded_datasplit == self.rule_classifier._loaded_datasplit ==
+                self.bert_classifier._loaded_datasplit), 'The evaluation could not be performed because one ' \
+                                                         'of the classifiers had a different dataset loaded. ' \
+                                                         'Only run the evaluation on ' \
+                                                         'its own without manual classification requests.'
 
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)

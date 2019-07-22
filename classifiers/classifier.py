@@ -180,14 +180,15 @@ class Classifier(metaclass=ABCMeta):
         connection.close()
 
     @abstractmethod
-    def _classify(self, mention: str, sentence: str, num_results: int=1) -> Dict[str, Union[float, int]]:
+    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+            Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
         pass
 
     @abstractmethod
-    def classify(self, mention: str, sentence: str) -> Set[Tuple[str, float]]:
+    def classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
         """
         Public classify method that users can use to classify a given string including some sort of similarity measure.
         """
