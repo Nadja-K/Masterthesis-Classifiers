@@ -100,7 +100,10 @@ class BertEmbeddingClassifier(Classifier):
 
     def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
-        # FIXME: [NAN] mention
+        # FIXME: [NAN] mention -> identify possible mentions first
+
+        assert sentence != "[NAN]", "The BERT-based classifier requires at least a sentence in which potential " \
+                                    "mentions can be identified for the classification."
         # multiple mentions have been identified prior for the query sentence - only calculate the token embeddings
         # of the sentence once.
         multi_mentions = isinstance(mentions, List)

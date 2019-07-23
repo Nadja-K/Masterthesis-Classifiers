@@ -44,6 +44,11 @@ class HybridClassifier(Classifier):
 
     def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
+        # FIXME: [NAN] mention -> identify possible mentions first
+
+        assert sentence != "[NAN]", "The hybrid classifier requires at least a sentence in which potential " \
+                                    "mentions can be identified for the classification."
+
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
         multi_mentions = isinstance(mentions, List)
@@ -60,15 +65,18 @@ class HybridClassifier(Classifier):
                 all_suggestions.append((mention, suggestions))
 
             # Case 2: rule based finds > 1 entities, Rule-based + Bert-based
+            # Save all mentions that fit case 2
             elif len(suggestions['suggestions']) > 1:
                 case_2_mentions[mention] = suggestions
 
             # Case 3: rule based finds exactly 0 entities, Bert-based only
+            # Save all mentions that fit case 3
             else:
                 case_3_mentions.append(mention)
 
         # Case 2: rule based finds > 1 entities, Rule-based + Bert-based
         if len(case_2_mentions) > 0:
+            # Do the classification of all case 2 mentions at once, then handle every mention by itself
             bert_suggestions = self.bert_classifier._classify(list(case_2_mentions.keys()), sentence, num_results=5)
 
             for (mention, bert_mention_suggestions) in bert_suggestions:
@@ -89,18 +97,22 @@ class HybridClassifier(Classifier):
                 if len(best_suggestion) > 0:
                     all_suggestions.append((mention, {'suggestions': {best_suggestion[0]: best_suggestion[1]}}))
                 else:
-                    tmp = sorted(bert_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
+                    tmp = sorted(bert_mention_suggestions['suggestions'].items(), key=operator.itemgetter(1))[0]
                     tmp = {'suggestions': {tmp[0]: tmp[1]}}
                     all_suggestions.append((mention, tmp))
 
         # Case 3: rule based finds exactly 0 entities, Bert-based only
         if len(case_3_mentions) > 0:
+            # Do the classification of all case 3 mentions at once, then handle every mention by itself
             bert_suggestions = self.bert_classifier._classify(case_3_mentions, sentence, num_results=1)
 
-            for (mention, suggestions) in bert_suggestions:
-                all_suggestions.append((mention, suggestions))
+            for (mention, bert_mention_suggestions) in bert_suggestions:
+                all_suggestions.append((mention, bert_mention_suggestions))
 
-        return all_suggestions
+        if multi_mentions is False:
+            return all_suggestions[0][1]
+        else:
+            return all_suggestions
 
     def classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]") -> \
             Union[Set[str], List[Tuple[str, Set[str]]]]:
@@ -112,11 +124,14 @@ class HybridClassifier(Classifier):
 
         suggestions = self._classify(mentions, sentence)
 
-        res = []
-        for (mention, mention_suggestions) in suggestions:
-            res.append((mention, set(mention_suggestions['suggestions'].keys())))
+        if isinstance(mentions, List) is False:
+            return set(suggestions['suggestions'].keys())
+        else:
+            res = []
+            for (mention, mention_suggestions) in suggestions:
+                res.append((mention, set(mention_suggestions['suggestions'].keys())))
 
-        return res
+            return res
 
     def _verify_data(self, dataset_split):
         # Check if the correct data has been loaded (for all classifiers used in this approach)

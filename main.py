@@ -284,8 +284,8 @@ def hybrid_classifier():
     start = time.time()
     classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
     print("Evaluation took %s" % (time.time() - start))
-    # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
-    # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
+    print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
+    print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
 
 
 if __name__ == '__main__':

@@ -70,7 +70,11 @@ class RuleClassifier(Classifier):
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
-        assert mentions != "[NAN]", "The rule-based classifier needs at least one mention for the classification."
+        # FIXME: [NAN] mention -> identify possible mentions first
+
+        assert not (mentions == "[NAN]" and sentence == "[NAN]"), "The rule-based classifier needs at least one mention" \
+                                                                  " for the classification. Otherwise provide a " \
+                                                                  "sentence in which possible mentions can be identified."
         multi_mentions = isinstance(mentions, List)
         if multi_mentions is False:
             mentions = [mentions]

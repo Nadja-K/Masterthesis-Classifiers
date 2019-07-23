@@ -81,7 +81,11 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
     def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
-        assert mentions != "[NAN]", "The rule-based classifier needs at least one mention for the classification."
+        # FIXME: [NAN] mention -> identify possible mentions first
+
+        assert not (mentions == "[NAN]" and sentence == "[NAN]"), "The token-level classifier needs at least one mention" \
+                                                                  " for the classification. Otherwise provide a " \
+                                                                  "sentence in which possible mentions can be identified."
         multi_mentions = isinstance(mentions, List)
         if multi_mentions is False:
             mentions = [mentions]
