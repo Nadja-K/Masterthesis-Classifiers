@@ -81,11 +81,14 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
     def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
-        # FIXME: [NAN] mention -> identify possible mentions first
-
         assert not (mentions == "[NAN]" and sentence == "[NAN]"), "The token-level classifier needs at least one mention" \
                                                                   " for the classification. Otherwise provide a " \
                                                                   "sentence in which possible mentions can be identified."
+
+        # If no mention has been provided, identify potential ones in the sentence.
+        if mentions == "[NAN]":
+            mentions = self._identify_potential_mentions(sentence)
+
         multi_mentions = isinstance(mentions, List)
         if multi_mentions is False:
             mentions = [mentions]
@@ -113,14 +116,14 @@ class TokenLevelEmbeddingClassifier(Classifier):
 
         return all_suggestions
 
-    def classify(self, mentions: Union[str, List[str]], sentence: str = "[NAN]") \
+    def classify(self, mentions: Union[str, List[str]] = "[NAN]", sentence: str = "[NAN]") \
             -> Union[Set[str], List[Tuple[str, Set[str]]]]:
         # Make sure the correct data is loaded
         self._fill_index(self._loaded_datasplit)
 
-        suggestions = self._classify(mentions, num_results=1)
+        suggestions = self._classify(mentions, sentence, num_results=1)
 
-        if isinstance(mentions, List) is False:
+        if isinstance(mentions, List) is False and mentions != "[NAN]":
             return set(suggestions['suggestions'].keys())
         else:
             res = []

@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Set, Dict, Union
 import sqlite3
 import datetime
+import spacy
 
 from eval.evaluation import Evaluator
 
@@ -15,6 +16,7 @@ class Classifier(metaclass=ABCMeta):
         self._context_data = None
         self._mention_entity_duplicate_count = {}
         self._entities = None
+        self._nlp = spacy.load('de_core_news_sm')
 
         self._dataset_db_name = dataset_db_name
         self._split_table_name = split_table_name
@@ -193,6 +195,18 @@ class Classifier(metaclass=ABCMeta):
         Public classify method that users can use to classify a given string including some sort of similarity measure.
         """
         pass
+
+    def _identify_potential_mentions(self, sentence: str) -> List[str]:
+        """
+        Identify potential mentions in a sentence.
+        """
+        potential_mentions = [w for w in self._nlp(sentence) if w.pos_ in ['NOUN', 'PROPN']]
+
+        # FIXME: remove stopwords?
+        # FIXME: remove very common words?
+
+        print(potential_mentions)
+        return potential_mentions
 
     @abstractmethod
     def evaluate_datasplit(self, split: str, num_results: int = 1, eval_mode: str= 'mentions'):
