@@ -42,16 +42,16 @@ class HybridClassifier(Classifier):
                                                        query_data=self._query_data, context_data=self._context_data,
                                                        entities=self._entities, loaded_datasplit=self._loaded_datasplit)
 
-    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+    def _classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
-        assert sentence != "[NAN]", "The hybrid classifier requires at least a sentence in which potential " \
+        assert sentence != "[NIL]", "The hybrid classifier requires at least a sentence in which potential " \
                                     "mentions can be identified for the classification."
 
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
                 self._loaded_datasplit), "One of the classifiers has a different datasplit loaded"
 
         # If no mention has been provided, identify potential ones in the sentence.
-        if mentions == "[NAN]":
+        if mentions == "[NIL]":
             mentions = self._identify_potential_mentions(sentence)
 
         multi_mentions = isinstance(mentions, List)
@@ -117,7 +117,7 @@ class HybridClassifier(Classifier):
         else:
             return all_suggestions
 
-    def classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]") -> \
+    def classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]") -> \
             Union[Set[str], List[Tuple[str, Set[str]]]]:
         self._verify_data(self._loaded_datasplit)
         assert (self.rule_classifier._loaded_datasplit == self.bert_classifier._loaded_datasplit ==
@@ -125,7 +125,7 @@ class HybridClassifier(Classifier):
 
         suggestions = self._classify(mentions, sentence)
 
-        if isinstance(mentions, List) is False and mentions != "[NAN]":
+        if isinstance(mentions, List) is False and mentions != "[NIL]":
             return set(suggestions['suggestions'].keys())
         else:
             res = []
@@ -151,7 +151,7 @@ class HybridClassifier(Classifier):
         self.rule_classifier._fill_symspell_dictionaries(dataset_split)
         self.bert_classifier._fill_index(dataset_split)
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
         assert num_results == 1, 'NUM_RESULTS should not be set for the hybrid classifier. The number of results is ' \
                                  'already chosen in an appropriate manner for the classifiers incorporated in this' \
                                  'hybrid approach. '
@@ -163,4 +163,4 @@ class HybridClassifier(Classifier):
                                                          'Only run the evaluation on ' \
                                                          'its own without manual classification requests.'
 
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode, empolis_mapping_path=empolis_mapping_path)

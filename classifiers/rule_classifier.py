@@ -52,7 +52,7 @@ class RuleClassifier(Classifier):
                     previous_refactored_entity = heuristic.add_dictionary_entity(previous_refactored_entity, entity)
             self._symspell_loaded_datasplit = dataset_split
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -63,19 +63,19 @@ class RuleClassifier(Classifier):
         # The actual evaluation process
         assert num_results == 1, 'NUM_RESULTS should not be set for the rule-based classifier. Instead all results ' \
                                  'with the same distance are returned for this classifier.'
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode, empolis_mapping_path=empolis_mapping_path)
 
-    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+    def _classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         """
         Internal classify method that collects raw results that might be interesting for statistics.
         """
-        assert not (mentions == "[NAN]" and sentence == "[NAN]"), "The rule-based classifier needs at least one mention" \
+        assert not (mentions == "[NIL]" and sentence == "[NIL]"), "The rule-based classifier needs at least one mention" \
                                                                   " for the classification. Otherwise provide a " \
                                                                   "sentence in which possible mentions can be identified."
 
         # If no mention has been provided, identify potential ones in the sentence.
-        if mentions == "[NAN]":
+        if mentions == "[NIL]":
             mentions = self._identify_potential_mentions(sentence)
 
         multi_mentions = isinstance(mentions, List)
@@ -115,7 +115,7 @@ class RuleClassifier(Classifier):
 
         return all_suggestions
 
-    def classify(self, mentions: Union[str, List[str]] = "[NAN]", sentence: str = "[NAN]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
+    def classify(self, mentions: Union[str, List[str]] = "[NIL]", sentence: str = "[NIL]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
         """
         Public classify method that users can use to classify a given string based on the defined split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be
@@ -128,7 +128,7 @@ class RuleClassifier(Classifier):
 
         suggestions = self._classify(mentions, sentence)
 
-        if isinstance(mentions, List) is False and mentions != "[NAN]":
+        if isinstance(mentions, List) is False and mentions != "[NIL]":
             return set(suggestions['suggestions'].keys())
         else:
             res = []

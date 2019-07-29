@@ -7,6 +7,7 @@ import argparse
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 import ast
+import os
 
 from classifiers.hybrid_classifier import HybridClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
@@ -24,11 +25,12 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 
 # Config
 config = configparser.ConfigParser()
-# config.read("configs/config.ini")
-config.read("configs/remote_config.ini")
+config.read("configs/config.ini")
+# config.read("configs/remote_config.ini")
 
 # Global config settings that are used for all classifiers
 dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
+empolis_synonym_mapping_path = config['DATASET'].get('EMPOLIS_EVAL_MAPPING_FILE', None)
 skip_trivial_samples = config['DATASET'].getboolean('SKIP_TRIVIAL_SAMPLES', False)
 dataset_split = config['DATASET'].get('SPLIT', 'val')
 split_table_name = config['DATASET'].get('SPLIT_TABLE_NAME', 'splits')
@@ -88,7 +90,8 @@ def bert_embedding_classifier_main():
                                          do_lower_case=do_lower_case,
                                          distance_allowance=bert_distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode,
+                                  empolis_mapping_path=empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
 
     # print(classifier.classify(sentence='das ist ein Test mit Salzpflanzen und Flechten.'))
@@ -197,7 +200,8 @@ def rule_classifier_main():
     classifier = RuleClassifier(heuristic_list, args.dataset_db_name, args.dataset_split, split_table_name,
                                 args.skip_trivial_samples, False)
     start = time.time()
-    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
+                                  empolis_mapping_path=empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -288,7 +292,8 @@ def hybrid_classifier():
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
     start = time.time()
-    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
+                                  empolis_mapping_path=empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
     # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
     # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))

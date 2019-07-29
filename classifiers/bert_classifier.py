@@ -87,7 +87,7 @@ class BertEmbeddingClassifier(Classifier):
     def close_session(self):
         self._index.close_session()
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions'):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -96,17 +96,17 @@ class BertEmbeddingClassifier(Classifier):
         self._fill_index(dataset_split)
 
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode, empolis_mapping_path=empolis_mapping_path)
 
-    def _classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]", num_results: int=1) -> \
+    def _classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
-        assert sentence != "[NAN]", "The BERT-based classifier requires at least a sentence in which potential " \
+        assert sentence != "[NIL]", "The BERT-based classifier requires at least a sentence in which potential " \
                                     "mentions can be identified for the classification."
         # multiple mentions have been identified prior for the query sentence - only calculate the token embeddings
         # of the sentence once.
 
         # If no mention has been provided, identify potential ones in the sentence.
-        if mentions == "[NAN]":
+        if mentions == "[NIL]":
             mentions = self._identify_potential_mentions(sentence)
 
         multi_mentions = isinstance(mentions, List)
@@ -143,9 +143,9 @@ class BertEmbeddingClassifier(Classifier):
 
         return all_suggestions
 
-    def classify(self, mentions: Union[str, List[str]]="[NAN]", sentence: str="[NAN]") -> \
+    def classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]") -> \
             Union[Set[str], List[Tuple[str, Set[str]]]]:
-        assert sentence != "[NAN]", "The BERT-based classifier requires at least a sentence for the classification " \
+        assert sentence != "[NIL]", "The BERT-based classifier requires at least a sentence for the classification " \
                                     "process."
 
         # Make sure the correct data is loaded
@@ -153,7 +153,7 @@ class BertEmbeddingClassifier(Classifier):
 
         suggestions = self._classify(mentions, sentence, num_results=1)
 
-        if isinstance(mentions, List) is False and mentions != "[NAN]":
+        if isinstance(mentions, List) is False and mentions != "[NIL]":
             return set(suggestions['suggestions'].keys())
         else:
             res = []
