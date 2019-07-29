@@ -35,6 +35,7 @@ Download the nltk punkt sentence tokenizer:
 ```
 import nltk
 nltk.download('punkt')
+nltk.download('stopwords')
 ```
 
 Download a German spacy model:
