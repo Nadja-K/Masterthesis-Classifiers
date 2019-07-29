@@ -4,6 +4,7 @@ import sqlite3
 import datetime
 import spacy
 import json
+import re
 
 from eval.evaluation import Evaluator
 
@@ -22,6 +23,9 @@ class Classifier(metaclass=ABCMeta):
         self._dataset_db_name = dataset_db_name
         self._split_table_name = split_table_name
         self._skip_trivial_samples = skip_trivial_samples
+
+        self._dates_regex = re.compile(r'^\s*(3[01]|[12][0-9]|0?[1-9])\.(1[012]|0?[1-9])\.((?:19|20)\d{2})\s*$')
+        self._email_regex = re.compile(r'\b\w+\.?\w*@\w+[-,_]?\w*\b')
 
         # Load the specified datasplit
         assert dataset_split in ['train', 'test', 'val'], "The datasplit is not valid."
@@ -218,11 +222,21 @@ class Classifier(metaclass=ABCMeta):
         """
         Identify potential mentions in a sentence.
         """
-        potential_mentions = [w for w in self._nlp(sentence) if w.pos_ in ['NOUN', 'PROPN']]
+        potential_mentions = [str(w) for w in self._nlp(sentence) if w.pos_ in ['NOUN', 'PROPN']]
 
-        # FIXME: remove stopwords?
-        # FIXME: remove very common words?
-        # FIXME: remove mentions that only consist of sonderzeichen
+        # Remove mentions that are composed of only one char or are far too long to be a word
+        potential_mentions = [w for w in potential_mentions if len(str(w)) > 1 or len(str(w)) > 40]
+
+        common_words = ["mm", "ca", "d.h.", "cm", "z.b.", "grad", "ok", ]
+
+        # Remove common words
+        potential_mentions = [w for w in potential_mentions if str(w).lower() not in common_words]
+
+        # Remove dates
+        potential_mentions = [i for i in potential_mentions if not self._dates_regex.search(i)]
+
+        # Remove emails
+        potential_mentions = [i for i in potential_mentions if not self._email_regex.search(i)]
 
         # print(potential_mentions)
         return potential_mentions
