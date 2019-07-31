@@ -281,11 +281,19 @@ class Classifier(metaclass=ABCMeta):
 
             # Otherwise, if the classifier suggests something just print it
             elif gt_entity_data is None and len(suggestion[1]['suggestions']) > 0:
-                # print("Found the following suggestion(s) for the unknown mention '%s': %s" %
-                #       (suggestion[0], '; '.join(suggestion[1]['suggestions'])))
-                # print(sample['sentence'])
-                # print("------------------------------------------------------------------------------")
-                pass
+                tmp_str = ""
+                for s, score in suggestion[1]['suggestions'].items():
+                    # Only suggest entities if you are certain
+                    # FIXME: make this a variable?
+                    if score < 0.75:
+                        tmp_str = tmp_str + "; " + str(s) + " : " + str(score)
+
+                if len(tmp_str) > 0:
+                    print("Found the following suggestion(s) for the unknown mention '%s': %s" %
+                          (suggestion[0], tmp_str))
+                    print(sample['sentence'])
+                    print("------------------------------------------------------------------------------")
+                # pass
             # All other cases are ignored/skipped
             else:
                 pass
