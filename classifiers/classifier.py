@@ -274,7 +274,10 @@ class Classifier(metaclass=ABCMeta):
                     'mention': mention,
                     'entity_title': gt_entity_data['entities'][0]
                 }
-                eval_results = self._add_suggestion_to_eval_results(suggestion[1], updated_sample, eval_results)
+
+                # If the GT entity is not part of the current split, ignore it
+                if updated_sample['entity_title'] in self._entities:
+                    eval_results = self._add_suggestion_to_eval_results(suggestion[1], updated_sample, eval_results)
 
             # Otherwise, if the classifier suggests something just print it
             elif gt_entity_data is None and len(suggestion[1]['suggestions']) > 0:
