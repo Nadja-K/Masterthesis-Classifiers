@@ -120,6 +120,12 @@ class Classifier(metaclass=ABCMeta):
                     OR 
                     (
                     sentences.backlink_id=-1
+                    AND
+                        (
+                        instr(sentences.sentence, trim(sentences.mention)) > 0
+                        OR
+                        sentences.mention='[NIL]'
+                        )
                     )
                 )
             

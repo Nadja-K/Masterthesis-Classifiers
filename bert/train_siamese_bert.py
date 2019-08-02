@@ -307,6 +307,10 @@ class SiameseBert:
 
         def create_data_dict(data, data_dict):
             for sample in data:
+                # Skip NIL samples for the training (they are part of the empolis dataset)
+                if sample['mention'] == '[NIL]' or sample['entity_title'] == '[NIL]':
+                    continue
+
                 if sample['entity_title'] not in data_dict:
                     data_dict[sample['entity_title']] = set()
                 data_dict[sample['entity_title']].add((sample['mention'], sample['sentence']))
