@@ -5,6 +5,8 @@ import datetime
 import spacy
 import json
 import re
+import numpy as np
+from collections import OrderedDict
 
 from eval.evaluation import Evaluator
 
@@ -323,8 +325,8 @@ class Classifier(metaclass=ABCMeta):
 
         empolis_mapping = None
         if empolis_mapping_path is not None:
-            with open(empolis_mapping_path, 'r') as f:
-                empolis_mapping = json.load(f)
+            with open(empolis_mapping_path, 'r', encoding="raw_unicode_escape") as f:
+                empolis_mapping = json.loads(f.read().encode('cp1252').decode('utf-8'))
 
         eval_results = {}
         for sample in self._query_data:
@@ -349,6 +351,104 @@ class Classifier(metaclass=ABCMeta):
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % macro)
         print("\nMicro metrics:"
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
+
+    def evaluate_potential_synonyms(self, empolis_mapping_path: str):
+        """
+        Evaluates how well a classifier is able to predict synonyms for the entities of the dataset.
+        """
+        empolis_mapping_synonym_to_entity = None
+        if empolis_mapping_path is not None:
+            with open(empolis_mapping_path, 'r', encoding="raw_unicode_escape") as f:
+                empolis_mapping_synonym_to_entity = json.loads(f.read().encode('cp1252').decode('utf-8'))
+
+        # For the evaluation a mapping from entity to synonym is necessary
+        empolis_mapping_entity_to_synonym = {}
+        for synonym, entities in empolis_mapping_synonym_to_entity.items():
+            entity = entities['entities'][0]
+
+            if entity not in empolis_mapping_entity_to_synonym:
+                empolis_mapping_entity_to_synonym[entity] = {
+                    'all_synonyms': [synonym],
+                    'found_synonyms': []
+                }
+            else:
+                empolis_mapping_entity_to_synonym[entity]['all_synonyms'].append(synonym)
+
+        res = {}
+        for sample in self._query_data:
+            sentence = sample['sentence']
+
+            suggestions = self._classify(sentence=sentence, num_results=1)
+            for mention, s in suggestions:
+                # Required for the evaluation, we can only evaluate how well the model performs for synonyms that
+                # actually appeared in the text. Other synonyms should not affect the performance evaluation.
+                ground_truth_entity = empolis_mapping_synonym_to_entity.get(mention, None)
+                if ground_truth_entity is not None:
+                    ground_truth_entity = ground_truth_entity['entities'][0]
+
+                    if mention not in empolis_mapping_entity_to_synonym[ground_truth_entity]['found_synonyms']:
+                        empolis_mapping_entity_to_synonym[ground_truth_entity]['found_synonyms'].append(mention)
+
+                for entity in self._entities:
+                    if entity in s['suggestions'].keys():
+                        if entity not in res:
+                            res[entity] = {mention: [s['suggestions'][entity]]}
+                        else:
+                            if mention not in res[entity]:
+                                res[entity][mention] = [s['suggestions'][entity]]
+                            else:
+                                res[entity][mention].append(s['suggestions'][entity])
+
+        tp = 0
+        fn = 0
+        all_samples = 0
+        # sort the results for easier (manual) evaluation
+        for entity, results in res.items():
+            res[entity] = OrderedDict(sorted(results.items(), key=lambda item: np.average(item[1])))
+
+            for index, (mention, scores) in enumerate(res[entity].items()):
+                print("Entity: %s | Synonym: %s | Avg. distance: %0.2f" % (entity, mention, np.average(scores)))
+
+                # Evaluation
+                ground_truth_entity = empolis_mapping_synonym_to_entity.get(mention, None)
+                if ground_truth_entity is not None:
+                    ground_truth_entity = ground_truth_entity['entities'][0]
+                    if mention in empolis_mapping_entity_to_synonym[ground_truth_entity]['found_synonyms']:
+                        if ground_truth_entity == entity:
+                            tp += 1
+                        else:
+                            fn += 1
+                            print(mention, entity, ground_truth_entity, empolis_mapping_entity_to_synonym[ground_truth_entity]['found_synonyms'])
+                        all_samples += 1
+
+        print(tp, fn, all_samples)
+
+        # FIXME: evaluate
+
+    def get_potential_synonyms(self, entity: str):
+        """
+        Given a single entity, all query sentences are checked to identify potential synonyms of the entity.
+        A ranked list of synonyms is returned.
+        """
+        # FIXME: put this into the demo
+        res = {}
+        for sample in self._query_data:
+            sentence = sample['sentence']
+
+            suggestions = self._classify(sentence=sentence, num_results=1)
+            for mention, s in suggestions:
+                if entity in s['suggestions'].keys():
+                    if mention not in res:
+                        res[mention] = [s['suggestions'][entity]]
+                    else:
+                        res[mention].append(s['suggestions'][entity])
+
+        res = OrderedDict(sorted(res.items(), key=lambda item: np.average(item[1])))
+        # FIXME: remove print here -> move to main
+        for mention, scores in res.items():
+            print(mention, scores)
+
+        return res
 
     def _debug_info(self, suggestions, entity, mention, sentence):
         """
