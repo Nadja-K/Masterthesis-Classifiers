@@ -2,6 +2,7 @@ import configparser
 import json
 import tensorflow as tf
 import argparse
+import numpy as np
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 
@@ -30,7 +31,7 @@ eval_mode = config['EVALUATION'].get('MODE', 'mentions')
 assert eval_mode in ['mentions', 'samples']
 
 
-def bert_embedding_classifier_main(mention, sentence):
+def bert_embedding_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
     # Settings
     annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
     num_trees = config['ANNOY'].getint('NUM_TREES', 30)
@@ -67,13 +68,19 @@ def bert_embedding_classifier_main(mention, sentence):
                                          do_lower_case=do_lower_case,
                                          distance_allowance=bert_distance_allowance)
 
-    print(classifier.classify(mentions=mention, sentence=sentence))
+    if entity_synonyms is None:
+        print(classifier.classify(mentions=mention, sentence=sentence))
+    else:
+        output = classifier.get_potential_synonyms(entity=entity_synonyms,
+                                                   distance_threshold=entity_synonyms_distance_threshold)
+        for mention, distances in output.items():
+            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances)))
 
     # Necessary to close the tensorflow session
     classifier.close_session()
 
 
-def rule_classifier_main(mention, sentence):
+def rule_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
     # Logging
     logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
                                                                 'filename'].split(".")[0] + "_rule.log"
@@ -115,10 +122,16 @@ def rule_classifier_main(mention, sentence):
     classifier = RuleClassifier(heuristic_list, dataset_db_name, dataset_split, split_table_name,
                                 skip_trivial_samples, False)
 
-    print(classifier.classify(mentions=mention, sentence=sentence))
+    if entity_synonyms is None:
+        print(classifier.classify(mentions=mention, sentence=sentence))
+    else:
+        output = classifier.get_potential_synonyms(entity=entity_synonyms,
+                                                   distance_threshold=entity_synonyms_distance_threshold)
+        for mention, distances in output.items():
+            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances)))
 
 
-def hybrid_classifier(mention, sentence):
+def hybrid_classifier(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
     # Settings
     max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('MAX_EDIT_DISTANCE_DICTIONARY', 5)
     abbreviations_max_edit_distance_dictionary = config['RULECLASSIFIER'].getint('ABBREVIATIONS_MAX_EDIT_'
@@ -186,14 +199,32 @@ def hybrid_classifier(mention, sentence):
                                   annoy_index_path=annoy_index_path, num_trees=num_trees,
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
-    print(classifier.classify(mentions=mention, sentence=sentence))
+    if entity_synonyms is None:
+        print(classifier.classify(mentions=mention, sentence=sentence))
+    else:
+        output = classifier.get_potential_synonyms(entity=entity_synonyms,
+                                                   distance_threshold=entity_synonyms_distance_threshold)
+        for mention, distances in output.items():
+            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances)))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--classifier', nargs='?', type=str, default='rule', choices=['bert', 'rule', 'hybrid'])
-    parser.add_argument('--mention', nargs='*', default=['[NIL]'])
-    parser.add_argument('--sentence', nargs='*', type=str, default=['[NIL]'])
+    parser.add_argument('--entity_synonyms', nargs='*', type=str, default=None,
+                        help="Enter an entity for which a ranked list of synonyms should be returned. If this "
+                             "parameter is set, the --mention and --sentence parameter will be ignored.")
+    parser.add_argument('--entity_synonyms_distance_threshold', nargs='?', type=float, default=0.85,
+                        help="Enter a maximum distance threshold value that is used to filter out potential"
+                             "synonyms/mentions if the --entity_synonyms parameter is set."
+                             "Everything with a higher distance value is removed from the results.")
+    parser.add_argument('--mention', nargs='*', default=['[NIL]'],
+                        help="Enter a mention for which a single entity should be suggested.")
+    parser.add_argument('--sentence', nargs='*', type=str, default=['[NIL]'],
+                        help="Enter a sentence for which a) potential mentions will be identified and fitting entities "
+                             "will be returned or b) if the --mention parameter is set with a mention that can be "
+                             "found in the provided sentence, an entity will be returned as classification result "
+                             "for the provided mention based on the context given with the sentence.")
     args = parser.parse_args()
 
     if len(args.mention) > 1:
@@ -206,9 +237,14 @@ if __name__ == '__main__':
     else:
         args.sentence = args.sentence[0]
 
+    if len(args.entity_synonyms) > 1:
+        args.entity_synonyms = ' '.join(args.entity_synonyms)
+    else:
+        args.entity_synonyms = args.entity_synonyms[0]
+
     if args.classifier == 'bert':
-        bert_embedding_classifier_main(args.mention, args.sentence)
+        bert_embedding_classifier_main(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)
     elif args.classifier == 'rule':
-        rule_classifier_main(args.mention, args.sentence)
+        rule_classifier_main(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)
     elif args.classifier == 'hybrid':
-        hybrid_classifier(args.mention, args.sentence)
+        hybrid_classifier(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)

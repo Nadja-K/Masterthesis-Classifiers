@@ -206,3 +206,44 @@ class Evaluator:
         print("%s\n%s\n%s" % (self._micro_precision, self._micro_recall, self._micro_f1_score))
 
         return scores
+
+    def evaluate_empolis_synonyms(self, eval_results, relevant_synonyms):
+        """
+        Alternate evaluation method in order to evaluate how well a classifier is able to identify synonyms for
+        the empolis dataset.
+        """
+        self._clear_scores()
+
+        for suggested_entity, mentions in eval_results.items():
+            all_identified_mentions = set(mentions.keys())
+
+            tp = len(relevant_synonyms[suggested_entity].intersection(all_identified_mentions))
+            fp = len(all_identified_mentions.difference(relevant_synonyms[suggested_entity]))
+            fn = len(relevant_synonyms[suggested_entity].difference(all_identified_mentions))
+
+            self._top1_accuracy += 0
+            self._macro_precision += precision(tp, fp)
+            self._macro_recall += recall(tp, fn)
+            self._tp += tp
+            self._fp += fp
+            self._fn += fn
+            self._count_valid_samples += 1
+
+            print(mentions)
+            print(tp)
+            print(fp)
+            print(fn)
+            print("---------------------")
+
+        self._top1_accuracy = self._accuracy() * 100.
+        self._macro_precision = self._precision() * 100.
+        self._macro_recall = self._recall() * 100.
+        self._macro_f1_score = f_measure(self._macro_precision, self._macro_recall)
+
+        self._micro_precision = precision(self._tp, self._fp) * 100.
+        self._micro_recall = recall(self._tp, self._fn) * 100.
+        self._micro_f1_score = f_measure(self._micro_precision, self._micro_recall)
+
+        return self._top1_accuracy, ValidationResult(
+            self._macro_precision, self._macro_recall, self._macro_f1_score), ValidationResult(
+            self._micro_precision, self._micro_recall, self._micro_f1_score)
