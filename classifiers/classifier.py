@@ -417,23 +417,30 @@ class Classifier(metaclass=ABCMeta):
                 # actually appeared in the text
                 identified_mentions.update([mention])
 
-                for suggested_entity, scores in s['suggestions'].items():
+                for suggested_entity, distances in s['suggestions'].items():
                     # Filter out every suggestion that does not meet the distance requirement
-                    if np.average(scores) > distance_threshold:
+                    if np.average(distances) > distance_threshold:
                         continue
 
                     # Store the classification result
                     if suggested_entity not in res:
-                        res[suggested_entity] = {mention: [s['suggestions'][suggested_entity]]}
+                        res[suggested_entity] = {mention: {
+                            'distances': [distances],
+                            'sentences': [sentence]
+                        }}
                     else:
                         if mention not in res[suggested_entity]:
-                            res[suggested_entity][mention] = [s['suggestions'][suggested_entity]]
+                            res[suggested_entity][mention] = {
+                                'distances': [distances],
+                                'sentences': [sentence]
+                            }
                         else:
-                            res[suggested_entity][mention].append(s['suggestions'][suggested_entity])
+                            res[suggested_entity][mention]['distances'].append(distances)
+                            res[suggested_entity][mention]['sentences'].append(sentence)
 
         # Resort everything
         for e in res.keys():
-            res[e] = OrderedDict(sorted(res[e].items(), key=lambda item: np.average(item[1])))
+            res[e] = OrderedDict(sorted(res[e].items(), key=lambda item: np.average(item[1]['distances'])))
 
         return res, identified_mentions
 

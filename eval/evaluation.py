@@ -2,6 +2,7 @@ from typing import NamedTuple, Tuple, Dict, Union, List, Set
 
 import logging
 import sys
+import numpy as np
 
 log = logging.getLogger('sampleOutput')
 epsilon = sys.float_info.epsilon
@@ -217,9 +218,24 @@ class Evaluator:
         for suggested_entity, mentions in eval_results.items():
             all_identified_mentions = set(mentions.keys())
 
-            tp = len(relevant_synonyms[suggested_entity].intersection(all_identified_mentions))
-            fp = len(all_identified_mentions.difference(relevant_synonyms[suggested_entity]))
-            fn = len(relevant_synonyms[suggested_entity].difference(all_identified_mentions))
+            tp = relevant_synonyms[suggested_entity].intersection(all_identified_mentions)
+            fp = all_identified_mentions.difference(relevant_synonyms[suggested_entity])
+            fn = relevant_synonyms[suggested_entity].difference(all_identified_mentions)
+
+            print("Entity: %s | Identified mentions: " % (suggested_entity))
+            for mention, mention_data in mentions.items():
+                print("%s --- %.4f" % (mention, np.average(mention_data['distances'])))
+                for sentence, distance in zip(mention_data['sentences'], mention_data['distances']):
+                    print("%.4f | %s" % (distance, sentence))
+            print("-------")
+            print("TP | %s" % tp)
+            print("FP | %s" % fp)
+            print("FN | %s" % fn)
+            print("---------------------")
+
+            tp = len(tp)
+            fp = len(fp)
+            fn = len(fn)
 
             self._top1_accuracy += 0
             self._macro_precision += precision(tp, fp)
@@ -228,12 +244,6 @@ class Evaluator:
             self._fp += fp
             self._fn += fn
             self._count_valid_samples += 1
-
-            print(mentions)
-            print(tp)
-            print(fp)
-            print(fn)
-            print("---------------------")
 
         self._top1_accuracy = self._accuracy() * 100.
         self._macro_precision = self._precision() * 100.
