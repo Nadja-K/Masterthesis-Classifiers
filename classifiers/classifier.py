@@ -352,6 +352,11 @@ class Classifier(metaclass=ABCMeta):
     def evaluate_potential_synonyms(self, empolis_mapping_path: str):
         """
         Evaluates how well a classifier is able to predict synonyms for the entities of a dataset.
+        This has to be done using a different evaluation method because it does not evaluate whether a classifier
+        is able to predict a mention correctly but rather whether a classifier is able to predict all synonyms/mentions
+        for the Empolis dataset that are known for an entity.
+
+        Because this is a completely different kind of evaluation a separate method has been implemented.
         """
         with open(empolis_mapping_path, 'r') as f:
             empolis_mapping_synonym_to_entity = json.load(f)
