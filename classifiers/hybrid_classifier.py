@@ -151,7 +151,8 @@ class HybridClassifier(Classifier):
         self.rule_classifier._fill_symspell_dictionaries(dataset_split)
         self.bert_classifier._fill_index(dataset_split)
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions',
+                           empolis_mapping_path: str=None, empolis_distance_threshold: float=0.85):
         assert num_results == 1, 'NUM_RESULTS should not be set for the hybrid classifier. The number of results is ' \
                                  'already chosen in an appropriate manner for the classifiers incorporated in this' \
                                  'hybrid approach. '
@@ -163,4 +164,6 @@ class HybridClassifier(Classifier):
                                                          'Only run the evaluation on ' \
                                                          'its own without manual classification requests.'
 
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode, empolis_mapping_path=empolis_mapping_path)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode,
+                                   empolis_mapping_path=empolis_mapping_path,
+                                   empolis_distance_threshold=empolis_distance_threshold)

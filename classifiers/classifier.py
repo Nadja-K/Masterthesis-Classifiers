@@ -270,7 +270,7 @@ class Classifier(metaclass=ABCMeta):
 
         return eval_results
 
-    def _evaluate_empolis(self, suggestions, sample, empolis_mapping, eval_results):
+    def _evaluate_empolis(self, suggestions, sample, empolis_mapping, eval_results, empolis_distance_threshold):
         for suggestion in suggestions:
             mention = str(suggestion[0]).strip()
             gt_entity_data = empolis_mapping.get(mention, None)
@@ -291,9 +291,8 @@ class Classifier(metaclass=ABCMeta):
             elif gt_entity_data is None and len(suggestion[1]['suggestions']) > 0:
                 tmp_str = ""
                 for s, score in suggestion[1]['suggestions'].items():
-                    # Only suggest entities if you are certain
-                    # FIXME: make this a variable?
-                    if score < 0.75:
+                    # Only suggest entities if the classifier is certain
+                    if score <= empolis_distance_threshold:
                         tmp_str = tmp_str + "; " + str(s) + " : " + str(score)
 
                 if len(tmp_str) > 0:
@@ -301,18 +300,15 @@ class Classifier(metaclass=ABCMeta):
                           (suggestion[0], tmp_str))
                     print(sample['sentence'])
                     print("------------------------------------------------------------------------------")
-                # pass
             # All other cases are ignored/skipped
             else:
                 pass
-                # print("skipping:")
-                # print(suggestion)
-                # print("")
 
         return eval_results
 
     @abstractmethod
-    def evaluate_datasplit(self, split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
+    def evaluate_datasplit(self, split: str, num_results: int = 1, eval_mode: str= 'mentions',
+                           empolis_mapping_path: str=None, empolis_distance_threshold: float=0.85):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -335,7 +331,8 @@ class Classifier(metaclass=ABCMeta):
 
             suggestions = self._classify(mention, sentence=sentence, num_results=num_results)
             if mention == "[NIL]" and empolis_mapping is not None:
-                eval_results = self._evaluate_empolis(suggestions, sample, empolis_mapping, eval_results)
+                eval_results = self._evaluate_empolis(suggestions, sample, empolis_mapping, eval_results,
+                                                      empolis_distance_threshold)
             elif mention != "[NIL]":
                 eval_results = self._add_suggestion_to_eval_results(suggestions, sample, eval_results)
 
@@ -439,7 +436,6 @@ class Classifier(metaclass=ABCMeta):
         """
         Public method to extract potential synonyms for a single given entity.
         """
-        # FIXME: put this into the demo
         res, _ = self._get_potential_synonyms(distance_threshold=distance_threshold)
 
         return res.get(entity, {})

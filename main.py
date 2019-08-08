@@ -291,16 +291,19 @@ def hybrid_classifier():
                                   annoy_index_path=annoy_index_path, num_trees=num_trees,
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
-    start = time.time()
-    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
-                                  empolis_mapping_path=empolis_synonym_mapping_path)
-    print("Evaluation took %s" % (time.time() - start))
+    # start = time.time()
+    # classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
+    #                               empolis_mapping_path=empolis_synonym_mapping_path,
+    #                               empolis_distance_threshold=0.75)
+    # print("Evaluation took %s" % (time.time() - start))
     # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
     # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
     # print(classifier.classify(sentence='das ist ein Test mit Salzpflanzen und Flechten.'))
+    print(classifier.get_potential_synonyms(entity='Werkzeugwechsler'))
+    classifier.evaluate_potential_synonyms(empolis_synonym_mapping_path)
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
-    bert_embedding_classifier_main()
+    # bert_embedding_classifier_main()
     # rule_classifier_main()
-    # hybrid_classifier()
+    hybrid_classifier()

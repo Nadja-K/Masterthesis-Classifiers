@@ -87,7 +87,8 @@ class BertEmbeddingClassifier(Classifier):
     def close_session(self):
         self._index.close_session()
 
-    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions', empolis_mapping_path: str=None):
+    def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions',
+                           empolis_mapping_path: str=None, empolis_distance_threshold: float=0.85):
         """
         Evaluate the given datasplit.
         split has to be one of the three: train, test, val.
@@ -96,7 +97,9 @@ class BertEmbeddingClassifier(Classifier):
         self._fill_index(dataset_split)
 
         # The actual evaluation process
-        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode, empolis_mapping_path=empolis_mapping_path)
+        super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode,
+                                   empolis_mapping_path=empolis_mapping_path,
+                                   empolis_distance_threshold=empolis_distance_threshold)
 
     def _classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
