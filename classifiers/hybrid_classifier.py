@@ -177,7 +177,7 @@ class HybridClassifier(Classifier):
                                    empolis_mapping_path=empolis_mapping_path,
                                    empolis_distance_threshold=empolis_distance_threshold)
 
-    def evaluate_potential_synonyms(self, empolis_mapping_path: str):
+    def evaluate_potential_synonyms(self, empolis_mapping_path: str, distance_threshold: float=0.85):
         """
         Evaluate the classifiers ability to predict synonyms given an entity for the whole dataset.
         """
@@ -190,4 +190,5 @@ class HybridClassifier(Classifier):
                                                          'its own without manual classification requests.'
 
         # The actual evaluation process
-        super().evaluate_potential_synonyms(empolis_mapping_path=empolis_mapping_path)
+        super().evaluate_potential_synonyms(empolis_mapping_path=empolis_mapping_path,
+                                            distance_threshold=distance_threshold)

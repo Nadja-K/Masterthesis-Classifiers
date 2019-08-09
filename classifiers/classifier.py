@@ -350,7 +350,7 @@ class Classifier(metaclass=ABCMeta):
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
     @abstractmethod
-    def evaluate_potential_synonyms(self, empolis_mapping_path: str):
+    def evaluate_potential_synonyms(self, empolis_mapping_path: str, distance_threshold: float=0.85):
         """
         Evaluates how well a classifier is able to predict synonyms for the entities of a dataset.
         This has to be done using a different evaluation method because it does not evaluate whether a classifier
@@ -373,7 +373,7 @@ class Classifier(metaclass=ABCMeta):
             del empolis_mapping_synonym_to_entity[synonym]
 
         # Classify all query samples
-        res, identified_mentions = self._get_potential_synonyms()
+        res, identified_mentions = self._get_potential_synonyms(distance_threshold=distance_threshold)
         relevant_synonyms = {}
         for mention in identified_mentions:
             # Check if the mention is known to the Empolis dataset
@@ -420,7 +420,8 @@ class Classifier(metaclass=ABCMeta):
 
                 for suggested_entity, distances in s['suggestions'].items():
                     # Filter out every suggestion that does not meet the distance requirement
-                    if np.average(distances) > distance_threshold:
+                    # if np.average(distances) > distance_threshold:
+                    if np.min(distances) > distance_threshold:
                         continue
 
                     # Store the classification result
