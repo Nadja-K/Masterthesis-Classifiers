@@ -153,6 +153,15 @@ class HybridClassifier(Classifier):
 
     def evaluate_datasplit(self, dataset_split: str, num_results: int = 1, eval_mode: str= 'mentions',
                            empolis_mapping_path: str=None, empolis_distance_threshold: float=0.85):
+        """
+        Public method to evaluate a dataset.
+
+        The empolis dataset is a bit different from the Wikipedia dataset. The distance threshold is
+        only used for limiting entity suggestions of unknown mentions.
+        For all mentions that are known to the empolis dataset, this threshold is not relevant, because for both the
+        hybrid and the bert classifier, only exactly 1 entity is returned per sample. Therefore, it does not matter
+        if a suggestion for which the classifier is unsure is removed or kept (wrong stays wrong).
+        """
         assert num_results == 1, 'NUM_RESULTS should not be set for the hybrid classifier. The number of results is ' \
                                  'already chosen in an appropriate manner for the classifiers incorporated in this' \
                                  'hybrid approach. '
@@ -167,3 +176,18 @@ class HybridClassifier(Classifier):
         super().evaluate_datasplit(dataset_split, num_results=num_results, eval_mode=eval_mode,
                                    empolis_mapping_path=empolis_mapping_path,
                                    empolis_distance_threshold=empolis_distance_threshold)
+
+    def evaluate_potential_synonyms(self, empolis_mapping_path: str):
+        """
+        Evaluate the classifiers ability to predict synonyms given an entity for the whole dataset.
+        """
+        # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropiate version)
+        self._verify_data(dataset_split=self._loaded_datasplit)
+        assert (self._loaded_datasplit == self.rule_classifier._loaded_datasplit ==
+                self.bert_classifier._loaded_datasplit), 'The evaluation could not be performed because one ' \
+                                                         'of the classifiers had a different dataset loaded. ' \
+                                                         'Only run the evaluation on ' \
+                                                         'its own without manual classification requests.'
+
+        # The actual evaluation process
+        super().evaluate_potential_synonyms(empolis_mapping_path=empolis_mapping_path)

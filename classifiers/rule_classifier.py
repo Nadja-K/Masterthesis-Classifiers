@@ -68,6 +68,17 @@ class RuleClassifier(Classifier):
                                    empolis_mapping_path=empolis_mapping_path,
                                    empolis_distance_threshold=empolis_distance_threshold)
 
+    def evaluate_potential_synonyms(self, empolis_mapping_path: str):
+        """
+        Evaluate the classifiers ability to predict synonyms given an entity for the whole dataset.
+        """
+        # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropiate version)
+        self._fill_symspell_dictionaries(dataset_split=self._loaded_datasplit)
+
+        # The actual evaluation process
+        super().evaluate_potential_synonyms(empolis_mapping_path=empolis_mapping_path)
+
+
     def _classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         """

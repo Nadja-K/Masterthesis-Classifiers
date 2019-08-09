@@ -218,9 +218,9 @@ class Evaluator:
         for suggested_entity, mentions in eval_results.items():
             all_identified_mentions = set(mentions.keys())
 
-            tp = relevant_synonyms[suggested_entity].intersection(all_identified_mentions)
-            fp = all_identified_mentions.difference(relevant_synonyms[suggested_entity])
-            fn = relevant_synonyms[suggested_entity].difference(all_identified_mentions)
+            tp = relevant_synonyms.get(suggested_entity, set()).intersection(all_identified_mentions)
+            fp = all_identified_mentions.difference(relevant_synonyms.get(suggested_entity, set()))
+            fn = relevant_synonyms.get(suggested_entity, set()).difference(all_identified_mentions)
 
             print("Entity: %s | Identified mentions: " % (suggested_entity))
             for mention, mention_data in mentions.items():

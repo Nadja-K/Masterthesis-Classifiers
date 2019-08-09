@@ -349,6 +349,7 @@ class Classifier(metaclass=ABCMeta):
         print("\nMicro metrics:"
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
+    @abstractmethod
     def evaluate_potential_synonyms(self, empolis_mapping_path: str):
         """
         Evaluates how well a classifier is able to predict synonyms for the entities of a dataset.
@@ -386,7 +387,7 @@ class Classifier(metaclass=ABCMeta):
                 else:
                     relevant_synonyms[ground_truth_entity].update([mention])
             else:
-                # Remove all mentions that are not relevant for the evaluation
+                # Remove all mentions that are not relevant for the evaluation (aka not known to the empolis data)
                 for entity in res.keys():
                     if mention in res[entity]:
                         del res[entity][mention]
