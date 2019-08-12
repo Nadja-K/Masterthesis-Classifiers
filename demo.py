@@ -128,7 +128,7 @@ def rule_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_dis
         output = classifier.get_potential_synonyms(entity=entity_synonyms,
                                                    distance_threshold=entity_synonyms_distance_threshold)
         for mention, distances in output.items():
-            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances)))
+            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
 
 
 def hybrid_classifier(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
@@ -237,10 +237,13 @@ if __name__ == '__main__':
     else:
         args.sentence = args.sentence[0]
 
-    if len(args.entity_synonyms) > 1:
+    if args.entity_synonyms is not None and len(args.entity_synonyms) > 1:
         args.entity_synonyms = ' '.join(args.entity_synonyms)
-    else:
+    elif args.entity_synonyms is not None:
         args.entity_synonyms = args.entity_synonyms[0]
+
+    args.classifier = 'rule'
+    args.entity_synonyms = 'Lehre'
 
     if args.classifier == 'bert':
         bert_embedding_classifier_main(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)

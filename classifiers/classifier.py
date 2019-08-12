@@ -349,7 +349,7 @@ class Classifier(metaclass=ABCMeta):
         print("\nMicro metrics:"
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
-    @abstractmethod
+    # @abstractmethod
     def evaluate_potential_synonyms(self, empolis_mapping_path: str, distance_threshold: float=0.85):
         """
         Evaluates how well a classifier is able to predict synonyms for the entities of a dataset.
@@ -402,6 +402,7 @@ class Classifier(metaclass=ABCMeta):
         print("\nMicro metrics:"
               "\nPrecision: %.2f%%, Recall: %.2f%%, F1-Score: %.2f%%" % micro)
 
+    @abstractmethod
     def _get_potential_synonyms(self, distance_threshold=0.85):
         """
         Identify potential synonyms in all query sentences and return a dictionary for every entity that is known
@@ -451,6 +452,10 @@ class Classifier(metaclass=ABCMeta):
         Public method to extract potential synonyms for a single given entity.
         """
         res, _ = self._get_potential_synonyms(distance_threshold=distance_threshold)
+
+        # for entity, entity_data in res.items():
+        #     print(entity, entity_data)
+        #     print("-----------------------------")
 
         return res.get(entity, {})
 
