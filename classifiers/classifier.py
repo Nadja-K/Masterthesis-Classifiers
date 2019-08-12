@@ -451,10 +451,11 @@ class Classifier(metaclass=ABCMeta):
         """
         Public method to extract potential synonyms for a single given entity.
         """
-        res, _ = self._get_potential_synonyms(distance_threshold=distance_threshold)
+        res, identified_mentions = self._get_potential_synonyms(distance_threshold=distance_threshold)
 
         # for entity, entity_data in res.items():
-        #     print(entity, entity_data)
+        #     for synonym, synonym_data in entity_data.items():
+        #         print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences']))
         #     print("-----------------------------")
 
         return res.get(entity, {})
