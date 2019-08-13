@@ -227,6 +227,7 @@ class Evaluator:
                 print("%s --- %.4f" % (mention, np.average(mention_data['distances'])))
                 for sentence, distance in zip(mention_data['sentences'], mention_data['distances']):
                     print("%.4f | %s" % (distance, sentence))
+                # print("NN-Sentences:\n %s" % mention_data['nn_sentences'])
             print("-------")
             print("TP | %s" % tp)
             print("FP | %s" % fp)

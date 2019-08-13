@@ -429,17 +429,20 @@ class Classifier(metaclass=ABCMeta):
                     if suggested_entity not in res:
                         res[suggested_entity] = {mention: {
                             'distances': [distances],
-                            'sentences': [sentence]
+                            'sentences': [sentence],
+                            'nn_sentences': [(s.get('nn_sentences', None))]
                         }}
                     else:
                         if mention not in res[suggested_entity]:
                             res[suggested_entity][mention] = {
                                 'distances': [distances],
-                                'sentences': [sentence]
+                                'sentences': [sentence],
+                                'nn_sentences': [(s.get('nn_sentences', None))]
                             }
                         else:
                             res[suggested_entity][mention]['distances'].append(distances)
                             res[suggested_entity][mention]['sentences'].append(sentence)
+                            res[suggested_entity][mention]['nn_sentences'].append((s.get('nn_sentences', None)))
 
         # Resort everything
         for e in res.keys():
@@ -453,9 +456,15 @@ class Classifier(metaclass=ABCMeta):
         """
         res, identified_mentions = self._get_potential_synonyms(distance_threshold=distance_threshold)
 
+        entity = 'Dichtlippe'
+        entity_data = res[entity]
+        for synonym, synonym_data in entity_data.items():
+            print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s | NN-Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences'], synonym_data['nn_sentences']))
+        print("-----------------------------")
+
         # for entity, entity_data in res.items():
         #     for synonym, synonym_data in entity_data.items():
-        #         print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences']))
+        #         print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences'], synonym_data['nn_sentences']))
         #     print("-----------------------------")
 
         return res.get(entity, {})
