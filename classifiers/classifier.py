@@ -456,12 +456,6 @@ class Classifier(metaclass=ABCMeta):
         """
         res, identified_mentions = self._get_potential_synonyms(distance_threshold=distance_threshold)
 
-        entity = 'Dichtlippe'
-        entity_data = res[entity]
-        for synonym, synonym_data in entity_data.items():
-            print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s | NN-Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences'], synonym_data['nn_sentences']))
-        print("-----------------------------")
-
         # for entity, entity_data in res.items():
         #     for synonym, synonym_data in entity_data.items():
         #         print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences'], synonym_data['nn_sentences']))
