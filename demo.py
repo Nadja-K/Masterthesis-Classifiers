@@ -206,6 +206,7 @@ def hybrid_classifier(mention, sentence, entity_synonyms, entity_synonyms_distan
                                                    distance_threshold=entity_synonyms_distance_threshold)
         for mention, distances in output.items():
             print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
+            print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" % (entity_synonyms, mention, np.min(distances['distances']), distances['sentences'], distances['nn_sentences']))
 
 
 if __name__ == '__main__':

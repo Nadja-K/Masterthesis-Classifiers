@@ -5,15 +5,14 @@ from bert.extract_features import convert_lst_to_features
 from bert.bert import BertEncoder
 from classifiers.classifier import Classifier
 
-from typing import List, Tuple, Dict, Union, Set
+from typing import List, Tuple, Union, Set
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
-import re
 import logging
-import numpy as np
 import random
 from scipy import special
 import itertools
+import sys
 
 log = logging.getLogger(__name__)
 
@@ -60,26 +59,25 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, learning_rate,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
         distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
 
-        # return math_ops.reduce_mean(
-        #     math_ops.to_float(labels) * math_ops.log(tf.div(distances, 2.0)) +
-        #     (1. - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0))
-        # )
         return math_ops.reduce_mean(
-            (-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
-            (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)),
+            (-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(tf.math.add(distances,
+                                                                                sys.float_info.epsilon), 2.0)) -
+            (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(tf.math.subtract(distances,
+                                                                                       sys.float_info.epsilon), 2.0)),
             name='cross_entropy_loss'
         )
 
     def improved_contrastive_loss(labels, embeddings_anchor, embeddings_positive, margin=2.0, beta=1.0):
-        # Idea: file:///E:/Eigene%20Dateien/Downloads/sensors-19-01858.pdf
         # Get per pair distances
         distances = tf.reshape(tf.losses.cosine_distance(tf.nn.l2_normalize(embeddings_anchor, dim=1),
                                                          tf.nn.l2_normalize(embeddings_positive, dim=1), axis=1,
                                                          reduction=tf.losses.Reduction.NONE), [-1])
         distances = tf.Print(distances, [distances], message="cosine distances:", summarize=10)
 
-        cross_entropy_loss = ((-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(distances, 2.0)) -
-                              (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(distances, 2.0)))
+        cross_entropy_loss = ((-1. * math_ops.to_float(labels)) * math_ops.log(tf.div(
+                              tf.math.add(distances, sys.float_info.epsilon), 2.0)) -
+                              (1 - math_ops.to_float(labels)) * math_ops.log(1 - tf.div(
+                              tf.math.subtract(distances, sys.float_info.epsilon), 2.0)))
         contrastive_loss = (math_ops.to_float(labels) * math_ops.square(distances) +
                             (1. - math_ops.to_float(labels)) * math_ops.square(math_ops.maximum(margin - distances, 0.)))
 
