@@ -86,7 +86,7 @@ setuptools.setup(
 ## Classification
 In order to classify a query mention (or mention-sentence pair):
 ``` 
-python demo.py --classifier bert --mention Baum --sentence In der Informatik ist ein Baum eine Datenstruktur und ein abstrakter Datentyp.
+python demo.py --classifier hybrid --mention Zielmarkierung --sentence Unter Zielmarkierung versteht man Verfahren zur Markierung meist militärischer Ziele.
 ```
 All relevant options can be configured in the config file.
 Choose one of the three classifiers: bert, rule, hybrid (the token-level classifier is not supported in the demo).
@@ -95,7 +95,7 @@ Furthermore, it is possible to specify a single entity (that has to be known to 
  dataset) for which potential synonyms will be identified including a distance value (a lower distance value is better).
 Example:
 ``` 
-python demo.py --classifier bert --entity_synonyms Ablauf --entity_synonyms_distance_threshold 0.85
+python demo.py --classifier bert --entity_synonyms Mythologie --entity_synonyms_distance_threshold 0.85
 ```
 The entity_synonyms_distance_threshold is an optional parameter thet filters out all results that have a higher 
 distance value.

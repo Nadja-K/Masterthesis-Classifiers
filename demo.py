@@ -18,7 +18,7 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 
 # Config
 config = configparser.ConfigParser()
-config.read("configs/config.ini")
+config.read("configs/remote_config.ini")
 
 # Global config settings that are used for all classifiers
 dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
