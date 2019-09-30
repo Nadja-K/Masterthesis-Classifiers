@@ -13,8 +13,6 @@ def remove_punctuation(s: str) -> str:
     # For every other punctuation symbol (e.g. - or _) we want a space instead
     refactored = refactored.translate(str.maketrans(punctuation_list, ' ' * len(punctuation_list)))
     refactored = " ".join([word for word in refactored.split(" ") if len(word) > 0])
-    # refactored = refactored.translate(str.maketrans(self._punctuation_list, ' ' * len(self._punctuation_list)))\
-    #     .replace(' ' * 4, '').replace(' ' * 3, '').replace(' ' * 2, '').strip()
 
     return refactored
 
@@ -42,7 +40,6 @@ def split_compounds(s: str, prop_threshold: float=0.5) -> List[str]:
         split_res = char_split.split_compound(s)[0]
         probability = split_res[0]
         split = split_res[1:]
-    # compounds = [split.strip().lower() for split in split]
     compounds = [split.strip() for split in split]
 
     if probability >= prop_threshold:

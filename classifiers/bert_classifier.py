@@ -115,9 +115,6 @@ class BertEmbeddingClassifier(Classifier):
             Union[Dict[str, Dict[str, Union[float, int]]], List[Tuple[str, Dict[str, Dict[str, Union[float, int]]]]]]:
         assert sentence != "[NIL]", "The BERT-based classifier requires at least a sentence in which potential " \
                                     "mentions can be identified for the classification."
-        # multiple mentions have been identified prior for the query sentence - only calculate the token embeddings
-        # of the sentence once.
-
         # If no mention has been provided, identify potential ones in the sentence.
         if mentions == "[NIL]":
             mentions = self._identify_potential_mentions(sentence)
@@ -126,6 +123,8 @@ class BertEmbeddingClassifier(Classifier):
         if multi_mentions is False:
             mentions = [mentions]
 
+        # multiple mentions have been identified prior for the query sentence - only calculate the token embeddings
+        # of the sentence once.
         token_embeddings, token_mapping = self._index.get_token_embeddings(sentence)
 
         all_suggestions = []

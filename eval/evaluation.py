@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, Dict, Union, List, Set
+from typing import NamedTuple, Tuple, Dict, Union, List
 
 import logging
 import sys
@@ -200,12 +200,6 @@ class Evaluator:
         elif eval_mode == 'samples':
             scores = self._evaluate_samples(eval_results)
 
-        # FIXME: remove this again later
-        print("%s\n%s\n%s" % (self._tp, self._fp, self._fn))
-        print(self._top1_accuracy)
-        print("%s\n%s\n%s" % (self._macro_precision, self._macro_recall, self._macro_f1_score))
-        print("%s\n%s\n%s" % (self._micro_precision, self._micro_recall, self._micro_f1_score))
-
         return scores
 
     def evaluate_empolis_synonyms(self, eval_results, relevant_synonyms):
@@ -228,11 +222,6 @@ class Evaluator:
                 for sentence, distance in zip(mention_data['sentences'], mention_data['distances']):
                     print("%.4f | %s" % (distance, sentence))
                 # print("NN-Sentences:\n %s" % mention_data['nn_sentences'])
-            print("-------")
-            print("TP | %s" % tp)
-            print("FP | %s" % fp)
-            print("FN | %s" % fn)
-            print("---------------------")
 
             tp = len(tp)
             fp = len(fp)

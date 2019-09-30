@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 from nltk import SnowballStemmer
 from nltk.corpus import stopwords
-from typing import List, Set, Tuple
+from typing import List, Tuple
 
 from symspellpy.symspellpy import SymSpell, Verbosity, SuggestItem
 from utils.utils import split_compounds, remove_punctuation
@@ -245,7 +245,6 @@ class HeuristicAbbreviationsCompounds(HeuristicPunctuation):
         The abbreviation heuristic only uses the original mention instead of a previously refactored mention.
         This is because previous refactoring might affect the compound splitting.
         """
-        mention = str(mention)
         original_mention = str(original_mention)
 
         # Case1: the mention is the abbreviation, the original entity is not known as abbreviation

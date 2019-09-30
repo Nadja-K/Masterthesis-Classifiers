@@ -254,9 +254,6 @@ class Classifier(metaclass=ABCMeta):
         entity = sample['entity_title']
         mention = sample['mention']
 
-        # FIXME: comment out, only relevant for debugging purposes to check nn sentences and missed sentences
-        # self._debug_info(suggestions, entity, mention, sentence)
-
         if 'sentence' not in suggestions:
             suggestions['sentence'] = sample['sentence']
 
@@ -421,7 +418,6 @@ class Classifier(metaclass=ABCMeta):
 
                 for suggested_entity, distances in s['suggestions'].items():
                     # Filter out every suggestion that does not meet the distance requirement
-                    # if np.average(distances) > distance_threshold:
                     if np.min(distances) > distance_threshold:
                         continue
 
@@ -455,11 +451,6 @@ class Classifier(metaclass=ABCMeta):
         Public method to extract potential synonyms for a single given entity.
         """
         res, identified_mentions = self._get_potential_synonyms(distance_threshold=distance_threshold)
-
-        # for entity, entity_data in res.items():
-        #     for synonym, synonym_data in entity_data.items():
-        #         print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" % (entity, synonym, np.min(synonym_data['distances']), synonym_data['sentences'], synonym_data['nn_sentences']))
-        #     print("-----------------------------")
 
         return res.get(entity, {})
 

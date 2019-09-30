@@ -27,7 +27,6 @@ import copy
 import json
 import math
 import re
-import numpy as np
 import six
 import tensorflow as tf
 

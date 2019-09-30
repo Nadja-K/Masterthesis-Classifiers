@@ -2,7 +2,7 @@ from classifiers.classifier import Classifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
 from utils.heuristics import *
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Set
 import operator
 
 
