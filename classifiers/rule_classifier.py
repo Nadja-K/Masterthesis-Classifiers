@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, Set
 
 from classifiers.classifier import Classifier
 from utils.heuristics import *

@@ -7,7 +7,6 @@ import argparse
 from configs.logging_config import logging_config
 from logging.config import dictConfig
 import ast
-import os
 
 from classifiers.hybrid_classifier import HybridClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
@@ -25,8 +24,8 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 
 # Config
 config = configparser.ConfigParser()
-config.read("configs/config.ini")
-# config.read("configs/remote_config.ini")
+# config.read("configs/config.ini")
+config.read("configs/remote_config.ini")
 
 # Global config settings that are used for all classifiers
 dataset_db_name = config['DATASET'].get('DATASET_DATABASE_NAME', '')
@@ -92,11 +91,8 @@ def bert_embedding_classifier_main():
     start = time.time()
     classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode,
                                   empolis_mapping_path=empolis_synonym_mapping_path)
+    # classifier.evaluate_potential_synonyms(empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
-
-    # print(classifier.classify(sentence='das ist ein Test mit Salzpflanzen und Flechten.'))
-    # print(classifier.classify("Flechten"))
-    # print(classifier.classify())
 
     # Necessary to close the tensorflow session
     classifier.close_session()
@@ -139,12 +135,9 @@ def token_level_embedding_classifier_main():
                                                compound_splitting_threshold=compound_splitting_threshold,
                                                distance_allowance=distance_allowance)
     start = time.time()
-    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode)
+    classifier.evaluate_datasplit(args.dataset_split, num_results=num_results, eval_mode=args.eval_mode,
+                                  empolis_mapping_path=empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
-
-    # print(classifier.classify(sentence='das ist ein Test mit Salzpflanzen und Flechten.'))
-    # print(classifier.classify("Flechten"))
-    # print(classifier.classify())
 
 
 def rule_classifier_main():
@@ -169,26 +162,28 @@ def rule_classifier_main():
     parser.add_argument('--dataset_split', nargs='?', type=str, default=dataset_split)
     parser.add_argument('--skip_trivial_samples', nargs='?', type=lambda x:ast.literal_eval(x), default=skip_trivial_samples)
     parser.add_argument('--eval_mode', nargs='?', type=str, default=eval_mode)
+    parser.add_argument('--max_edit_distance_dictionary', nargs='?', type=int, default=max_edit_distance_dictionary)
+    parser.add_argument('--prefix_length', nargs='?', type=int, default=prefix_length)
     args = parser.parse_args()
     print(args)
 
     # Create heuristic objects
-    original_heuristic = HeuristicOriginal(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    corporate_forms_heuristic = HeuristicCorporateForms(max_edit_distance_dictionary, prefix_length, count_threshold,
+    original_heuristic = HeuristicOriginal(args.max_edit_distance_dictionary, args.prefix_length, count_threshold, compact_level)
+    corporate_forms_heuristic = HeuristicCorporateForms(args.max_edit_distance_dictionary, args.prefix_length, count_threshold,
                                                         compact_level, corporate_forms_list)
-    brackets_heuristic = HeuristicBrackets(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    punctuation_heuristic = HeuristicPunctuation(max_edit_distance_dictionary, prefix_length, count_threshold,
+    brackets_heuristic = HeuristicBrackets(args.max_edit_distance_dictionary, args.prefix_length, count_threshold, compact_level)
+    punctuation_heuristic = HeuristicPunctuation(args.max_edit_distance_dictionary, args.prefix_length, count_threshold,
                                                  compact_level)
-    lowercasing_heuristic = HeuristicLowercasing(max_edit_distance_dictionary, prefix_length, count_threshold,
+    lowercasing_heuristic = HeuristicLowercasing(args.max_edit_distance_dictionary, args.prefix_length, count_threshold,
                                                  compact_level)
-    stemming_heuristic = HeuristicStemming(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    stopword_heuristic = HeuristicStopwords(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
-    sort_heuristic = HeuristicSort(max_edit_distance_dictionary, prefix_length, count_threshold, compact_level)
+    stemming_heuristic = HeuristicStemming(args.max_edit_distance_dictionary, args.prefix_length, count_threshold, compact_level)
+    stopword_heuristic = HeuristicStopwords(args.max_edit_distance_dictionary, args.prefix_length, count_threshold, compact_level)
+    sort_heuristic = HeuristicSort(args.max_edit_distance_dictionary, args.prefix_length, count_threshold, compact_level)
     abbreviation_compounds_heuristic = HeuristicAbbreviationsCompounds(abbreviations_max_edit_distance_dictionary,
-                                                                       prefix_length, count_threshold, compact_level,
+                                                                       args.prefix_length, count_threshold, compact_level,
                                                                        compound_splitter_sensitivity)
     abbreviation_spaces_heuristic = HeuristicAbbreviationsSpaces(abbreviations_max_edit_distance_dictionary,
-                                                                 prefix_length, count_threshold, compact_level)
+                                                                 args.prefix_length, count_threshold, compact_level)
 
     # The order of the heuristics in this list matters because each heuristic will use the previous refactored string
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
@@ -197,11 +192,15 @@ def rule_classifier_main():
     # heuristic_list = [original_heuristic]
 
     # Classifier
+    start = time.time()
     classifier = RuleClassifier(heuristic_list, args.dataset_db_name, args.dataset_split, split_table_name,
-                                args.skip_trivial_samples, False)
+                                args.skip_trivial_samples, True)
+
+    print("Indexing took %s" % (time.time() - start))
     start = time.time()
     classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
                                   empolis_mapping_path=empolis_synonym_mapping_path)
+    # classifier.evaluate_potential_synonyms(empolis_synonym_mapping_path)
     print("Evaluation took %s" % (time.time() - start))
 
 
@@ -276,9 +275,6 @@ def hybrid_classifier():
     heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
                       stemming_heuristic, stopword_heuristic, sort_heuristic, abbreviation_compounds_heuristic,
                       abbreviation_spaces_heuristic]
-    # heuristic_list = [brackets_heuristic, punctuation_heuristic, corporate_forms_heuristic, lowercasing_heuristic,
-    #                   stemming_heuristic, stopword_heuristic, sort_heuristic]
-    # heuristic_list = [original_heuristic]
 
     # Classifier
     classifier = HybridClassifier(heuristics=heuristic_list, dataset_db_name=args.dataset_db_name,
@@ -291,16 +287,12 @@ def hybrid_classifier():
                                   annoy_index_path=annoy_index_path, num_trees=num_trees,
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
-    # start = time.time()
-    # classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
-    #                               empolis_mapping_path=empolis_synonym_mapping_path,
-    #                               empolis_distance_threshold=0.75)
-    # print("Evaluation took %s" % (time.time() - start))
-    # print(classifier.classify("test", "das ist ein test mit Salzpflanzen und Flechten."))
-    # print(classifier.classify(['test', 'Salzpflanzen', 'Flechten'], 'das ist ein test mit Salzpflanzen und Flechten.'))
-    # print(classifier.classify(sentence='das ist ein Test mit Salzpflanzen und Flechten.'))
-    print(classifier.get_potential_synonyms(entity='Werkzeugwechsler'))
-    classifier.evaluate_potential_synonyms(empolis_synonym_mapping_path)
+    start = time.time()
+    classifier.evaluate_datasplit(args.dataset_split, eval_mode=args.eval_mode,
+                                  empolis_mapping_path=empolis_synonym_mapping_path,
+                                  empolis_distance_threshold=0.75)
+    # classifier.evaluate_potential_synonyms(empolis_synonym_mapping_path)
+    print("Evaluation took %s" % (time.time() - start))
 
 if __name__ == '__main__':
     # token_level_embedding_classifier_main()
