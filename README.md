@@ -17,19 +17,21 @@ Classifiers
 ```
 
 ## Setup
+Python version: 3.7
+
 Install dependencies:
 ```sh 
 pip install -r requirements.txt
 ```
 
-Install sent2vec:
+Install Sent2Vec:
 ```sh 
 pip install git+https://github.com/epfml/sent2vec.git
 ```
 
 Install CharSplit:
 Follow the instructions [below](###CharSplit) to install the module.
-Add the trained ```ngram_prob.py``` model from the original git repo to the classifier [directory structure](##Directory structure)
+Add the trained ```ngram_prob.py``` model from the original Sent2Vec git repo to the classifier [directory structure](##Directory structure).
  
 Download the nltk punkt sentence tokenizer: 
 ```
@@ -42,6 +44,18 @@ Download a German spacy model:
 ``` 
 python -m spacy download de_core_news_sm
 ```
+
+Download a pre-trained BERT model from [here](https://github.com/google-research/bert).
+This should include three files which should be added to the folder hierarchy as follows:
+```
+../bert/models/vocab.txt
+../bert/models/bert_config.json
+../bert/models/bert_model.ckpt
+``` 
+
+Finally, make sure the paths in the provided config file are set correctly. 
+Otherwise please update the config file accordingly.
+
 
 ### CharSplit Setup
 In order to install CharSplit as a module with ```pip install .```, first clone the 
