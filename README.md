@@ -56,6 +56,13 @@ This should include three files which should be added to the folder hierarchy as
 Finally, make sure the paths in the provided config file are set correctly. 
 Otherwise please update the config file accordingly.
 
+Note: A dataset database needs to be added to the folder hierarchy as follows:
+``` 
+../data/databases/dataset_name.db
+```
+Please ensure a dataset is provided in the folder specified in the config file. 
+Otherwise the config file needs to be updated. 
+To generate your own dataset please refer to the ```Data``` generation code, which is provided separately.
 
 ### CharSplit Setup
 In order to install CharSplit as a module with ```pip install .```, first clone the 
