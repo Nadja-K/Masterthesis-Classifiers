@@ -106,12 +106,12 @@ setuptools.setup(
 ```
 
 ## Demo
-In order to classify a query mention (or mention-sentence pair):
+In order to classify a query mention (or mention-sentence pair) run the following code:
 ``` 
 python demo.py --classifier hybrid --mention Zielmarkierung --sentence Unter Zielmarkierung versteht man Verfahren zur Markierung meist militärischer Ziele.
 ```
 Choose one of the four classifiers: bert, rule, hybrid, token.
-For the token-level and BERT classifier, an additional parameter can be specified: ```--num_results```
+For the token-level and BERT classifier, an additional parameter can be specified: ```--num_results```.
 The rule-based and hybrid classifier do NOT support this parameter. 
 The rule-based classifier will always return all entities that share the lowest distance.
 The hybrid classifier on the other hand always returns exactly one entity.
