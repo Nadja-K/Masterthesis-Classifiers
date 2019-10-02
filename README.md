@@ -116,7 +116,7 @@ The rule-based and hybrid classifier do NOT support this parameter.
 The rule-based classifier will always return all entities that share the lowest distance.
 The hybrid classifier on the other hand always returns exactly one entity.
 Finally, it should be noted that it is possible for the token-level and BERT classifier to return less than [num_results]
-entities if an entity has been suggested multiple times. In this case, the entity is only suggested once with the 
+entities if an entity has been suggested multiple times. In this case, the entity is only returned once with the 
 lowest distance value.
 The remaining options can be configured in the config file.
 
