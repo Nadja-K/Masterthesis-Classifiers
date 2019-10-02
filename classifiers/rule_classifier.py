@@ -129,7 +129,8 @@ class RuleClassifier(Classifier):
 
         return all_suggestions
 
-    def classify(self, mentions: Union[str, List[str]] = "[NIL]", sentence: str = "[NIL]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
+    def classify(self, mentions: Union[str, List[str]] = "[NIL]", sentence: str = "[NIL]", num_results: int=1) -> \
+            Union[Set[str], List[Tuple[str, Set[str]]], Dict[str, float]]:
         """
         Public classify method that users can use to classify a given string based on the defined split.
         If the symspell dictionaries have not been filled yet or have been filled with a different split, they will be
@@ -140,13 +141,17 @@ class RuleClassifier(Classifier):
         # Fill the symspell dictionaries of all heuristics for all entities (or rather their appropriate version)
         self._fill_symspell_dictionaries(dataset_split=self._loaded_datasplit)
 
-        suggestions = self._classify(mentions, sentence)
-
+        suggestions = self._classify(mentions, sentence, num_results=num_results)
         if isinstance(mentions, List) is False and mentions != "[NIL]":
-            return set(suggestions['suggestions'].keys())
+            res = {}
+            for suggested_entity, distance in suggestions['suggestions'].items():
+                if suggested_entity not in res.keys() or distance < res[suggested_entity]:
+                    res[suggested_entity] = distance
+
+            return res
         else:
             res = []
             for (mention, mention_suggestions) in suggestions:
-                res.append((mention, set(mention_suggestions['suggestions'].keys())))
+                res.append((mention, mention_suggestions['suggestions']))
 
             return res

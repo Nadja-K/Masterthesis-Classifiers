@@ -220,7 +220,8 @@ class Classifier(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]") -> Union[Set[str], List[Tuple[str, Set[str]]]]:
+    def classify(self, mentions: Union[str, List[str]]="[NIL]", sentence: str="[NIL]", num_results: int=1) -> \
+            Union[Set[str], List[Tuple[str, Set[str]]], Dict[str, float]]:
         """
         Public classify method that users can use to classify a given string including some sort of similarity measure.
         """

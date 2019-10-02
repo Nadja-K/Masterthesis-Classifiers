@@ -8,6 +8,7 @@ from logging.config import dictConfig
 
 from classifiers.hybrid_classifier import HybridClassifier
 from classifiers.bert_classifier import BertEmbeddingClassifier
+from classifiers.token_classifier import TokenLevelEmbeddingClassifier
 from classifiers.rule_classifier import RuleClassifier
 from classifiers.rule_classifier import HeuristicPunctuation, HeuristicStemming, HeuristicSort, HeuristicStopwords, \
     HeuristicAbbreviationsCompounds, HeuristicAbbreviationsSpaces, HeuristicBrackets, \
@@ -31,7 +32,61 @@ eval_mode = config['EVALUATION'].get('MODE', 'mentions')
 assert eval_mode in ['mentions', 'samples']
 
 
-def bert_embedding_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
+def token_level_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold, num_results):
+    # Settings
+    embedding_model_path = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].get('EMBEDDING_MODEL_PATH', None)
+    annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
+    num_trees = config['ANNOY'].getint('NUM_TREES', 30)
+    annoy_index_path = config['ANNOY'].get('ANNOY_INDEX_PATH', None)
+    annoy_output_dir = config['ANNOY'].get('ANNOY_OUTPUT_DIR', '')
+    use_compound_splitting = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getboolean('USE_COMPOUND_SPLITTING', False)
+    compound_splitting_threshold = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('COMPOUND_SPLITTING_THRESHOLD', 0.5)
+    distance_allowance = config['EMBEDDINGCLASSIFIER_TOKENLEVEL'].getfloat('DISTANCE_ALLOWANCE', None)
+
+    # Logging
+    logging_config['handlers']['fileHandler']['filename'] = logging_config['handlers']['fileHandler'][
+                                                                'filename'].split(".")[0] + "_token_level_embedding.log"
+    dictConfig(logging_config)
+
+    # Classifier
+    classifier = TokenLevelEmbeddingClassifier(dataset_db_name=dataset_db_name, dataset_split=dataset_split,
+                                               split_table_name=split_table_name,
+                                               embedding_model_path=embedding_model_path, annoy_metric=annoy_metric,
+                                               num_trees=num_trees, annoy_index_path=annoy_index_path,
+                                               annoy_output_dir=annoy_output_dir,
+                                               skip_trivial_samples=skip_trivial_samples,
+                                               use_compound_splitting=use_compound_splitting,
+                                               compound_splitting_threshold=compound_splitting_threshold,
+                                               distance_allowance=distance_allowance)
+
+    if entity_synonyms is None:
+        res = classifier.classify(mentions=mention, sentence=sentence, num_results=num_results)
+        # If no mention has been specified, only a sentence
+        if mention == "[NIL]":
+            for mention, suggestions in res:
+                if len(suggestions) == 0:
+                    print("No suitable entities found for the mention %s" % mention)
+                else:
+                    for entity, distance in suggestions.items():
+                        print("Mention: %s | Entity: %s | Distance: %.2f" % (mention, entity, distance))
+        # If a mention has been specified
+        else:
+            if len(res.keys()) == 0:
+                print("No suitable entities found.")
+            else:
+                for entity, distance in res.items():
+                    print("Entity: %s | Distance: %.2f" % (entity, distance))
+    else:
+        output = classifier.get_potential_synonyms(entity=entity_synonyms,
+                                                   distance_threshold=entity_synonyms_distance_threshold)
+        if len(output) == 0:
+            print("No suitable synonyms found.")
+        else:
+            for mention, distances in output.items():
+                print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
+
+
+def bert_embedding_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold, num_results):
     # Settings
     annoy_metric = config['ANNOY'].get('ANNOY_METRIC', 'euclidean')
     num_trees = config['ANNOY'].getint('NUM_TREES', 30)
@@ -48,7 +103,6 @@ def bert_embedding_classifier_main(mention, sentence, entity_synonyms, entity_sy
     use_one_hot_embeddings = config['EMBEDDINGCLASSIFIER_BERT'].get('USE_ONE_HOT_EMBEDDINGS', False)
 
     bert_distance_allowance = config['EMBEDDINGCLASSIFIER_BERT'].getfloat('DISTANCE_ALLOWANCE', None)
-    num_results = config['EMBEDDINGCLASSIFIER_BERT'].getint('NUM_RESULTS', 1)
 
     # Logging
     dataset = dataset_db_name.split("/")[-1].split(".")[0]
@@ -69,12 +123,30 @@ def bert_embedding_classifier_main(mention, sentence, entity_synonyms, entity_sy
                                          distance_allowance=bert_distance_allowance)
 
     if entity_synonyms is None:
-        print(classifier.classify(mentions=mention, sentence=sentence))
+        res = classifier.classify(mentions=mention, sentence=sentence, num_results=num_results)
+        # If no mention has been specified, only a sentence
+        if mention == "[NIL]":
+            for mention, suggestions in res:
+                if len(suggestions) == 0:
+                    print("No suitable entities found for the mention %s" % mention)
+                else:
+                    for entity, distance in suggestions.items():
+                        print("Mention: %s | Entity: %s | Distance: %.2f" % (mention, entity, distance))
+        # If a mention has been specified
+        else:
+            if len(res.keys()) == 0:
+                print("No suitable entities found.")
+            else:
+                for entity, distance in res.items():
+                    print("Entity: %s | Distance: %.2f" % (entity, distance))
     else:
         output = classifier.get_potential_synonyms(entity=entity_synonyms,
                                                    distance_threshold=entity_synonyms_distance_threshold)
-        for mention, distances in output.items():
-            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
+        if len(output) == 0:
+            print("No suitable synonyms found.")
+        else:
+            for mention, distances in output.items():
+                print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
 
     # Necessary to close the tensorflow session
     classifier.close_session()
@@ -123,12 +195,30 @@ def rule_classifier_main(mention, sentence, entity_synonyms, entity_synonyms_dis
                                 skip_trivial_samples, False)
 
     if entity_synonyms is None:
-        print(classifier.classify(mentions=mention, sentence=sentence))
+        res = classifier.classify(mentions=mention, sentence=sentence)
+        # If no mention has been specified, only a sentence
+        if mention == "[NIL]":
+            for mention, suggestions in res:
+                if len(suggestions) == 0:
+                    print("No suitable entities found for the mention %s" % mention)
+                else:
+                    for entity, distance in suggestions.items():
+                        print("Mention: %s | Entity: %s | Distance: %.2f" % (mention, entity, distance))
+        # If a mention has been specified
+        else:
+            if len(res.keys()) == 0:
+                print("No suitable entities found.")
+            else:
+                for entity, distance in res.items():
+                    print("Entity: %s | Distance: %.2f" % (entity, distance))
     else:
         output = classifier.get_potential_synonyms(entity=entity_synonyms,
                                                    distance_threshold=entity_synonyms_distance_threshold)
-        for mention, distances in output.items():
-            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
+        if len(output) == 0:
+            print("No suitable synonyms found.")
+        else:
+            for mention, distances in output.items():
+                print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
 
 
 def hybrid_classifier(mention, sentence, entity_synonyms, entity_synonyms_distance_threshold):
@@ -200,18 +290,38 @@ def hybrid_classifier(mention, sentence, entity_synonyms, entity_synonyms_distan
                                   annoy_output_dir=annoy_output_dir, distance_allowance=bert_distance_allowance)
 
     if entity_synonyms is None:
-        print(classifier.classify(mentions=mention, sentence=sentence))
+        res = classifier.classify(mentions=mention, sentence=sentence)
+        # If no mention has been specified, only a sentence
+        if mention == "[NIL]":
+            for mention, suggestions in res:
+                if len(suggestions) == 0:
+                    print("No suitable entities found for the mention %s" % mention)
+                else:
+                    for entity, distance in suggestions.items():
+                        print("Mention: %s | Entity: %s | Distance: %.2f" % (mention, entity, distance))
+        # If a mention has been specified
+        else:
+            if len(res.keys()) == 0:
+                print("No suitable entities found.")
+            else:
+                for entity, distance in res.items():
+                    print("Entity: %s | Distance: %.2f" % (entity, distance))
     else:
         output = classifier.get_potential_synonyms(entity=entity_synonyms,
                                                    distance_threshold=entity_synonyms_distance_threshold)
-        for mention, distances in output.items():
-            print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
-            print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" % (entity_synonyms, mention, np.min(distances['distances']), distances['sentences'], distances['nn_sentences']))
+        if len(output) == 0:
+            print("No suitable synonyms found.")
+        else:
+            for mention, distances in output.items():
+                print("Mention: %s | Avg. distance: %.2f" % (mention, np.average(distances['distances'])))
+            # print("Entity: %s | Synonym: %s | Min. dist.: %.2f | Sentences: %s || NN-Sentences: %s" %
+            #       (entity_synonyms, mention, np.min(distances['distances']),
+            #        distances['sentences'], distances['nn_sentences']))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--classifier', nargs='?', type=str, default='rule', choices=['bert', 'rule', 'hybrid'])
+    parser.add_argument('--classifier', nargs='?', type=str, default='rule', choices=['bert', 'rule', 'hybrid', 'token'])
     parser.add_argument('--entity_synonyms', nargs='*', type=str, default=None,
                         help="Enter an entity for which a ranked list of synonyms should be returned. If this "
                              "parameter is set, the --mention and --sentence parameter will be ignored.")
@@ -226,6 +336,7 @@ if __name__ == '__main__':
                              "will be returned or b) if the --mention parameter is set with a mention that can be "
                              "found in the provided sentence, an entity will be returned as classification result "
                              "for the provided mention based on the context given with the sentence.")
+    parser.add_argument('--num_results', nargs='?', type=int, default=1)
     args = parser.parse_args()
 
     if len(args.mention) > 1:
@@ -244,8 +355,14 @@ if __name__ == '__main__':
         args.entity_synonyms = args.entity_synonyms[0]
 
     if args.classifier == 'bert':
-        bert_embedding_classifier_main(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)
+        bert_embedding_classifier_main(args.mention, args.sentence, args.entity_synonyms,
+                                       args.entity_synonyms_distance_threshold, args.num_results)
     elif args.classifier == 'rule':
-        rule_classifier_main(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)
+        rule_classifier_main(args.mention, args.sentence, args.entity_synonyms,
+                             args.entity_synonyms_distance_threshold)
     elif args.classifier == 'hybrid':
-        hybrid_classifier(args.mention, args.sentence, args.entity_synonyms, args.entity_synonyms_distance_threshold)
+        hybrid_classifier(args.mention, args.sentence, args.entity_synonyms,
+                          args.entity_synonyms_distance_threshold)
+    elif args.classifier == 'token':
+        token_level_classifier_main(args.mention, args.sentence, args.entity_synonyms,
+                                    args.entity_synonyms_distance_threshold, args.num_results)
