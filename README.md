@@ -104,19 +104,26 @@ setuptools.setup(
 )
 ```
 
-## Classification
+## Demo
 In order to classify a query mention (or mention-sentence pair):
 ``` 
 python demo.py --classifier hybrid --mention Zielmarkierung --sentence Unter Zielmarkierung versteht man Verfahren zur Markierung meist militärischer Ziele.
 ```
-All relevant options can be configured in the config file.
-Choose one of the three classifiers: bert, rule, hybrid (the token-level classifier is not supported in the demo).
+Choose one of the four classifiers: bert, rule, hybrid, token.
+For the token-level and BERT classifier, an additional parameter can be specified: ```--num_results```
+The rule-based and hybrid classifier do NOT support this parameter. 
+The rule-based classifier will always return all entities that share the lowest distance.
+The hybrid classifier on the other hand always returns exactly one entity.
+Finally, it should be noted that it is possible for the token-level and BERT classifier to return less than [num_results]
+entities if an entity has been suggested multiple times. In this case, the entity is only suggested once with the 
+lowest distance value.
+The remaining options can be configured in the config file.
 
 Furthermore, it is possible to specify a single entity (that has to be known to the classifier based on the provided
  dataset) for which potential synonyms will be identified including a distance value (a lower distance value is better).
 Example:
 ``` 
-python demo.py --classifier bert --entity_synonyms Mythologie --entity_synonyms_distance_threshold 0.85
+python demo.py --classifier hybrid --entity_synonyms Mythologie --entity_synonyms_distance_threshold 0.85
 ```
-The entity_synonyms_distance_threshold is an optional parameter thet filters out all results that have a higher 
+The entity_synonyms_distance_threshold is an optional parameter that filters out all results with a higher 
 distance value.
