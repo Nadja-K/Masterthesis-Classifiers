@@ -11,6 +11,7 @@ Classifiers
 ├── utils                       # Tools and utilities, including the annoy index class and heuristics
 ├── main.py                     
 ├── main_train.py               
+├── demo.py                     
 ├── ngram_probs.py              # Trained CharSplit model
 ├── README.md                   
 └── requirements.txt
